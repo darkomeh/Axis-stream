@@ -1,0 +1,209 @@
+import { useEffect, useState, useRef, useCallback } from "react";
+import { movieService } from "../services/movieService";
+import { HomepageData, MediaItem } from "../types";
+import Carousel from "../components/Carousel";
+import PosterGrid from "../components/PosterGrid";
+import TopTenGrid from "../components/TopTenGrid";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
+import PopcornLoader from "../components/PopcornLoader";
+import { useAuth } from "../contexts/AuthContext";
+import { Loader2 } from "lucide-react";
+
+import { ErrorMessage } from "../components/ErrorMessage";
+
+export default function Home() {
+  const [homepageData, setHomepageData] = useState<HomepageData | null>(null);
+  const [trending, setTrending] = useState<MediaItem[]>([]);
+  const [hotMovies, setHotMovies] = useState<MediaItem[]>([]);
+  const [hotSeries, setHotSeries] = useState<MediaItem[]>([]);
+  const [recommendations, setRecommendations] = useState<MediaItem[]>([]);
+  const [popularSearches, setPopularSearches] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { user, history } = useAuth();
+
+  // Infinite scroll for "Discover More"
+  const [discoverItems, setDiscoverItems] = useState<MediaItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const observer = useRef<IntersectionObserver | null>(null);
+
+  const lastElementRef = useCallback((node: HTMLDivElement) => {
+    if (loadingMore) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setPage(prevPage => prevPage + 1);
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [loadingMore, hasMore]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [home, trend, hot, popular] = await Promise.all([
+        movieService.getHomepage(),
+        movieService.getTrending(),
+        movieService.getHot(),
+        movieService.getPopularSearch()
+      ]);
+
+      setHomepageData(home);
+      setTrending(trend);
+      setHotMovies(hot.movies);
+      setHotSeries(hot.series);
+      setPopularSearches(popular);
+
+      const lastViewedId = localStorage.getItem('axis_last_viewed_id');
+      if (lastViewedId) {
+        try {
+          const recs = await movieService.getRecommendations(lastViewedId);
+          setRecommendations(recs);
+        } catch (e) {
+          console.error("Failed to load recommendations", e);
+        }
+      }
+
+      // Initial discover items
+      try {
+        const discover = await movieService.browse(undefined, undefined, 1);
+        setDiscoverItems(discover);
+        setHasMore(discover.length > 0);
+      } catch (e) {
+        console.error("Failed to load discover items", e);
+      }
+    } catch (err) {
+      console.error("Error loading homepage:", err);
+      setError("Failed to load content. Please check your internet connection and try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    if (page === 1 || !hasMore) return;
+
+    const loadMore = async () => {
+      try {
+        setLoadingMore(true);
+        const data = await movieService.browse(undefined, undefined, page);
+        if (data.length === 0) {
+          setHasMore(false);
+        } else {
+          setDiscoverItems(prev => [...prev, ...data]);
+        }
+      } catch (err) {
+        console.error("Error loading more discover items:", err);
+      } finally {
+        setLoadingMore(false);
+      }
+    };
+
+    loadMore();
+  }, [page, hasMore]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#050505]">
+        <PopcornLoader />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#050505] text-white">
+        <ErrorMessage message={error} onRetry={loadData} />
+      </div>
+    );
+  }
+
+  const carouselItems = trending.slice(0, 6);
+
+  return (
+    <div className="min-h-screen bg-[#050505] text-white pb-20">
+      <Navbar />
+      
+      <Carousel items={carouselItems} />
+      
+      <div className="relative z-10 -mt-10 md:-mt-20 space-y-12 md:space-y-20 pb-20">
+        {user && history.length > 0 && (
+          <TopTenGrid title="Continue Watching" items={history.slice(0, 10)} showNumbers={false} />
+        )}
+
+        {trending.length > 0 && (
+          <TopTenGrid title="Top 10 Trending Today" items={trending.slice(6, 16)} />
+        )}
+
+        {recommendations.length > 0 && (
+          <PosterGrid title="Because You Watched" items={recommendations.slice(0, 12)} />
+        )}
+
+        {popularSearches.length > 0 && (
+          <div className="px-6 lg:px-12">
+            <h2 className="text-2xl font-bold mb-6">Popular Searches</h2>
+            <div className="flex flex-wrap gap-3">
+              {popularSearches.slice(0, 10).map((search, idx) => (
+                <a 
+                  key={idx} 
+                  href={`/search?q=${encodeURIComponent(search)}`}
+                  className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-sm transition-colors"
+                >
+                  {search}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {homepageData?.latestMovies && homepageData.latestMovies.length > 0 && (
+          <PosterGrid title="Latest Movies" items={homepageData.latestMovies.slice(0, 12)} viewAllLink="/browse?type=1" />
+        )}
+        
+        {homepageData?.latestSeries && homepageData.latestSeries.length > 0 && (
+          <PosterGrid title="Latest Series" items={homepageData.latestSeries.slice(0, 12)} viewAllLink="/browse?type=2" />
+        )}
+        
+        {hotMovies.length > 0 && (
+          <PosterGrid title="Hot Movies" items={hotMovies.slice(0, 12)} />
+        )}
+        
+        {hotSeries.length > 0 && (
+          <PosterGrid title="Hot Series" items={hotSeries.slice(0, 12)} />
+        )}
+
+        {homepageData?.operatingList?.map((section: any, idx: number) => (
+          <div key={`${section.name}-${idx}`}>
+            <PosterGrid 
+              title={section.name} 
+              items={section.subjects?.slice(0, 12) || []} 
+            />
+          </div>
+        ))}
+
+        {/* Discover More Section with Infinite Scroll */}
+        <div className="space-y-8">
+          <PosterGrid title="Discover More" items={discoverItems} />
+          
+          {hasMore && (
+            <div ref={lastElementRef} className="flex justify-center py-10">
+              {loadingMore && (
+                <Loader2 className="w-8 h-8 text-red-600 animate-spin" />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <Footer />
+    </div>
+  );
+}

@@ -1,0 +1,96 @@
+export interface MediaItem {
+  id: string;
+  title: string;
+  poster: string;
+  rating?: string;
+  contentRating?: string;
+  type?: string;
+  year?: string;
+  quality?: string;
+  detailPath?: string;
+}
+
+export interface HomepageSection {
+  title: string;
+  items: MediaItem[];
+}
+
+export interface HomepageData {
+  topPickList?: MediaItem[];
+  homeList?: MediaItem[];
+  latestMovies?: MediaItem[];
+  latestSeries?: MediaItem[];
+  operatingList?: any[];
+}
+
+export interface ItemDetails {
+  id: string;
+  title: string;
+  description: string;
+  poster: string;
+  background?: string;
+  rating?: string;
+  contentRating?: string;
+  year?: string;
+  genres?: string[];
+  cast?: { id: string; name: string; avatar?: string }[];
+  type?: string;
+  duration?: string;
+  detailPath?: string;
+  seasons?: {
+    se: number;
+    maxEp: number;
+    resolutions: { resolution: number; epNum: number }[];
+  }[];
+  trailerUrl?: string;
+}
+
+export interface MediaSource {
+  quality: string;
+  url: string;
+  type?: 'hls' | 'mp4';
+}
+
+export interface MediaData {
+  sources: MediaSource[];
+  subtitles?: { language: string; url: string }[];
+}
+
+export interface Actor {
+  id: string;
+  name: string;
+  avatar: string;
+  description?: string;
+  birthday?: string;
+  birthPlace?: string;
+  popularity?: string;
+  biography?: string;
+}
+
+export interface LiveMatch {
+  id: string;
+  title: string;
+  cover: string;
+  url: string;
+  status?: string;
+  time?: string;
+}
+
+export interface RankingItem {
+  id: string;
+  title: string;
+  cover: string;
+  score?: string;
+  rank: number;
+  type?: number;
+  year?: string;
+}
+
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  password: string;
+  watchlist: string[];
+  history: { id: string; title: string; poster: string }[];
+}

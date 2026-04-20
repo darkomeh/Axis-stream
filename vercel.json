@@ -1,8 +1,20 @@
 {
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
+      "source": "/api/aggregated-popular",
+      "destination": "/api/aggregated-popular"
+    },
+    {
+      "source": "/api/proxy",
+      "destination": "/api/proxy"
+    },
+    {
+      "source": "/api/image-proxy",
+      "destination": "/api/image-proxy"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://movieapi.xcasper.space/api/:path*?apikey=Godszeal"
     },
     {
       "source": "/(.*)",

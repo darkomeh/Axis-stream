@@ -9,6 +9,8 @@ import PopcornLoader from "../components/PopcornLoader";
 import { ChevronRight, User, Film, Star, Share2, ArrowLeft } from "lucide-react";
 import { motion } from "motion/react";
 
+import { MovieImage } from "../components/MovieImage";
+
 export default function ActorPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -18,7 +20,7 @@ export default function ActorPage() {
   const [loading, setLoading] = useState(true);
 
   const handleBack = () => {
-    if (window.history.length > 1) {
+    if (window.history.length > 2) {
       navigate(-1);
     } else {
       navigate('/');
@@ -49,7 +51,7 @@ export default function ActorPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center text-white">
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white">
         <button 
           onClick={handleBack}
           className="absolute top-8 left-6 p-2 hover:bg-white/10 rounded-full transition-colors flex items-center gap-2 text-gray-400 hover:text-white z-50"
@@ -64,7 +66,7 @@ export default function ActorPage() {
 
   if (!actor) {
     return (
-      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center text-white p-6">
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white p-6">
         <h2 className="text-2xl font-bold mb-4">Actor not found</h2>
         <Link to="/" className="px-8 py-3 bg-white text-black font-bold rounded-full">Go Home</Link>
       </div>
@@ -72,7 +74,7 @@ export default function ActorPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white pb-20">
+    <div className="min-h-screen bg-black text-white pb-20">
       <Navbar />
       
       {/* Hero Section */}
@@ -93,11 +95,10 @@ export default function ActorPage() {
           >
             <div className="aspect-[3/4] rounded-[2.5rem] overflow-hidden border-4 border-white/10 shadow-2xl relative group">
               {actor.avatar ? (
-                <img 
+                <MovieImage 
                   src={actor.avatar} 
                   alt={actor.name} 
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                  referrerPolicy="no-referrer"
                 />
               ) : (
                 <div className="w-full h-full bg-white/5 flex items-center justify-center text-gray-500">
@@ -118,7 +119,7 @@ export default function ActorPage() {
               <h1 className="text-5xl md:text-7xl font-black tracking-tighter">{actor.name}</h1>
               <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-gray-400">
                 <div className="flex items-center gap-2">
-                  <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                  <Star className="w-4 h-4 text-brand fill-brand" />
                   <span>Popularity: {actor.popularity}</span>
                 </div>
                 <div className="w-1 h-1 bg-white/20 rounded-full" />
@@ -142,7 +143,7 @@ export default function ActorPage() {
       {/* Filmography */}
       <div className="px-6 lg:px-12 max-w-[1400px] mx-auto py-12">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-3xl font-bold">Filmography</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Filmography</h2>
           <div className="flex items-center gap-2 text-gray-500 text-sm font-bold uppercase tracking-widest">
             <span>{works.length} Items</span>
             <ChevronRight className="w-4 h-4" />
@@ -154,7 +155,7 @@ export default function ActorPage() {
       {/* Related Actors */}
       {relatedActors.length > 0 && (
         <div className="px-6 lg:px-12 max-w-[1400px] mx-auto py-12">
-          <h2 className="text-3xl font-bold mb-8">Related Actors</h2>
+          <h2 className="text-3xl font-bold mb-8 tracking-tight">Related Actors</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
             {relatedActors.map((rel, idx) => (
               <Link 
@@ -162,13 +163,12 @@ export default function ActorPage() {
                 to={`/actor/${rel.id}`}
                 className="group space-y-4"
               >
-                <div className="aspect-square rounded-full overflow-hidden border-2 border-white/10 group-hover:border-white/30 group-hover:scale-105 transition-all duration-500">
+                <div className="aspect-square rounded-full overflow-hidden border-2 border-white/10 group-hover:border-brand group-hover:shadow-[0_0_15px_rgba(229,9,20,0.4)] group-hover:scale-105 transition-all duration-500">
                   {rel.avatar ? (
-                    <img 
+                    <MovieImage 
                       src={rel.avatar} 
                       alt={rel.name} 
                       className="w-full h-full object-cover"
-                      referrerPolicy="no-referrer"
                     />
                   ) : (
                     <div className="w-full h-full bg-white/5 flex items-center justify-center text-gray-500">

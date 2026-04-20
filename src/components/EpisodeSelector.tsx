@@ -19,7 +19,7 @@ export default function EpisodeSelector({ seasons, selectedSeason, selectedEpiso
         <select 
           value={selectedSeason}
           onChange={(e) => onEpisodeChange(Number(e.target.value), 1)}
-          className="bg-white/5 border border-white/10 text-white rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-600"
+          className="bg-white/5 border border-white/10 text-white rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
         >
           {seasons.map((s) => (
             <option key={s.se} value={s.se}>Season {s.se}</option>
@@ -38,7 +38,7 @@ export default function EpisodeSelector({ seasons, selectedSeason, selectedEpiso
               onClick={() => onEpisodeChange(selectedSeason, ep)}
               className={`p-4 rounded-xl text-left transition-all ${
                 isActive 
-                  ? "bg-white text-black font-bold" 
+                  ? "bg-brand text-white font-bold shadow-[0_0_15px_rgba(229,9,20,0.4)]" 
                   : "bg-white/5 text-gray-300 hover:bg-white/10"
               }`}
             >

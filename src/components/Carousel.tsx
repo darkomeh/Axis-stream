@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { MediaItem } from "../types";
 import { Play, Info, ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { MovieImage } from "./MovieImage";
 
 interface CarouselProps {
   items: MediaItem[];
@@ -29,34 +30,34 @@ export default function Carousel({ items }: CarouselProps) {
 
   return (
     <div 
-      className="relative w-full h-[85vh] md:h-[90vh] overflow-hidden bg-[#050505]"
+      className="relative w-full h-[90vh] md:h-[95vh] overflow-hidden bg-black group"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <AnimatePresence mode="wait">
         <motion.div
           key={`${currentItem.id}-${currentIndex}`}
-          initial={{ opacity: 0, scale: 1.02 }}
+          initial={{ opacity: 0, scale: 1.1 }}
           animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 1.2, ease: "easeOut" }}
+          exit={{ opacity: 0, scale: 1.05 }}
+          transition={{ duration: 2, ease: [0.22, 1, 0.36, 1] }}
           className="absolute inset-0"
         >
           {currentItem.poster ? (
-            <img
+            <MovieImage
               src={currentItem.poster}
               alt={currentItem.title}
-              className="w-full h-full object-cover object-top opacity-70"
-              referrerPolicy="no-referrer"
+              className="w-full h-full object-cover object-center opacity-70"
             />
           ) : (
-            <div className="w-full h-full bg-[#121212] flex items-center justify-center text-gray-500">
+            <div className="w-full h-full bg-[#0A0A0A] flex items-center justify-center text-gray-500">
               No Image Available
             </div>
           )}
           {/* Gradients for cinematic effect */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/20 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#050505] via-[#050505]/50 to-transparent w-[85%]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent w-full" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-transparent h-[30%]" />
         </motion.div>
       </AnimatePresence>
 
@@ -64,48 +65,50 @@ export default function Carousel({ items }: CarouselProps) {
         <div className="max-w-[1400px] mx-auto px-6 lg:px-12 w-full">
           <motion.div
             key={`content-${currentIndex}`}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="max-w-3xl mt-20 md:mt-0"
+            transition={{ duration: 1.2, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="max-w-4xl mt-20 md:mt-0"
           >
-            {currentItem.type && (
-              <span className="inline-block px-3 py-1 mb-6 text-xs font-bold tracking-[0.2em] text-white uppercase bg-white/10 backdrop-blur-md rounded-sm">
-                {currentItem.type}
+            <div className="flex items-center gap-3 mb-6">
+              {currentItem.type && (
+                <span className="inline-block px-4 py-1.5 text-[11px] font-black tracking-[0.3em] text-white uppercase bg-brand rounded-full shadow-[0_0_20px_rgba(229,9,20,0.4)]">
+                  {currentItem.type === '1' ? 'Movie' : 'Series'}
+                </span>
+              )}
+              <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-[11px] font-bold text-white uppercase tracking-widest">
+                <Star className="w-3.5 h-3.5 fill-brand text-brand" /> {currentItem.rating || 'N/A'}
               </span>
-            )}
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-6 tracking-tighter leading-[1.1] drop-shadow-2xl">
+            </div>
+
+            <h1 className="text-6xl md:text-8xl lg:text-9xl font-black text-white mb-8 tracking-tighter leading-[0.9] drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
               {currentItem.title}
             </h1>
             
-            <div className="flex items-center gap-4 text-gray-300 mb-10 text-sm md:text-base font-medium">
-              {currentItem.year && <span>{currentItem.year}</span>}
-              {currentItem.rating && (
-                <span className="flex items-center gap-1 text-white">
-                  <Star className="w-4 h-4 fill-white text-white" /> {currentItem.rating}
-                </span>
-              )}
+            <div className="flex items-center gap-6 text-gray-300 mb-12 text-sm md:text-lg font-medium tracking-wide">
+              {currentItem.year && <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-brand" /> {currentItem.year}</span>}
               {currentItem.quality && (
-                <span className="px-2 py-0.5 border border-white/30 rounded-sm text-xs text-white">
+                <span className="px-3 py-1 bg-white/5 border border-white/20 rounded-md text-xs text-white font-black uppercase tracking-widest">
                   {currentItem.quality}
                 </span>
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-center gap-6">
               <Link
                 to={`/details/${currentItem.id}`}
-                className="flex items-center gap-3 px-10 py-4 bg-white text-black rounded-full font-bold hover:scale-105 transition-transform text-base shadow-[0_0_30px_rgba(255,255,255,0.2)]"
+                className="group relative flex items-center gap-4 px-12 py-5 bg-white text-black rounded-2xl font-black hover:scale-105 transition-all duration-500 text-lg shadow-[0_20px_40px_rgba(0,0,0,0.4)] overflow-hidden"
               >
-                <Play className="w-5 h-5 fill-black" />
-                Watch Now
+                <div className="absolute inset-0 bg-brand translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+                <Play className="w-6 h-6 fill-current relative z-10 group-hover:text-white transition-colors" />
+                <span className="relative z-10 group-hover:text-white transition-colors">WATCH NOW</span>
               </Link>
               <Link
                 to={`/details/${currentItem.id}`}
-                className="flex items-center gap-3 px-10 py-4 bg-white/10 text-white rounded-full font-bold hover:bg-white/20 transition-colors backdrop-blur-md text-base border border-white/10"
+                className="flex items-center gap-4 px-12 py-5 bg-white/10 text-white rounded-2xl font-black hover:bg-white/20 transition-all duration-500 backdrop-blur-xl text-lg border border-white/10 hover:border-white/30"
               >
-                <Info className="w-5 h-5" />
-                Details
+                <Info className="w-6 h-6" />
+                MORE INFO
               </Link>
             </div>
           </motion.div>
@@ -115,25 +118,25 @@ export default function Carousel({ items }: CarouselProps) {
       {/* Navigation Arrows */}
       <button
         onClick={prevSlide}
-        className="absolute left-6 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-black transition-all opacity-0 group-hover:opacity-100 md:opacity-100"
+        className="absolute left-6 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white hover:bg-brand hover:text-white transition-all opacity-0 group-hover:opacity-100 border border-white/10 hover:border-brand"
       >
         <ChevronLeft className="w-8 h-8 ml-[-2px]" />
       </button>
       <button
         onClick={nextSlide}
-        className="absolute right-6 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-black transition-all opacity-0 group-hover:opacity-100 md:opacity-100"
+        className="absolute right-6 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white hover:bg-brand hover:text-white transition-all opacity-0 group-hover:opacity-100 border border-white/10 hover:border-brand"
       >
         <ChevronRight className="w-8 h-8 mr-[-2px]" />
       </button>
 
       {/* Indicators */}
-      <div className="absolute bottom-10 left-6 lg:left-12 flex items-center gap-2">
+      <div className="absolute bottom-10 left-6 lg:left-12 flex items-center gap-3">
         {items.map((_, idx) => (
           <button
             key={idx}
             onClick={() => setCurrentIndex(idx)}
             className={`h-1.5 rounded-full transition-all duration-500 ${
-              idx === currentIndex ? "w-8 bg-white" : "w-2 bg-white/30 hover:bg-white/50"
+              idx === currentIndex ? "w-10 bg-brand shadow-[0_0_10px_rgba(229,9,20,0.5)]" : "w-3 bg-white/30 hover:bg-white/50"
             }`}
           />
         ))}

@@ -6,6 +6,8 @@ import { Play, Trash2, Film, ArrowLeft, AlertCircle, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
+import { MovieImage } from "../components/MovieImage";
+
 export default function Downloads() {
   const [videos, setVideos] = useState<DownloadedVideo[]>([]);
   const [activeDownloads, setActiveDownloads] = useState<ActiveDownload[]>([]);
@@ -60,7 +62,7 @@ export default function Downloads() {
   };
 
   const handleBack = () => {
-    if (window.history.length > 1) {
+    if (window.history.length > 2) {
       navigate(-1);
     } else {
       navigate('/');
@@ -68,7 +70,7 @@ export default function Downloads() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white pb-20">
+    <div className="min-h-screen bg-black text-white pb-20">
       <Navbar />
       
       <div className="pt-28 px-6 lg:px-12 max-w-[1400px] mx-auto">
@@ -79,7 +81,7 @@ export default function Downloads() {
           >
             <ArrowLeft className="w-6 h-6" />
           </button>
-          <h1 className="text-4xl font-bold">My Downloads</h1>
+          <h1 className="text-4xl font-bold tracking-tight">My Downloads</h1>
         </div>
         
         {/* Active Downloads Section */}
@@ -97,7 +99,7 @@ export default function Downloads() {
                   <div className="flex justify-between items-start mb-3">
                     <h3 className="font-bold line-clamp-1 flex-1 mr-2">{download.title}</h3>
                     <div className="flex items-center gap-3">
-                      <span className="text-red-500 font-mono text-sm">{download.progress}%</span>
+                      <span className="text-brand font-mono text-sm">{download.progress}%</span>
                       <button 
                         onClick={() => cancelDownload(download.id)}
                         className="p-1 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
@@ -111,7 +113,7 @@ export default function Downloads() {
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: `${download.progress}%` }}
-                      className="h-full bg-red-600"
+                      className="h-full bg-brand"
                     />
                   </div>
                 </div>
@@ -139,7 +141,7 @@ export default function Downloads() {
                 className="bg-white/5 border border-white/10 rounded-xl overflow-hidden hover:bg-white/10 transition-colors cursor-pointer group flex flex-col"
               >
                 <div className="relative aspect-video bg-black">
-                  <img src={video.poster} alt={video.title} className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity" />
+                  <MovieImage src={video.poster} alt={video.title} className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity" />
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
                     <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
                       <Play className="w-5 h-5 text-black ml-1" />
@@ -157,7 +159,7 @@ export default function Downloads() {
                       e.stopPropagation();
                       setDeleteConfirmId(video.id);
                     }}
-                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-colors"
+                    className="p-2 text-gray-400 hover:text-brand hover:bg-brand/10 rounded-full transition-colors"
                   >
                     <Trash2 className="w-5 h-5" />
                   </button>
@@ -179,8 +181,8 @@ export default function Downloads() {
               className="bg-[#121212] border border-white/10 rounded-2xl p-8 max-w-sm w-full shadow-2xl"
             >
               <div className="flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
-                  <AlertCircle className="w-8 h-8 text-red-500" />
+                <div className="w-16 h-16 bg-brand/10 rounded-full flex items-center justify-center mb-6">
+                  <AlertCircle className="w-8 h-8 text-brand" />
                 </div>
                 <h3 className="text-xl font-bold mb-2">Delete Download?</h3>
                 <p className="text-gray-400 mb-8">This action cannot be undone. You will need to download the video again to watch it offline.</p>
@@ -193,7 +195,7 @@ export default function Downloads() {
                   </button>
                   <button 
                     onClick={confirmDelete}
-                    className="flex-1 py-3 bg-red-600 hover:bg-red-700 rounded-xl font-medium transition-colors"
+                    className="flex-1 py-3 bg-brand hover:bg-brand-hover rounded-xl font-medium transition-colors shadow-[0_0_15px_rgba(229,9,20,0.4)]"
                   >
                     Delete
                   </button>

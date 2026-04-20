@@ -1,0 +1,21 @@
+{
+  "name": "Λ𝗫𝗜𝗦 𝗦TREAM",
+  "short_name": "Axis",
+  "description": "Premium cinematic streaming experience",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#E50914",
+  "icons": [
+    {
+      "src": "https://picsum.photos/seed/axis-icon/192/192",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://picsum.photos/seed/axis-icon/512/512",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

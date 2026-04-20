@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import VideoPlayer from '../components/VideoPlayer';
+import { MediaData } from '../types';
 
 export default function OfflinePlayer() {
   const { id } = useParams();
@@ -21,7 +22,7 @@ export default function OfflinePlayer() {
   }, [url, navigate]);
 
   const handleBack = () => {
-    if (window.history.length > 1) {
+    if (window.history.length > 2) {
       navigate(-1);
     } else {
       navigate('/downloads');
@@ -30,8 +31,8 @@ export default function OfflinePlayer() {
 
   if (!url) return null;
 
-  const mediaData = {
-    sources: [{ url: url, quality: "Auto", isM3U8: false }],
+  const mediaData: MediaData = {
+    sources: [{ url: url, quality: "Auto", type: 'mp4' }],
     subtitles: []
   };
 

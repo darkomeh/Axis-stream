@@ -64,10 +64,14 @@ const TYPES = [
   { id: "2", name: "Series" },
 ];
 
+import { ListSkeleton } from "../components/Skeleton";
+
 export default function Browse() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const initialType = searchParams.get("type") || "0";
+  const typeVal = parseInt(initialType) > 0 ? initialType : 1;
+  const initialCacheKey = `-${typeVal}-20`;
 
   const [items, setItems] = useState<MediaItem[]>([]);
   const [trending, setTrending] = useState<MediaItem[]>([]);
@@ -113,7 +117,7 @@ export default function Browse() {
   }, [page]);
 
   const handleBack = () => {
-    if (window.history.length > 1) {
+    if (window.history.length > 2) {
       navigate(-1);
     } else {
       navigate('/');
@@ -123,7 +127,7 @@ export default function Browse() {
   const loadItems = async (p: number, reset: boolean = false) => {
     try {
       if (reset) {
-        setLoading(true);
+        if (items.length === 0) setLoading(true);
         setError(null);
       } else {
         setLoadingMore(true);
@@ -156,7 +160,7 @@ export default function Browse() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white pb-20">
+    <div className="min-h-screen bg-black text-white pb-20">
       <Navbar />
       
       <div className="pt-28 px-6 lg:px-12 max-w-[1400px] mx-auto">
@@ -169,16 +173,16 @@ export default function Browse() {
         </button>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
           <div>
-            <h1 className="text-4xl font-bold mb-2">Browse</h1>
+            <h1 className="text-4xl font-bold mb-2 tracking-tight">Browse</h1>
             <p className="text-gray-400">Discover your next favorite movie or series</p>
           </div>
 
           <button 
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all md:hidden"
+            className={`flex items-center gap-2 px-6 py-3 border rounded-full transition-all md:hidden ${showFilters ? 'bg-brand/10 border-brand text-brand' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
           >
             <Filter className="w-4 h-4" />
-            <span>Filters</span>
+            <span className="font-medium">Filters</span>
             <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
           </button>
 
@@ -186,23 +190,23 @@ export default function Browse() {
             <select 
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-full px-6 py-2.5 focus:outline-none focus:border-white/30 cursor-pointer hover:bg-white/10 transition-colors"
+              className="bg-white/5 border border-white/10 rounded-full px-6 py-2.5 focus:outline-none focus:border-brand cursor-pointer hover:bg-white/10 transition-colors font-medium"
             >
-              {TYPES.map(t => <option key={t.id} value={t.id} className="bg-[#121212]">{t.name}</option>)}
+              {TYPES.map(t => <option key={t.id} value={t.id} className="bg-black">{t.name}</option>)}
             </select>
             <select 
               value={selectedGenre}
               onChange={(e) => setSelectedGenre(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-full px-6 py-2.5 focus:outline-none focus:border-white/30 cursor-pointer hover:bg-white/10 transition-colors"
+              className="bg-white/5 border border-white/10 rounded-full px-6 py-2.5 focus:outline-none focus:border-brand cursor-pointer hover:bg-white/10 transition-colors font-medium"
             >
-              {GENRES.map(g => <option key={g.id} value={g.id} className="bg-[#121212]">{g.name}</option>)}
+              {GENRES.map(g => <option key={g.id} value={g.id} className="bg-black">{g.name}</option>)}
             </select>
             <select 
               value={selectedCountry}
               onChange={(e) => setSelectedCountry(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-full px-6 py-2.5 focus:outline-none focus:border-white/30 cursor-pointer hover:bg-white/10 transition-colors"
+              className="bg-white/5 border border-white/10 rounded-full px-6 py-2.5 focus:outline-none focus:border-brand cursor-pointer hover:bg-white/10 transition-colors font-medium"
             >
-              {COUNTRIES.map(c => <option key={c.id} value={c.id} className="bg-[#121212]">{c.name}</option>)}
+              {COUNTRIES.map(c => <option key={c.id} value={c.id} className="bg-black">{c.name}</option>)}
             </select>
             
             {(selectedGenre || selectedCountry || selectedType !== "0") && (
@@ -212,7 +216,7 @@ export default function Browse() {
                   setSelectedCountry("");
                   setSelectedType("0");
                 }}
-                className="px-4 py-2 text-sm font-medium text-white/40 hover:text-white transition-colors flex items-center gap-2"
+                className="px-4 py-2 text-sm font-medium text-white/40 hover:text-brand transition-colors flex items-center gap-2"
               >
                 <X className="w-4 h-4" /> Clear
               </button>
@@ -236,7 +240,7 @@ export default function Browse() {
                       <button
                         key={t.id}
                         onClick={() => setSelectedType(t.id)}
-                        className={`px-4 py-2 rounded-full text-sm transition-all ${selectedType === t.id ? 'bg-white text-black' : 'bg-white/5 border border-white/10 text-gray-400'}`}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedType === t.id ? 'bg-brand text-white shadow-[0_0_10px_rgba(229,9,20,0.5)]' : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10'}`}
                       >
                         {t.name}
                       </button>
@@ -250,7 +254,7 @@ export default function Browse() {
                       <button
                         key={g.id}
                         onClick={() => setSelectedGenre(g.id)}
-                        className={`px-4 py-2 rounded-full text-sm transition-all ${selectedGenre === g.id ? 'bg-white text-black' : 'bg-white/5 border border-white/10 text-gray-400'}`}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedGenre === g.id ? 'bg-brand text-white shadow-[0_0_10px_rgba(229,9,20,0.5)]' : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10'}`}
                       >
                         {g.name}
                       </button>
@@ -264,7 +268,7 @@ export default function Browse() {
                       <button
                         key={c.id}
                         onClick={() => setSelectedCountry(c.id)}
-                        className={`px-4 py-2 rounded-full text-sm transition-all ${selectedCountry === c.id ? 'bg-white text-black' : 'bg-white/5 border border-white/10 text-gray-400'}`}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedCountry === c.id ? 'bg-brand text-white shadow-[0_0_10px_rgba(229,9,20,0.5)]' : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10'}`}
                       >
                         {c.name}
                       </button>
@@ -280,7 +284,7 @@ export default function Browse() {
                       setSelectedType("0");
                       setShowFilters(false);
                     }}
-                    className="w-full py-3 bg-white/10 rounded-xl text-sm font-bold hover:bg-white/20 transition-colors mt-4"
+                    className="w-full py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold hover:bg-white/10 hover:text-brand transition-colors mt-4"
                   >
                     Clear All Filters
                   </button>
@@ -307,7 +311,7 @@ export default function Browse() {
             {hasMore && (
               <div ref={lastElementRef} className="flex justify-center pt-8 h-20">
                 {loadingMore && (
-                  <div className="flex items-center gap-3 text-gray-400">
+                  <div className="flex items-center gap-3 text-brand">
                     <Loader2 className="w-5 h-5 animate-spin" />
                     <span className="text-sm font-medium">Loading more...</span>
                   </div>

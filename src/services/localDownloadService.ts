@@ -153,7 +153,16 @@ export const localDownloadService = {
         }
       }
 
-      const finalBlob = new Blob(chunks, { type: response.headers.get('content-type') || 'video/mp4' });
+      const finalBlob = new Blob(chunks, { type: 'video/mp4' });
+      
+      // Check if the downloaded file is actually an M3U8 playlist
+      if (finalBlob.size < 100000) { // M3U8 files are usually small
+        const text = await finalBlob.slice(0, 100).text();
+        if (text.startsWith('#EXTM3U')) {
+          throw new Error('Cannot download HLS stream as a single file. Please use a different source.');
+        }
+      }
+
       activeDownloads = activeDownloads.filter(d => d.id !== id);
       abortControllers.delete(id);
       notifyListeners();
@@ -166,7 +175,7 @@ export const localDownloadService = {
       // If it's a network error and we have retries left, and it wasn't explicitly aborted by the user
       const isActive = activeDownloads.some(d => d.id === id);
       if (!isAborted && retries > 0 && isActive) {
-        console.warn(`Download failed, retrying... (${retries} retries left)`, error);
+        console.warn(`Download failed, retrying... (${retries} retries left)`, error instanceof Error ? error.message : String(error));
         // Wait a bit before retrying
         await new Promise(resolve => setTimeout(resolve, 2000));
         // Check again after waiting

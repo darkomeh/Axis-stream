@@ -10,6 +10,7 @@ import {
 } from '../types';
 
 const BASE_URL = 'https://movieapi.xcasper.space/api';
+const API_KEY = 'Godszeal';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -22,6 +23,8 @@ const api = axios.create({
 // Helper for exponential backoff retry
 async function fetchWithRetry(config: AxiosRequestConfig, retries = 3, backoff = 1000): Promise<any> {
   try {
+    // Add API Key to params
+    config.params = { ...config.params, apikey: API_KEY };
     return await api(config);
   } catch (error) {
     if (retries > 0) {
@@ -34,14 +37,21 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 3, backoff =
 }
 
 function normalizeItem(item: any): MediaItem {
-  const poster = (typeof item.cover === 'string' ? item.cover : item.cover?.url) || item.poster || '';
+  let poster = (typeof item.cover === 'string' ? item.cover : item.cover?.url) || 
+                 item.poster || 
+                 item.coverUrl || 
+                 item.image || 
+                 item.img || 
+                 item.stills?.url ||
+                 '';
+  
   return {
     id: String(item.subjectId || item.id),
     title: item.title || 'Unknown Title',
     poster: poster,
     rating: item.imdbRatingValue || item.rating,
     contentRating: item.contentRating || item.mpaa || item.ageRating,
-    type: item.subjectType === 2 ? 'Series' : item.subjectType === 1 ? 'Movie' : item.type,
+    type: item.subjectType === 2 ? 'Series' : item.subjectType === 1 ? 'Movie' : (item.type || (item.subjectType === 6 ? 'Video' : 'Media')),
     year: item.releaseDate ? item.releaseDate.substring(0, 4) : item.year,
     quality: item.quality,
     detailPath: item.detailPath
@@ -60,11 +70,12 @@ export const externalMovieService = {
         latestSeries: Array.isArray(data.latestSeries) ? data.latestSeries.map(normalizeItem) : [],
         operatingList: Array.isArray(data.operatingList) ? data.operatingList.map((op: any) => ({
           ...op,
+          name: op.name || op.title || 'Recommended',
           subjects: Array.isArray(op.subjects) ? op.subjects.map(normalizeItem) : [],
         })) : [],
       };
-    } catch (e) {
-      console.error("Error in getHomepage:", e);
+    } catch (e: any) {
+      console.error("Error in getHomepage:", e.message || e);
       return {
         topPickList: [],
         homeList: [],
@@ -84,13 +95,13 @@ export const externalMovieService = {
       });
       const items = response.data?.data?.items || [];
       return Array.isArray(items) ? items.map(normalizeItem) : [];
-    } catch (e) {
-      console.error("Error in search:", e);
+    } catch (e: any) {
+      console.error("Error in search:", e.message || e);
       return [];
     }
   },
 
-  async getTrending(page = 0, perPage = 18): Promise<MediaItem[]> {
+  async getTrending(page = 1, perPage = 18): Promise<MediaItem[]> {
     try {
       const response = await fetchWithRetry({ 
         url: `/trending`, 
@@ -98,8 +109,8 @@ export const externalMovieService = {
       });
       const list = response.data?.data?.subjectList || [];
       return Array.isArray(list) ? list.map(normalizeItem) : [];
-    } catch (e) {
-      console.error("Error in getTrending:", e);
+    } catch (e: any) {
+      console.error("Error in getTrending:", e.message || e);
       return [];
     }
   },
@@ -109,8 +120,8 @@ export const externalMovieService = {
       const response = await fetchWithRetry({ url: `/popular-search` });
       const searches = response.data?.data?.everyoneSearch || [];
       return Array.isArray(searches) ? searches.map((item: any) => item.title) : [];
-    } catch (e) {
-      console.error("Error in getPopularSearch:", e);
+    } catch (e: any) {
+      console.error("Error in getPopularSearch:", e.message || e);
       return [];
     }
   },
@@ -123,8 +134,8 @@ export const externalMovieService = {
         movies: Array.isArray(data.movie) ? data.movie.map(normalizeItem) : [],
         series: Array.isArray(data.tv) ? data.tv.map(normalizeItem) : [],
       };
-    } catch (e) {
-      console.error("Error in getHot:", e);
+    } catch (e: any) {
+      console.error("Error in getHot:", e.message || e);
       return { movies: [], series: [] };
     }
   },
@@ -137,8 +148,8 @@ export const externalMovieService = {
         params: { keyword: query } 
       });
       return response.data?.data || [];
-    } catch (e) {
-      console.error("Error in getSuggestions:", e);
+    } catch (e: any) {
+      console.error("Error in getSuggestions:", e.message || e);
       return [];
     }
   },
@@ -156,7 +167,15 @@ export const externalMovieService = {
       id: String(subject.subjectId || subject.id),
       title: subject.title || 'Unknown Title',
       description: subject.description || '',
-      poster: subject.cover?.url || subject.poster || '',
+      poster: (() => {
+        const p = (typeof subject.cover === 'string' ? subject.cover : subject.cover?.url) || 
+                  subject.poster || 
+                  subject.coverUrl || 
+                  subject.image || 
+                  subject.img || 
+                  '';
+        return p;
+      })(),
       background: subject.stills?.[0]?.url || subject.cover?.url || '',
       rating: subject.imdbRatingValue || subject.rating,
       contentRating: subject.contentRating || subject.mpaa || subject.ageRating,
@@ -197,8 +216,8 @@ export const externalMovieService = {
       });
       const list = response.data?.data?.items || [];
       return Array.isArray(list) ? list.map(normalizeItem) : [];
-    } catch (e) {
-      console.error("Error in getRecommendations:", e);
+    } catch (e: any) {
+      console.error("Error in getRecommendations:", e.message || e);
       return [];
     }
   },
@@ -211,8 +230,8 @@ export const externalMovieService = {
       });
       const list = response.data?.data?.items || [];
       return Array.isArray(list) ? list.map(normalizeItem) : [];
-    } catch (e) {
-      console.error("Error in browse:", e);
+    } catch (e: any) {
+      console.error("Error in browse:", e.message || e);
       return [];
     }
   },
@@ -220,50 +239,107 @@ export const externalMovieService = {
   async getRanking(): Promise<RankingItem[]> {
     try {
       const response = await fetchWithRetry({ url: `/ranking` });
-      const list = response.data?.data || [];
+      const list = response.data?.data?.subjectList || [];
       if (!Array.isArray(list)) return [];
-      return list.map((item: any, index: number) => ({
-        id: String(item.subjectId || item.id),
-        title: item.title,
-        cover: (typeof item.cover === 'string' ? item.cover : item.cover?.url) || item.poster || '',
-        score: item.score || item.imdbRatingValue || item.rating,
-        rank: index + 1,
-        type: item.subjectType,
-        year: item.releaseDate ? item.releaseDate.substring(0, 4) : item.year,
-      }));
-    } catch (e) {
-      console.error("Error in getRanking:", e);
+      return list.map((item: any, index: number) => {
+        let poster = (typeof item.cover === 'string' ? item.cover : item.cover?.url) || item.poster || '';
+        return {
+          id: String(item.subjectId || item.id),
+          title: item.title,
+          cover: poster,
+          score: item.score || item.imdbRatingValue || item.rating,
+          rank: index + 1,
+          type: item.subjectType,
+          year: item.releaseDate ? item.releaseDate.substring(0, 4) : item.year,
+        };
+      });
+    } catch (e: any) {
+      console.error("Error in getRanking:", e.message || e);
       return [];
     }
   },
 
-  async getPlay(subjectId: string, season?: number, episode?: number): Promise<MediaData> {
+  async getPlay(subjectId: string, detailPath?: string, season?: number, episode?: number): Promise<MediaData> {
     const params: any = { subjectId };
+    if (detailPath) params.detailPath = detailPath;
     if (season !== undefined && season > 0) params.se = season;
     if (episode !== undefined && episode > 0) params.ep = episode;
 
-    const response = await fetchWithRetry({ url: `/play`, params });
-    const data = response.data?.data || {};
-    
-    const streams = data.streams || [];
-    const hls = data.hls || [];
-    const captions = data.subtitles || [];
+    try {
+      const response = await fetchWithRetry({ url: `/play`, params });
+      const data = response.data?.data || {};
+      
+      const streams = data.streams || [];
+      const hls = data.hls || [];
+      const captions = data.subtitles || [];
 
-    const sources = [...streams, ...hls].map((s: any) => {
-      const rawUrl = s.proxyUrl || s.url;
-      return {
-        quality: s.resolutions ? `${s.resolutions}p` : (s.quality || 'Unknown'),
-        url: rawUrl,
-        type: (s.url?.includes('.m3u8') ? 'hls' : 'mp4') as "hls" | "mp4"
-      };
-    }).filter((s: any) => s.url);
+      const sources = [...streams, ...hls].map((s: any) => {
+        const rawUrl = s.proxyUrl || s.url;
+        const downloadUrl = s.downloadUrl || s.proxyUrl || s.url;
 
-    const subtitles = captions.map((c: any) => ({
-      language: c.language || c.lanName || c.lan || 'Unknown',
-      url: c.url || '',
-    })).filter((s: any) => s.url);
+        return {
+          quality: s.resolutions ? (String(s.resolutions).includes('p') ? s.resolutions : `${s.resolutions}p`) : (s.quality || 'Unknown'),
+          url: rawUrl,
+          downloadUrl: downloadUrl,
+          type: ((rawUrl?.includes('.m3u8') || s.url?.includes('.m3u8')) ? 'hls' : 'mp4') as 'hls' | 'mp4'
+        };
+      }).filter((s: any) => s.url);
 
-    return { sources, subtitles };
+      const subtitles = captions.map((c: any) => ({
+        language: c.language || c.lanName || c.lan || 'Unknown',
+        url: c.url || '',
+      })).filter((s: any) => s.url);
+
+      const audioTracks = (data.audioTracks || []).map((t: any) => ({
+        language: t.language || 'Unknown',
+        languageCode: t.languageCode || '',
+        subjectId: String(t.subjectId || ''),
+        detailPath: t.detailPath || ''
+      }));
+
+      if (sources.length > 0) {
+        // Construct a fallback embed URL if not provided by API
+        const embedUrl = data.embedUrl || data.iframeUrl || data.playerUrl || 
+          (params.se ? `https://vidsrc.to/embed/tv/${subjectId}/${params.se}/${params.ep || 1}` : `https://vidsrc.to/embed/movie/${subjectId}`);
+
+        return { 
+          sources, 
+          subtitles,
+          embedUrl,
+          audioTracks
+        };
+      }
+    } catch (e: any) {
+      console.warn("Error fetching play data, falling back to embed:", e.message || e);
+    }
+
+    // Fallback to constructed stream URLs and embed URL if API fails or returns no sources
+    const constructedSources = [
+      {
+        quality: '1080p',
+        url: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&resolution=1080${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        downloadUrl: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&resolution=1080&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        type: 'mp4' as const
+      },
+      {
+        quality: '720p',
+        url: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&resolution=720${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        downloadUrl: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&resolution=720&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        type: 'mp4' as const
+      },
+      {
+        quality: '360p',
+        url: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&resolution=360${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        downloadUrl: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&resolution=360&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        type: 'mp4' as const
+      }
+    ];
+
+    return {
+      sources: constructedSources,
+      subtitles: [],
+      embedUrl: season ? `https://vidsrc.to/embed/tv/${subjectId}/${season}/${episode || 1}` : `https://vidsrc.to/embed/movie/${subjectId}`
+    };
   },
 
   async getCaptions(subjectId: string, streamId: string): Promise<any> {
@@ -308,8 +384,8 @@ export const externalMovieService = {
         status: item.status,
         time: item.time
       }));
-    } catch (e) {
-      console.error("Error in getLive:", e);
+    } catch (e: any) {
+      console.error("Error in getLive:", e.message || e);
       return [];
     }
   },
@@ -322,8 +398,8 @@ export const externalMovieService = {
       });
       const list = response.data?.data?.items || [];
       return Array.isArray(list) ? list.map(normalizeItem) : [];
-    } catch (e) {
-      console.error("Error in getActorWorks:", e);
+    } catch (e: any) {
+      console.error("Error in getActorWorks:", e.message || e);
       return [];
     }
   },
@@ -344,8 +420,8 @@ export const externalMovieService = {
                 (typeof data.image === 'string' ? data.image : data.image?.url) || 
                 (typeof data.photo === 'string' ? data.photo : data.photo?.url) || ''
       }));
-    } catch (e) {
-      console.error("Error in getRelatedActors:", e);
+    } catch (e: any) {
+      console.error("Error in getRelatedActors:", e.message || e);
       return [];
     }
   },

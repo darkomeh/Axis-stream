@@ -10,6 +10,11 @@ import PopcornLoader from "../components/PopcornLoader";
 import { useAuth } from "../contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
+import { 
+  HeroSkeleton, 
+  ListSkeleton,
+  Skeleton
+} from "../components/Skeleton";
 import { ErrorMessage } from "../components/ErrorMessage";
 
 export default function Home() {
@@ -21,7 +26,7 @@ export default function Home() {
   const [popularSearches, setPopularSearches] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user, history } = useAuth();
+  const { user, history, continueWatching } = useAuth();
 
   // Infinite scroll for "Discover More"
   const [discoverItems, setDiscoverItems] = useState<MediaItem[]>([]);
@@ -43,8 +48,9 @@ export default function Home() {
 
   const loadData = async () => {
     try {
-      setLoading(true);
+      if (!homepageData) setLoading(true);
       setError(null);
+      
       const [home, trend, hot, popular] = await Promise.all([
         movieService.getHomepage(),
         movieService.getTrending(),
@@ -69,12 +75,14 @@ export default function Home() {
       }
 
       // Initial discover items
-      try {
-        const discover = await movieService.browse(undefined, undefined, 1);
-        setDiscoverItems(discover);
-        setHasMore(discover.length > 0);
-      } catch (e) {
-        console.error("Failed to load discover items", e);
+      if (discoverItems.length === 0) {
+        try {
+          const discover = await movieService.browse(undefined, undefined, 1);
+          setDiscoverItems(discover);
+          setHasMore(discover.length > 0);
+        } catch (e) {
+          console.error("Failed to load discover items", e);
+        }
       }
     } catch (err) {
       console.error("Error loading homepage:", err);
@@ -112,15 +120,21 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#050505]">
-        <PopcornLoader />
+      <div className="min-h-screen bg-black text-white pb-20">
+        <Navbar />
+        <HeroSkeleton />
+        <div className="relative z-10 -mt-10 md:-mt-20 space-y-12 md:space-y-20 pb-20 max-w-[1400px] mx-auto px-6 lg:px-12">
+          <div className="space-y-6"><Skeleton className="h-8 w-48" /><ListSkeleton count={6} /></div>
+          <div className="space-y-6"><ListSkeleton count={6} /></div>
+          <div className="space-y-6"><ListSkeleton count={6} /></div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#050505] text-white">
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <ErrorMessage message={error} onRetry={loadData} />
       </div>
     );
@@ -129,14 +143,14 @@ export default function Home() {
   const carouselItems = trending.slice(0, 6);
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white pb-20">
+    <div className="min-h-screen bg-black text-white pb-20">
       <Navbar />
       
       <Carousel items={carouselItems} />
       
       <div className="relative z-10 -mt-10 md:-mt-20 space-y-12 md:space-y-20 pb-20">
-        {user && history.length > 0 && (
-          <TopTenGrid title="Continue Watching" items={history.slice(0, 10)} showNumbers={false} />
+        {user && continueWatching.length > 0 && (
+          <TopTenGrid title="Continue Watching" items={continueWatching.slice(0, 10)} showNumbers={false} />
         )}
 
         {trending.length > 0 && (
@@ -149,13 +163,13 @@ export default function Home() {
 
         {popularSearches.length > 0 && (
           <div className="px-6 lg:px-12">
-            <h2 className="text-2xl font-bold mb-6">Popular Searches</h2>
+            <h2 className="text-2xl font-bold mb-6 tracking-tight">Popular Searches</h2>
             <div className="flex flex-wrap gap-3">
               {popularSearches.slice(0, 10).map((search, idx) => (
                 <a 
                   key={idx} 
                   href={`/search?q=${encodeURIComponent(search)}`}
-                  className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-sm transition-colors"
+                  className="px-4 py-2 bg-white/5 hover:bg-brand hover:text-white border border-white/10 hover:border-brand rounded-full text-sm transition-all shadow-sm hover:shadow-[0_0_15px_rgba(229,9,20,0.4)]"
                 >
                   {search}
                 </a>
@@ -181,9 +195,9 @@ export default function Home() {
         )}
 
         {homepageData?.operatingList?.map((section: any, idx: number) => (
-          <div key={`${section.name}-${idx}`}>
+          <div key={`${section.name || section.title}-${idx}`}>
             <PosterGrid 
-              title={section.name} 
+              title={section.name || section.title} 
               items={section.subjects?.slice(0, 12) || []} 
             />
           </div>
@@ -196,7 +210,7 @@ export default function Home() {
           {hasMore && (
             <div ref={lastElementRef} className="flex justify-center py-10">
               {loadingMore && (
-                <Loader2 className="w-8 h-8 text-red-600 animate-spin" />
+                <Loader2 className="w-8 h-8 text-brand animate-spin" />
               )}
             </div>
           )}

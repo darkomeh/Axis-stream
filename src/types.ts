@@ -49,11 +49,16 @@ export interface MediaSource {
   quality: string;
   url: string;
   type?: 'hls' | 'mp4';
+  downloadUrl?: string;
+  downloadType?: 'hls' | 'mp4';
 }
 
 export interface MediaData {
   sources: MediaSource[];
   subtitles?: { language: string; url: string }[];
+  embedUrl?: string;
+  audioTracks?: { language: string; languageCode: string; subjectId: string; detailPath: string }[];
+  initialTime?: number;
 }
 
 export interface Actor {
@@ -74,6 +79,14 @@ export interface LiveMatch {
   url: string;
   status?: string;
   time?: string;
+  leagueName?: string;
+  homeLogo?: string;
+  homeName?: string;
+  homeScore?: string;
+  awayLogo?: string;
+  awayName?: string;
+  awayScore?: string;
+  matchTime?: string;
 }
 
 export interface RankingItem {

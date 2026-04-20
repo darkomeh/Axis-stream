@@ -3,11 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Suspense, lazy } from "react";
+import React, { Suspense, lazy } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import BottomNav from "./components/BottomNav";
 import PopcornLoader from "./components/PopcornLoader";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { AnimatePresence, motion } from "motion/react";
 
 // Lazy load pages
 const Home = lazy(() => import("./pages/Home"));
@@ -23,6 +25,20 @@ const OfflinePlayer = lazy(() => import("./pages/OfflinePlayer"));
 const Ranking = lazy(() => import("./pages/Ranking"));
 const Live = lazy(() => import("./pages/Live"));
 
+function PageWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+      className="w-full h-full"
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 function AppContent() {
   const location = useLocation();
   
@@ -31,31 +47,35 @@ function AppContent() {
   const shouldShowNav = showNavRoutes.includes(location.pathname);
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white selection:bg-white/30 selection:text-white font-sans antialiased pb-20">
+    <div className="min-h-screen bg-black text-white selection:bg-brand/30 selection:text-white font-sans antialiased pb-20">
       <main>
         <Suspense fallback={
-          <div className="min-h-screen flex items-center justify-center bg-[#050505]">
+          <div className="min-h-screen flex items-center justify-center bg-black">
             <PopcornLoader />
           </div>
         }>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/search" element={<Search />} />
-            <Route path="/details/:id" element={<Details />} />
-            <Route path="/browse" element={<Browse />} />
-            <Route path="/anime" element={<Anime />} />
-            <Route path="/actor/:id" element={<ActorPage />} />
-            <Route path="/toons" element={<Toons />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/downloads" element={<Downloads />} />
-            <Route path="/ranking" element={<Ranking />} />
-            <Route path="/live" element={<Live />} />
-            <Route path="/offline-play/:id" element={<OfflinePlayer />} />
-            {/* Fallback routes for movies/series/trending to browse for now */}
-            <Route path="/movies" element={<Browse />} />
-            <Route path="/series" element={<Browse />} />
-            <Route path="/trending" element={<Anime />} />
-          </Routes>
+          <AnimatePresence mode="wait">
+            <motion.div key={location.pathname}>
+              <Routes location={location}>
+                <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
+                <Route path="/search" element={<PageWrapper><Search /></PageWrapper>} />
+                <Route path="/details/:id" element={<PageWrapper><Details /></PageWrapper>} />
+                <Route path="/browse" element={<PageWrapper><Browse /></PageWrapper>} />
+                <Route path="/anime" element={<PageWrapper><Anime /></PageWrapper>} />
+                <Route path="/actor/:id" element={<PageWrapper><ActorPage /></PageWrapper>} />
+                <Route path="/toons" element={<PageWrapper><Toons /></PageWrapper>} />
+                <Route path="/profile" element={<PageWrapper><Profile /></PageWrapper>} />
+                <Route path="/downloads" element={<PageWrapper><Downloads /></PageWrapper>} />
+                <Route path="/ranking" element={<PageWrapper><Ranking /></PageWrapper>} />
+                <Route path="/live" element={<PageWrapper><Live /></PageWrapper>} />
+                <Route path="/offline-play/:id" element={<PageWrapper><OfflinePlayer /></PageWrapper>} />
+                {/* Fallback routes for movies/series/trending to browse for now */}
+                <Route path="/movies" element={<PageWrapper><Browse /></PageWrapper>} />
+                <Route path="/series" element={<PageWrapper><Browse /></PageWrapper>} />
+                <Route path="/trending" element={<PageWrapper><Anime /></PageWrapper>} />
+              </Routes>
+            </motion.div>
+          </AnimatePresence>
         </Suspense>
       </main>
       {shouldShowNav && <BottomNav />}
@@ -65,10 +85,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <AppContent />
-      </Router>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

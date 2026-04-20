@@ -8,13 +8,15 @@ import { Radio, Trophy, Clock, PlayCircle, ExternalLink, ArrowLeft } from "lucid
 import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 
+import { MovieImage } from "../components/MovieImage";
+
 export default function Live() {
   const navigate = useNavigate();
   const [matches, setMatches] = useState<LiveMatch[]>([]);
   const [loading, setLoading] = useState(true);
 
   const handleBack = () => {
-    if (window.history.length > 1) {
+    if (window.history.length > 2) {
       navigate(-1);
     } else {
       navigate('/');
@@ -36,7 +38,7 @@ export default function Live() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white pb-20">
+    <div className="min-h-screen bg-black text-white pb-20">
       <Navbar />
       
       <div className="pt-28 px-6 lg:px-12 max-w-[1400px] mx-auto">
@@ -48,11 +50,11 @@ export default function Live() {
           <span className="text-sm font-medium">Back</span>
         </button>
         <div className="flex items-center gap-4 mb-12">
-          <div className="p-4 bg-red-600/20 rounded-2xl border border-red-600/30">
-            <Radio className="w-8 h-8 text-red-600 animate-pulse" />
+          <div className="p-4 bg-brand/20 rounded-2xl border border-brand/30">
+            <Radio className="w-8 h-8 text-brand animate-pulse" />
           </div>
           <div>
-            <h1 className="text-4xl font-bold mb-2">Live Sports</h1>
+            <h1 className="text-4xl font-bold mb-2 tracking-tight">Live Sports</h1>
             <p className="text-gray-400">Stream live matches and events from around the world</p>
           </div>
         </div>
@@ -77,8 +79,8 @@ export default function Live() {
                     <Trophy className="w-3.5 h-3.5" />
                     <span>{match.leagueName}</span>
                   </div>
-                  <div className="flex items-center gap-2 px-3 py-1 bg-red-600/20 border border-red-600/30 rounded-full text-[10px] font-bold text-red-600 uppercase tracking-widest">
-                    <span className="w-1.5 h-1.5 bg-red-600 rounded-full animate-pulse" />
+                  <div className="flex items-center gap-2 px-3 py-1 bg-brand/20 border border-brand/30 rounded-full text-[10px] font-bold text-brand uppercase tracking-widest">
+                    <span className="w-1.5 h-1.5 bg-brand rounded-full animate-pulse" />
                     Live
                   </div>
                 </div>
@@ -89,7 +91,7 @@ export default function Live() {
                     <div className="flex-1 text-center space-y-3">
                       <div className="w-16 h-16 mx-auto bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform duration-500">
                         {match.homeLogo ? (
-                          <img src={match.homeLogo} alt={match.homeName} className="w-10 h-10 object-contain" referrerPolicy="no-referrer" />
+                          <MovieImage src={match.homeLogo} alt={match.homeName} className="w-10 h-10 object-contain" />
                         ) : (
                           <div className="w-10 h-10 bg-white/5 rounded-lg" />
                         )}
@@ -110,7 +112,7 @@ export default function Live() {
                     <div className="flex-1 text-center space-y-3">
                       <div className="w-16 h-16 mx-auto bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform duration-500">
                         {match.awayLogo ? (
-                          <img src={match.awayLogo} alt={match.awayName} className="w-10 h-10 object-contain" referrerPolicy="no-referrer" />
+                          <MovieImage src={match.awayLogo} alt={match.awayName} className="w-10 h-10 object-contain" />
                         ) : (
                           <div className="w-10 h-10 bg-white/5 rounded-lg" />
                         )}
@@ -122,7 +124,7 @@ export default function Live() {
 
                 {/* Match Footer / Action */}
                 <div className="p-6 pt-0">
-                  <button className="w-full py-4 bg-white text-black font-bold rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 group/btn">
+                  <button className="w-full py-4 bg-white text-black font-bold rounded-2xl hover:bg-brand hover:text-white hover:shadow-[0_0_20px_rgba(229,9,20,0.5)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 group/btn">
                     <PlayCircle className="w-5 h-5" />
                     <span>Watch Match</span>
                     <ExternalLink className="w-4 h-4 opacity-0 group-hover/btn:opacity-100 transition-opacity" />

@@ -248,8 +248,9 @@ export async function fetchMedia(
   _isTv: boolean = false
 ): Promise<MediaData> {
   const params: any = { subjectId };
-  if (season > 0) params.season = season;
-  if (episode > 0) params.episode = episode;
+  if (_detailPath) params.detailPath = _detailPath;
+  if (season > 0) params.se = season;
+  if (episode > 0) params.ep = episode;
 
   const url = getFullUrl('play', params);
   
@@ -265,11 +266,11 @@ export async function fetchMedia(
     throw new Error(`Failed to fetch media: ${json.error || "Unknown error"}`);
   }
 
-  const { sources, subtitles } = json.data;
+  const { sources, subtitles, embedUrl } = json.data;
   
   if (!sources || sources.length === 0) {
     throw new Error("No sources found for this media");
   }
 
-  return { sources, subtitles: subtitles || [] };
+  return { sources, subtitles: subtitles || [], embedUrl };
 }

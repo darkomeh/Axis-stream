@@ -5,11 +5,35 @@ import axios from "axios";
 
 const app = express();
 
+// Simple in-memory cache
+const cache = new Map<string, { data: any, timestamp: number }>();
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes for static-ish lists
+
+function getCached(key: string) {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  return null;
+}
+
+function setCached(key: string, data: any) {
+  cache.set(key, { data, timestamp: Date.now() });
+}
+
 // API Routes using externalMovieService
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 app.get("/api/homepage", async (req, res) => {
-  console.log("[API] Request: /homepage");
+  const cacheKey = "homepage";
+  const cachedData = getCached(cacheKey);
+  if (cachedData) return res.json(cachedData);
+
   try {
     const data = await externalMovieService.getHomepage();
+    setCached(cacheKey, data);
     res.json(data);
   } catch (error: any) {
     console.error("[API] Homepage error:", error.message);
@@ -18,10 +42,14 @@ app.get("/api/homepage", async (req, res) => {
 });
 
 app.get("/api/trending", async (req, res) => {
-  console.log("[API] Request: /trending");
+  const { page, perPage } = req.query;
+  const cacheKey = `trending_${page}_${perPage}`;
+  const cachedData = getCached(cacheKey);
+  if (cachedData) return res.json(cachedData);
+
   try {
-    const { page, perPage } = req.query;
-    const data = await externalMovieService.getTrending(Number(page) || 0, Number(perPage) || 18);
+    const data = await externalMovieService.getTrending(Number(page) || 1, Number(perPage) || 18);
+    setCached(cacheKey, data);
     res.json(data);
   } catch (error: any) {
     console.error("[API] Trending error:", error.message);
@@ -29,15 +57,44 @@ app.get("/api/trending", async (req, res) => {
   }
 });
 
-app.get("/api/search", async (req, res) => {
+// Aggregated endpoint to reduce client-side requests
+app.get("/api/aggregated-popular", async (req, res) => {
+  const cacheKey = "aggregated_popular";
+  const cachedData = getCached(cacheKey);
+  if (cachedData) return res.json(cachedData);
+
   try {
-    const { keyword, page, perPage, subjectType } = req.query;
+    console.log("[API] Fetching aggregated popular data...");
+    const [trending, hot, ranking, homepage] = await Promise.all([
+      externalMovieService.getTrending(1, 50).catch(() => []),
+      externalMovieService.getHot().catch(() => ({ movies: [], series: [] })),
+      externalMovieService.getRanking().catch(() => []),
+      externalMovieService.getHomepage().catch(() => ({}))
+    ]);
+
+    const data = { trending, hot, ranking, homepage };
+    setCached(cacheKey, data);
+    res.json(data);
+  } catch (error: any) {
+    console.error("[API] Aggregated data error:", error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get("/api/search", async (req, res) => {
+  const { keyword, page, perPage, subjectType } = req.query;
+  const cacheKey = `search_${keyword}_${page}_${perPage}_${subjectType}`;
+  const cachedData = getCached(cacheKey);
+  if (cachedData) return res.json(cachedData);
+
+  try {
     const data = await externalMovieService.search(
       String(keyword || ""),
       Number(page) || 1,
       Number(perPage) || 10,
-      Number(subjectType) || 1
+      req.query.subjectType !== undefined ? Number(req.query.subjectType) : 0
     );
+    setCached(cacheKey, data);
     res.json(data);
   } catch (error: any) {
     console.error("[API] Search error:", error.message);
@@ -56,8 +113,13 @@ app.get("/api/popular-search", async (req, res) => {
 });
 
 app.get("/api/hot", async (req, res) => {
+  const cacheKey = "hot";
+  const cachedData = getCached(cacheKey);
+  if (cachedData) return res.json(cachedData);
+
   try {
     const data = await externalMovieService.getHot();
+    setCached(cacheKey, data);
     res.json(data);
   } catch (error: any) {
     console.error("[API] Hot error:", error.message);
@@ -66,9 +128,14 @@ app.get("/api/hot", async (req, res) => {
 });
 
 app.get("/api/search/suggest", async (req, res) => {
+  const { keyword } = req.query;
+  const cacheKey = `suggest_${keyword}`;
+  const cachedData = getCached(cacheKey);
+  if (cachedData) return res.json(cachedData);
+
   try {
-    const { keyword } = req.query;
     const data = await externalMovieService.getSuggestions(String(keyword || ""));
+    setCached(cacheKey, data);
     res.json(data);
   } catch (error: any) {
     console.error("[API] Suggestions error:", error.message);
@@ -131,8 +198,13 @@ app.get("/api/browse", async (req, res) => {
 });
 
 app.get("/api/ranking", async (req, res) => {
+  const cacheKey = "ranking";
+  const cachedData = getCached(cacheKey);
+  if (cachedData) return res.json(cachedData);
+
   try {
     const data = await externalMovieService.getRanking();
+    setCached(cacheKey, data);
     res.json(data);
   } catch (error: any) {
     console.error("[API] Ranking error:", error.message);
@@ -142,11 +214,12 @@ app.get("/api/ranking", async (req, res) => {
 
 app.get("/api/play", async (req, res) => {
   try {
-    const { subjectId, season, episode } = req.query;
+    const { subjectId, detailPath, se, ep } = req.query;
     const data = await externalMovieService.getPlay(
       String(subjectId || ""),
-      season ? Number(season) : undefined,
-      episode ? Number(episode) : undefined
+      detailPath ? String(detailPath) : undefined,
+      se ? Number(se) : undefined,
+      ep ? Number(ep) : undefined
     );
     res.json(data);
   } catch (error: any) {
@@ -210,6 +283,71 @@ app.get("/api/live", async (req, res) => {
   } catch (error: any) {
     console.error("[API] Live error:", error.message);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Image Proxy Route
+app.get("/api/image-proxy", async (req, res) => {
+  let imageUrl = req.query.url as string;
+  if (!imageUrl) {
+    return res.status(400).send("URL is required");
+  }
+
+  // Prevent recursive proxying
+  while (imageUrl.includes("/api/image-proxy?url=")) {
+    const parts = imageUrl.split("/api/image-proxy?url=");
+    imageUrl = decodeURIComponent(parts[parts.length - 1]);
+  }
+
+  try {
+    // Validate URL
+    let url: URL;
+    try {
+      url = new URL(imageUrl);
+    } catch (e) {
+      console.error(`[Image Proxy] Invalid URL: ${imageUrl}`);
+      return res.status(400).send("Invalid URL");
+    }
+
+    const response = await axios.get(imageUrl, {
+      responseType: 'arraybuffer',
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': url.origin,
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
+    });
+
+    const contentType = response.headers['content-type'];
+    if (contentType) {
+      res.setHeader('Content-Type', contentType);
+    } else {
+      res.setHeader('Content-Type', 'image/jpeg');
+    }
+    
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.send(response.data);
+  } catch (error: any) {
+    console.error(`[Image Proxy] Error fetching ${imageUrl}:`, error.message);
+    
+    // Try one more time without Referer if it failed
+    try {
+      const response = await axios.get(imageUrl, {
+        responseType: 'arraybuffer',
+        timeout: 10000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        }
+      });
+      res.setHeader('Content-Type', response.headers['content-type'] || 'image/jpeg');
+      res.send(response.data);
+    } catch (retryError: any) {
+      res.status(500).send("Failed to fetch image");
+    }
   }
 });
 

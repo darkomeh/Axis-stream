@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { Home, Search, Compass, Download, User } from "lucide-react";
+import { motion } from "motion/react";
 
 export default function BottomNav() {
   const location = useLocation();
@@ -13,7 +14,7 @@ export default function BottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/10 z-50 md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 glass-nav z-50 md:hidden pb-safe">
       <div className="flex justify-around items-center h-16 max-w-md mx-auto px-2">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
@@ -22,12 +23,31 @@ export default function BottomNav() {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center justify-center w-16 h-full transition-colors ${
-                isActive ? "text-white" : "text-gray-500 hover:text-gray-300"
-              }`}
+              className="relative flex flex-col items-center justify-center w-16 h-full group"
             >
-              <Icon className={`w-6 h-6 mb-1 ${isActive ? "fill-white/20" : ""}`} />
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <motion.div
+                animate={{
+                  scale: isActive ? 1.1 : 1,
+                  y: isActive ? -2 : 0,
+                }}
+                className={`transition-colors duration-300 ${
+                  isActive ? "text-brand" : "text-gray-500 group-hover:text-gray-300"
+                }`}
+              >
+                <Icon className="w-6 h-6 mb-1" />
+              </motion.div>
+              <span className={`text-[10px] font-medium uppercase tracking-wider transition-colors duration-300 ${
+                isActive ? "text-brand" : "text-gray-500"
+              }`}>
+                {item.label}
+              </span>
+              {isActive && (
+                <motion.div
+                  layoutId="activeTab"
+                  className="absolute -top-1 w-8 h-1 bg-brand rounded-full"
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                />
+              )}
             </Link>
           );
         })}

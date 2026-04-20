@@ -26,7 +26,7 @@ export default function Tray({ isOpen, onClose, title, children }: TrayProps) {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed bottom-0 left-0 right-0 bg-[#111] border-t border-white/10 rounded-t-3xl z-50 max-h-[85vh] flex flex-col"
+            className="fixed bottom-0 left-0 right-0 bg-black border-t border-white/10 rounded-t-3xl z-50 max-h-[85vh] flex flex-col"
           >
             <div className="flex items-center justify-between p-6 border-b border-white/5">
               <h3 className="text-xl font-bold text-white">{title}</h3>

@@ -5,9 +5,10 @@ import PosterGrid from "../components/PosterGrid";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import PopcornLoader from "../components/PopcornLoader";
-import { Search as SearchIcon, X, TrendingUp, ArrowLeft, Loader2 } from "lucide-react";
+import { Search as SearchIcon, X, TrendingUp, ArrowLeft, Loader2, Filter } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
+import { processSearchResults, ScoredMediaItem } from "../lib/searchUtils";
 
 export default function Search() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -15,7 +16,7 @@ export default function Search() {
   const initialQuery = searchParams.get("q") || "";
   
   const [query, setQuery] = useState(initialQuery);
-  const [results, setResults] = useState<MediaItem[]>([]);
+  const [results, setResults] = useState<ScoredMediaItem[]>([]);
   const [popularSearches, setPopularSearches] = useState<string[]>([]);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -25,6 +26,7 @@ export default function Search() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string>("All");
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const observer = useRef<IntersectionObserver | null>(null);
@@ -51,8 +53,10 @@ export default function Search() {
     { name: "Romance", color: "from-pink-500 to-rose-500" },
   ];
 
+  const resultCategories = ["All", "Movies", "Series", "Anime"];
+
   const handleBack = () => {
-    if (window.history.length > 1) {
+    if (window.history.length > 2) {
       navigate(-1);
     } else {
       navigate('/');
@@ -151,18 +155,23 @@ export default function Search() {
       }
       
       setError(null);
-      const data = await movieService.search(searchQuery, p);
+      const rawData = await movieService.smartSearch(searchQuery, p);
+      const processedData = processSearchResults(rawData, searchQuery);
       
       if (reset) {
-        setResults(data);
-        if (data.length > 0) {
+        setResults(processedData);
+        if (processedData.length > 0) {
           saveToHistory(searchQuery);
         }
       } else {
-        setResults(prev => [...prev, ...data]);
+        setResults(prev => {
+          const combined = [...prev, ...processedData];
+          // Re-process to ensure no duplicates and correct ranking across pages
+          return processSearchResults(combined, searchQuery);
+        });
       }
       
-      setHasMore(data.length === 20);
+      setHasMore(rawData.length >= 20);
     } catch (err) {
       console.error("Search error:", err);
       setError("Failed to search. Please try again.");
@@ -171,6 +180,13 @@ export default function Search() {
       setLoadingMore(false);
     }
   };
+
+  const filteredResults = results.filter(item => {
+    if (activeCategory === "All") return true;
+    if (activeCategory === "Movies") return item.category === "Movies" || item.category === "Movies/Series";
+    if (activeCategory === "Series") return item.category === "Series" || item.category === "Movies/Series";
+    return item.category === activeCategory;
+  });
 
   const handleClear = () => {
     setQuery("");
@@ -200,7 +216,7 @@ export default function Search() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white pb-20">
+    <div className="min-h-screen bg-black text-white pb-20">
       <Navbar />
       
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12 pt-28">
@@ -212,9 +228,9 @@ export default function Search() {
           <span className="text-sm font-medium">Back</span>
         </button>
         
-        {/* Search Input */}
-        <div className="relative max-w-3xl mx-auto mb-12">
-          <div className="relative flex items-center group">
+          {/* Search Input */}
+        <div className="relative max-w-3xl mx-auto mb-8 flex gap-2">
+          <div className="relative flex items-center group flex-1">
             <SearchIcon className="absolute left-6 w-5 h-5 text-gray-400 group-focus-within:text-white transition-colors" />
             <input
               ref={inputRef}
@@ -223,8 +239,8 @@ export default function Search() {
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               onFocus={() => setIsFocused(true)}
-              placeholder="Search movies, series, actors..."
-              className="w-full h-14 md:h-16 pl-14 pr-14 bg-white/5 border border-white/10 rounded-full text-base md:text-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent transition-all shadow-lg"
+              placeholder="Search movies, series, anime..."
+              className="w-full h-14 md:h-16 pl-14 pr-14 bg-white/5 border border-white/10 rounded-full text-base md:text-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition-all shadow-lg"
             />
             {query && (
               <button
@@ -235,6 +251,22 @@ export default function Search() {
               </button>
             )}
           </div>
+          
+          <button 
+            onClick={() => {
+              const url = window.location.href;
+              if (navigator.share) {
+                navigator.share({ title: 'Axis Search', url });
+              } else {
+                navigator.clipboard.writeText(url);
+                alert("Search context copied to clipboard!");
+              }
+            }}
+            className="w-14 h-14 md:h-16 md:w-16 flex items-center justify-center bg-white/5 border border-white/10 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-all shrink-0 tooltip"
+            title="Share this search"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          </button>
 
           {/* Suggestions Dropdown */}
           <AnimatePresence>
@@ -264,6 +296,26 @@ export default function Search() {
           </AnimatePresence>
         </div>
 
+        {/* Category Filters */}
+        {results.length > 0 && (
+          <div className="flex items-center gap-4 mb-12 overflow-x-auto no-scrollbar pb-2">
+            <Filter className="w-5 h-5 text-gray-500 shrink-0" />
+            {resultCategories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`px-6 py-2 rounded-full text-sm font-bold transition-all shrink-0 ${
+                  activeCategory === cat 
+                    ? "bg-brand text-white shadow-[0_0_15px_rgba(229,9,20,0.4)]" 
+                    : "bg-white/5 text-gray-400 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Content Area */}
         <div className="min-h-[50vh]">
           {loading && results.length === 0 ? (
@@ -275,13 +327,23 @@ export default function Search() {
             <div className="text-center text-red-400 py-12">{error}</div>
           ) : results.length > 0 ? (
             <div className="space-y-8">
-              <h2 className="text-2xl font-bold">Results for "{query}"</h2>
-              <PosterGrid items={results} loading={loading} />
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">Results for "{query}"</h2>
+                <span className="text-sm text-gray-500 font-medium">{filteredResults.length} items found</span>
+              </div>
+              
+              {filteredResults.length > 0 ? (
+                <PosterGrid items={filteredResults} loading={loading} />
+              ) : (
+                <div className="text-center py-20">
+                  <p className="text-gray-400">No results found in this category.</p>
+                </div>
+              )}
               
               {hasMore && (
                 <div ref={lastElementRef} className="flex justify-center pt-8 h-20">
                   {loadingMore && (
-                    <div className="flex items-center gap-3 text-gray-400">
+                    <div className="flex items-center gap-3 text-brand">
                       <Loader2 className="w-5 h-5 animate-spin" />
                       <span className="text-sm font-medium">Loading more...</span>
                     </div>
@@ -296,6 +358,24 @@ export default function Search() {
             </div>
           ) : (
             <div className="max-w-3xl mx-auto space-y-12">
+              {/* Explore Genres - Premium Feel */}
+              <div>
+                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Explore Genres</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {categories.map((c, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handlePopularClick(c.name)}
+                      className="relative overflow-hidden rounded-xl h-20 flex items-center justify-center group"
+                    >
+                      <div className={`absolute inset-0 bg-gradient-to-br ${c.color} opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500`} />
+                      <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
+                      <span className="relative text-white font-black text-lg tracking-wider drop-shadow-lg">{c.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Search History */}
               {searchHistory.length > 0 && (
                 <div>
@@ -316,7 +396,7 @@ export default function Search() {
                       <button
                         key={`history-${idx}`}
                         onClick={() => handlePopularClick(term)}
-                        className="px-6 py-2.5 rounded-full bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all text-sm font-medium flex items-center gap-2"
+                        className="px-6 py-2.5 rounded-full bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-brand hover:border-brand hover:shadow-[0_0_15px_rgba(229,9,20,0.4)] transition-all text-sm font-medium flex items-center gap-2"
                       >
                         {term}
                       </button>
@@ -337,7 +417,7 @@ export default function Search() {
                       <button
                         key={`popular-${idx}`}
                         onClick={() => handlePopularClick(term)}
-                        className="px-6 py-2.5 rounded-full bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all text-sm font-medium"
+                        className="px-6 py-2.5 rounded-full bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-brand hover:border-brand hover:shadow-[0_0_15px_rgba(229,9,20,0.4)] transition-all text-sm font-medium"
                       >
                         {term}
                       </button>

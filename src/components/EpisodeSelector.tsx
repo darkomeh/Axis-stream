@@ -9,7 +9,7 @@ interface EpisodeSelectorProps {
 }
 
 export default function EpisodeSelector({ seasons, selectedSeason, selectedEpisode, onEpisodeChange }: EpisodeSelectorProps) {
-  if (!seasons) return null;
+  if (!Array.isArray(seasons) || seasons.length === 0) return null;
 
   return (
     <div className="space-y-6">

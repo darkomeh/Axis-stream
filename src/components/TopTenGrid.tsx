@@ -49,7 +49,7 @@ export default function TopTenGrid({ title, items, loading, showNumbers = true }
         )}
 
         <div className="flex overflow-x-auto gap-12 pb-12 pt-4 snap-x snap-mandatory hide-scrollbar -mx-6 px-6 lg:-mx-12 lg:px-12">
-          {items.slice(0, 10).map((item, index) => (
+          {Array.isArray(items) && items.slice(0, 10).map((item, index) => (
             <motion.div
               key={`${item.id}-${index}`}
               initial={{ opacity: 0, x: 50 }}

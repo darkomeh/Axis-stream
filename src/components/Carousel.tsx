@@ -21,7 +21,7 @@ export default function Carousel({ items }: CarouselProps) {
     return () => clearInterval(timer);
   }, [items.length, isHovered]);
 
-  if (!items || items.length === 0) return null;
+  if (!Array.isArray(items) || items.length === 0) return null;
 
   const currentItem = items[currentIndex];
 

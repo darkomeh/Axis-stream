@@ -165,7 +165,7 @@ export default function Home() {
           <div className="px-6 lg:px-12">
             <h2 className="text-2xl font-bold mb-6 tracking-tight">Popular Searches</h2>
             <div className="flex flex-wrap gap-3">
-              {popularSearches.slice(0, 10).map((search, idx) => (
+              {Array.isArray(popularSearches) && popularSearches.slice(0, 10).map((search, idx) => (
                 <a 
                   key={idx} 
                   href={`/search?q=${encodeURIComponent(search)}`}

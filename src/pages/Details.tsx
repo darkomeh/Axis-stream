@@ -525,7 +525,7 @@ export default function Details() {
             <div className="pt-6 border-t border-white/10">
               <h3 className="text-xl font-bold mb-4 tracking-tight uppercase">Top Cast</h3>
               <div className="flex gap-6 overflow-x-auto pb-4 no-scrollbar">
-                {details.cast.slice(0, 6).map((actor, idx) => (
+                {Array.isArray(details.cast) && details.cast.slice(0, 6).map((actor, idx) => (
                   <div key={`${actor.id}-${idx}`} className="flex-shrink-0 w-24 text-center group">
                     <div className="w-24 h-24 rounded-full overflow-hidden mb-3 bg-white/5 border border-white/10 group-hover:border-brand transition-colors">
                       {actor.avatar ? (
@@ -573,7 +573,7 @@ export default function Details() {
             </button>
           )}
           
-          {mediaData?.sources.map((source, idx) => {
+          {Array.isArray(mediaData?.sources) && mediaData.sources.map((source, idx) => {
             // Estimate size based on quality
             let estimatedSize = "Unknown Size";
             if (source.quality.includes("1080")) estimatedSize = "1.2 GB";

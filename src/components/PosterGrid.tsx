@@ -35,7 +35,7 @@ export default function PosterGrid({ title, items, viewAllLink, loading }: Poste
           <ListSkeleton count={items.length > 0 ? items.length : 12} />
         ) : (
           <div className="flex overflow-x-auto gap-5 pb-8 pt-2 snap-x snap-mandatory hide-scrollbar -mx-6 px-6 lg:-mx-12 lg:px-12">
-            {items.map((item, index) => (
+            {Array.isArray(items) && items.map((item, index) => (
               <motion.div
                 key={`${item.id}-${index}`}
                 initial={{ opacity: 0, scale: 0.9 }}

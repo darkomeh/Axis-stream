@@ -48,8 +48,9 @@ export const movieService = {
     }
     try {
       const data = await fetchWithRetry({ url: `/homepage` });
-      this._homeCache = { data, timestamp: Date.now() };
-      return data;
+      const homepage = (Array.isArray(data?.topPickList) || Array.isArray(data?.homeList)) ? data : { topPickList: [], homeList: [], latestMovies: [], latestSeries: [], operatingList: [] };
+      this._homeCache = { data: homepage, timestamp: Date.now() };
+      return homepage;
     } catch (e: any) {
       console.error("Error in getHomepage:", e.message || e);
       return { topPickList: [], homeList: [], latestMovies: [], latestSeries: [], operatingList: [] };
@@ -138,8 +139,9 @@ export const movieService = {
         url: `/trending`, 
         params: { page, perPage } 
       });
-      if (page === 1) this._trendingCache = { data, timestamp: Date.now() };
-      return data;
+      const list = Array.isArray(data) ? data : [];
+      if (page === 1) this._trendingCache = { data: list, timestamp: Date.now() };
+      return list;
     } catch (e: any) {
       console.error("Error in getTrending:", e.message || e);
       return [];
@@ -153,8 +155,9 @@ export const movieService = {
     }
     try {
       const data = await fetchWithRetry({ url: `/popular-search` });
-      this._popularSearchCache = { data, timestamp: Date.now() };
-      return data;
+      const searches = Array.isArray(data) ? data : [];
+      this._popularSearchCache = { data: searches, timestamp: Date.now() };
+      return searches;
     } catch (e: any) {
       console.error("Error in getPopularSearch:", e.message || e);
       return [];
@@ -168,8 +171,12 @@ export const movieService = {
     }
     try {
       const data = await fetchWithRetry({ url: `/hot` });
-      this._hotCache = { data, timestamp: Date.now() };
-      return data;
+      const hot = {
+        movies: Array.isArray(data?.movies) ? data.movies : [],
+        series: Array.isArray(data?.series) ? data.series : []
+      };
+      this._hotCache = { data: hot, timestamp: Date.now() };
+      return hot;
     } catch (e: any) {
       console.error("Error in getHot:", e.message || e);
       return { movies: [], series: [] };
@@ -213,12 +220,13 @@ export const movieService = {
 
     try {
       const data = await fetchWithRetry({ url: `/recommend`, params: { subjectId, page, perPage } });
+      const list = Array.isArray(data) ? data : [];
       
       if (page === 1) {
         if (!this._recommendationsCache) this._recommendationsCache = {};
-        this._recommendationsCache[cacheKey] = { data, timestamp: Date.now() };
+        this._recommendationsCache[cacheKey] = { data: list, timestamp: Date.now() };
       }
-      return data;
+      return list;
     } catch (e: any) {
       console.error("Error in getRecommendations:", e.message || e);
       return [];
@@ -242,12 +250,13 @@ export const movieService = {
 
     try {
       const data = await fetchWithRetry({ url: `/browse`, params: { subjectType, genre, countryName: country, page, perPage } });
-      
+      const list = Array.isArray(data) ? data : [];      
+
       if (page === 1) {
         if (!this._browseCache) this._browseCache = {};
-        this._browseCache[cacheKey] = { data, timestamp: Date.now() };
+        this._browseCache[cacheKey] = { data: list, timestamp: Date.now() };
       }
-      return data;
+      return list;
     } catch (e: any) {
       console.error("Error in browse:", e.message || e);
       return [];
@@ -263,8 +272,9 @@ export const movieService = {
     }
     try {
       const data = await fetchWithRetry({ url: `/ranking` });
-      this._rankingCache = { data, timestamp: Date.now() };
-      return data;
+      const list = Array.isArray(data) ? data : [];
+      this._rankingCache = { data: list, timestamp: Date.now() };
+      return list;
     } catch (e: any) {
       console.error("Error in getRanking:", e.message || e);
       return [];

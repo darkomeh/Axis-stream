@@ -281,7 +281,7 @@ export default function Search() {
                 <div className="px-6 py-3 border-b border-white/5 bg-white/5">
                   <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Suggestions</span>
                 </div>
-                {suggestions.map((s, idx) => (
+                {Array.isArray(suggestions) && suggestions.map((s, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleSuggestionClick(s)}
@@ -392,7 +392,7 @@ export default function Search() {
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-3">
-                    {searchHistory.map((term, idx) => (
+                    {Array.isArray(searchHistory) && searchHistory.map((term, idx) => (
                       <button
                         key={`history-${idx}`}
                         onClick={() => handlePopularClick(term)}
@@ -413,7 +413,7 @@ export default function Search() {
                     Popular Searches
                   </h3>
                   <div className="flex flex-wrap gap-3">
-                    {popularSearches.map((term, idx) => (
+                    {Array.isArray(popularSearches) && popularSearches.map((term, idx) => (
                       <button
                         key={`popular-${idx}`}
                         onClick={() => handlePopularClick(term)}

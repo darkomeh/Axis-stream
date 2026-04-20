@@ -9,20 +9,12 @@ interface MovieImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
 export const MovieImage: React.FC<MovieImageProps> = ({ src, alt, fallback, className, ...props }) => {
   const [error, setError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  const [useProxy, setUseProxy] = useState(() => {
-    // Automatically use proxy for known problematic domains
-    const problematicDomains = ['aoneroom.com', 'hakunaymatata.com', 'vidsrc.me', 'vidsrc.to', 'imagetmdb.com'];
-    if (src && src.startsWith('http') && problematicDomains.some(domain => src.includes(domain))) {
-      return true;
-    }
-    return false;
-  });
+  const [useProxy, setUseProxy] = useState(false);
 
   React.useEffect(() => {
     setError(false);
     setRetryCount(0);
-    const problematicDomains = ['aoneroom.com', 'hakunaymatata.com', 'vidsrc.me', 'vidsrc.to', 'imagetmdb.com'];
-    setUseProxy(src && src.startsWith('http') && problematicDomains.some(domain => src.includes(domain)) ? true : false);
+    setUseProxy(false);
   }, [src]);
 
   const handleError = () => {

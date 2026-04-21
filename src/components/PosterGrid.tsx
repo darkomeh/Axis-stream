@@ -106,7 +106,7 @@ export default function PosterGrid({ title, items, viewAllLink, loading }: Poste
                     )}
                     {item.type && (
                       <span className="text-[9px] px-1.5 py-0.5 rounded-md border border-white/10 bg-white/5">
-                        {item.type === '1' ? 'Movie' : 'Series'}
+                        {item.type == 1 || item.type === '1' || item.type === 'Movie' || item.category === 'Movies' ? 'Movie' : 'Series'}
                       </span>
                     )}
                   </div>

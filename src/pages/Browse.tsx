@@ -147,7 +147,7 @@ export default function Browse() {
       } else {
         setItems(prev => [...prev, ...data]);
       }
-      setHasMore(data.length === 20);
+      setHasMore(data.length > 0);
     } catch (e) {
       console.error("Failed to load browse items", e);
       if (reset) {

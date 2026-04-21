@@ -1,0 +1,67 @@
+{
+  "maintenanceMode": false,
+  "broadcastMessage": "Fuck you'll ",
+  "broadcastLevel": "info",
+  "bannedEmails": [],
+  "adminPin": "1234",
+  "auditLogs": [
+    {
+      "id": "9pzfwbuqu",
+      "timestamp": "2026-04-20T23:55:55.123Z",
+      "type": "BROADCAST",
+      "detail": "[info] New broadcast: Fuck you'll "
+    },
+    {
+      "id": "j7o2mkf3b",
+      "timestamp": "2026-04-20T23:55:40.422Z",
+      "type": "CONTENT_UPDATE",
+      "detail": "Featured media list updated (0 items)"
+    },
+    {
+      "id": "cm0qehuw3",
+      "timestamp": "2026-04-20T23:55:30.383Z",
+      "type": "CONTENT_UPDATE",
+      "detail": "Featured media list updated (0 items)"
+    },
+    {
+      "id": "5q4qnx73q",
+      "timestamp": "2026-04-20T23:54:46.365Z",
+      "type": "USER_ACTIVITY",
+      "detail": "Great (greatmayuku2@gmail.com): LOGGED_IN: Great"
+    },
+    {
+      "id": "sm2ic2ooq",
+      "timestamp": "2026-04-20T23:41:50.915Z",
+      "type": "MAINTENANCE",
+      "detail": "Maintenance mode disabled"
+    },
+    {
+      "id": "0pyy5u9p6",
+      "timestamp": "2026-04-20T23:41:18.465Z",
+      "type": "USER_ACTIVITY",
+      "detail": "Great (greatmayuku2@gmail.com) performed: LOGGED_IN: Great"
+    },
+    {
+      "id": "ioga3jr9a",
+      "timestamp": "2026-04-20T23:25:44.341Z",
+      "type": "MAINTENANCE",
+      "detail": "Maintenance mode enabled"
+    },
+    {
+      "id": "epqwfcls7",
+      "timestamp": "2026-04-20T23:25:20.293Z",
+      "type": "USER_ACTIVITY",
+      "detail": "Great (greatmayuku2@gmail.com) performed: LOGGED_IN: Great"
+    }
+  ],
+  "searchLogs": [],
+  "featuredMedia": [],
+  "siteConfig": {
+    "siteName": "AxisTV",
+    "brandColor": "#E50914",
+    "tagline": "Home of Endless Movies and Series",
+    "logoUrl": "https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg",
+    "allowGuestBrowsing": true
+  },
+  "reports": []
+}

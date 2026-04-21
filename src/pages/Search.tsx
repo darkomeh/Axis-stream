@@ -7,12 +7,14 @@ import Footer from "../components/Footer";
 import PopcornLoader from "../components/PopcornLoader";
 import { Search as SearchIcon, X, TrendingUp, ArrowLeft, Loader2, Filter } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import { motion, AnimatePresence } from "motion/react";
 import { processSearchResults, ScoredMediaItem } from "../lib/searchUtils";
 
 export default function Search() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { setLastActionType } = useAuth();
   const initialQuery = searchParams.get("q") || "";
   
   const [query, setQuery] = useState(initialQuery);
@@ -150,6 +152,7 @@ export default function Search() {
     try {
       if (reset) {
         setLoading(true);
+        setLastActionType(`SEARCH: ${searchQuery}`);
       } else {
         setLoadingMore(true);
       }

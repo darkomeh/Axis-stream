@@ -9,7 +9,7 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, isAdmin, siteConfig } = useAuth();
 
   const handleSurpriseMe = async () => {
     try {
@@ -47,16 +47,32 @@ export default function Navbar() {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
-            <motion.div 
-              whileHover={{ scale: 1.05, rotate: 5 }}
-              whileTap={{ scale: 0.95 }}
-              className="w-10 h-10 rounded-xl bg-brand flex items-center justify-center shadow-[0_0_20px_rgba(229,9,20,0.3)] group-hover:shadow-[0_0_30px_rgba(229,9,20,0.5)] transition-all duration-500"
-            >
-              <Play className="w-5 h-5 text-white ml-1" fill="currentColor" />
-            </motion.div>
-            <span className="text-xl md:text-2xl font-black tracking-tighter text-white group-hover:text-brand transition-colors duration-500">
-              Λ𝗫𝗜𝗦 𝗦TREAM
-            </span>
+            {siteConfig?.logoUrl ? (
+              <motion.img
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                src={siteConfig.logoUrl}
+                alt={siteConfig?.siteName || "Logo"}
+                className="h-10 w-auto rounded-lg object-contain shadow-lg shadow-brand/20 group-hover:shadow-brand/40 transition-all duration-500"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <motion.div 
+                whileHover={{ scale: 1.05, rotate: 5 }}
+                whileTap={{ scale: 0.95 }}
+                className="w-10 h-10 rounded-xl bg-brand flex items-center justify-center shadow-lg shadow-brand/20 group-hover:shadow-brand/40 transition-all duration-500"
+              >
+                <Play className="w-5 h-5 text-white ml-1" fill="currentColor" />
+              </motion.div>
+            )}
+            <div className="flex flex-col -space-y-1">
+              <span className="text-xl md:text-2xl font-black tracking-tighter text-white group-hover:text-brand transition-colors duration-500 uppercase italic">
+                {siteConfig?.siteName || 'AXIS'}
+              </span>
+              <span className="text-[8px] font-black tracking-[0.3em] text-gray-500 group-hover:text-gray-300 transition-colors uppercase italic ml-0.5">
+                {siteConfig?.tagline || 'STREAM'}
+              </span>
+            </div>
           </Link>
 
           {/* Desktop Navigation */}
@@ -71,6 +87,16 @@ export default function Navbar() {
                 <span className="absolute -bottom-2 left-0 w-0 h-0.5 bg-brand transition-all duration-300 group-hover:w-full" />
               </Link>
             ))}
+            {isAdmin && (
+              <Link 
+                to="/admin" 
+                className="relative text-[13px] font-black text-brand hover:text-brand-hover transition-colors uppercase tracking-[0.2em] group flex items-center gap-2"
+              >
+                Admin
+                <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
+                <span className="absolute -bottom-2 left-0 w-0 h-0.5 bg-brand transition-all duration-300 group-hover:w-full" />
+              </Link>
+            )}
           </nav>
 
           {/* Search & Actions */}
@@ -134,6 +160,11 @@ export default function Navbar() {
               <Link to="/browse" className="block py-3 text-lg font-medium text-gray-300 hover:text-white transition-colors uppercase tracking-widest">Browse</Link>
               <Link to="/anime" className="block py-3 text-lg font-medium text-gray-300 hover:text-white transition-colors uppercase tracking-widest">Anime</Link>
               <Link to="/toons" className="block py-3 text-lg font-medium text-gray-300 hover:text-white transition-colors uppercase tracking-widest">Toons</Link>
+              {isAdmin && (
+                <Link to="/admin" className="block py-3 text-lg font-black text-brand hover:text-brand-hover transition-colors uppercase tracking-widest flex items-center gap-2">
+                  Admin Panel <span className="w-2 h-2 rounded-full bg-brand" />
+                </Link>
+              )}
               <button onClick={handleSurpriseMe} className="w-full text-left py-3 text-lg font-medium text-brand hover:text-brand-hover transition-colors flex items-center gap-2 uppercase tracking-widest">
                 <Sparkles className="w-5 h-5" /> Surprise Me
               </button>

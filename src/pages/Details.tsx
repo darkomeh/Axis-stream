@@ -7,7 +7,11 @@ import PosterGrid from "../components/PosterGrid";
 import EpisodeSelector from "../components/EpisodeSelector";
 import PopcornLoader from "../components/PopcornLoader";
 import { ErrorMessage } from "../components/ErrorMessage";
-import { ArrowLeft, Star, Download, Film, Users, Bookmark, Check, Share2, ListVideo } from "lucide-react";
+import { 
+  ArrowLeft, Star, Download, Film, Bookmark, Check, Share2, 
+  ListVideo, Play, X, UserPlus, Users, 
+  Copy, CheckCircle2, CornerUpLeft
+} from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import Tray from "../components/Tray";
 import { useAuth } from "../contexts/AuthContext";
@@ -18,7 +22,11 @@ export default function Details() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const playerRef = useRef<HTMLDivElement>(null);
-  const { user, addToHistory, addToWatchlist, removeFromWatchlist, isInWatchlist, customPlaylists, createPlaylist, addToPlaylist, continueWatching } = useAuth();
+  const { 
+    user, addToHistory, addToWatchlist, removeFromWatchlist, 
+    isInWatchlist, customPlaylists, createPlaylist, addToPlaylist, 
+    continueWatching, trackWatchActivity 
+  } = useAuth();
   
   const [details, setDetails] = useState<ItemDetails | null>(null);
   const [richDetails, setRichDetails] = useState<any | null>(null);
@@ -35,9 +43,26 @@ export default function Details() {
   const [downloadingUrl, setDownloadingUrl] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [isDownloadingSeason, setIsDownloadingSeason] = useState(false);
+  const [isDownloadingItem, setIsDownloadingItem] = useState(false);
 
   const [isMiniPlayer, setIsMiniPlayer] = useState(false);
   const [userClosedMiniPlayer, setUserClosedMiniPlayer] = useState(false);
+
+  useEffect(() => {
+    if (details) {
+      document.title = `${details.title} - Axis`;
+      trackWatchActivity({
+        id: details.id,
+        title: details.title,
+        poster: details.poster,
+        type: details.type,
+        year: details.year,
+        rating: details.rating,
+        genres: details.genres
+      });
+    }
+    return () => { document.title = "Axis"; };
+  }, [details]);
 
   useEffect(() => {
     if (!playerRef.current) return;
@@ -149,95 +174,78 @@ export default function Details() {
   };
 
   const handleDownloadSeason = async () => {
-    if (!details || !details.seasons) return;
-    
-    const seasonData = details.seasons.find(s => s.se === selectedSeason);
-    if (!seasonData) return;
-
-    setIsDownloadingSeason(true);
-    // In a real app, this would show a toast or notification
-    console.log(`Starting bulk download for Season ${selectedSeason} (${seasonData.maxEp} episodes).`);
-    setIsDownloadTrayOpen(false);
-
-    try {
-      for (let ep = 1; ep <= seasonData.maxEp; ep++) {
-        try {
-          const media = await movieService.getPlay(details.id, selectedSeason, ep);
-          if (media && media.sources.length > 0) {
-            // Pick 720p or the first available
-            const source = media.sources.find(s => s.quality.includes('720')) || media.sources[0];
-            
-            const downloadId = `${details.id}-${selectedSeason}-${ep}-${source.quality}`;
-            const downloadTitle = `${details.title} S${selectedSeason} E${ep}`;
-            
-            // Fire and forget (it will show in Downloads tab)
-            localDownloadService.downloadFromUrl(downloadId, downloadTitle, source.url).then(blob => {
-              localDownloadService.saveVideo({
-                id: downloadId,
-                title: downloadTitle,
-                poster: details.poster,
-                quality: source.quality,
-                blob,
-                timestamp: Date.now()
-              });
-            }).catch((e: any) => {
-              const isAborted = e.name === 'AbortError' || 
-                                (typeof e === 'string' && e.includes('aborted')) || 
-                                (e.message && e.message.includes('aborted'));
-              if (isAborted) {
-                console.log(`Download cancelled for ep ${ep}`);
-              } else {
-                console.error("Failed to download ep", ep, e);
-              }
-            });
-          }
-        } catch (e) {
-          console.error("Failed to fetch media for ep", ep, e);
-        }
-      }
-    } finally {
-      setIsDownloadingSeason(false);
-    }
+    // Bulk direct browser downloads can be blocked by popup blockers.
+    // For now, we'll just alert the user.
+    alert("Bulk downloading seasons directly is not supported in browser mode. Please download episodes individually.");
+    setIsDownloadingSeason(false);
   };
 
   const handleDownload = async (url: string, quality: string) => {
     if (!details) return;
+    if (isDownloadingItem) return;
     
-    const downloadId = `${details.id}-${selectedSeason}-${selectedEpisode}-${quality}`;
-    const downloadTitle = details.type === 'Series' ? `${details.title} S${selectedSeason} E${selectedEpisode}` : details.title;
+    // Format: [ Movies name ] [Axis stream].mp4
+    let cleanTitle = details.type === 'Series' 
+      ? `${details.title} S${selectedSeason} E${selectedEpisode}` 
+      : details.title;
     
-    setDownloadingUrl(url);
-    setDownloadProgress(0);
+    // Clean up filename to prevent weird characters
+    cleanTitle = cleanTitle.replace(/[^a-zA-Z0-9 -]/g, '');
+    
+    const fileName = `[${cleanTitle}] [Axis Stream].mp4`;
+    const finalUrl = url.includes('download=1') ? url : `${url}&download=1`;
     
     try {
-      const blob = await localDownloadService.downloadFromUrl(downloadId, downloadTitle, url, (progress) => {
-        setDownloadProgress(progress);
-      });
+      setIsDownloadingItem(true);
+      setDownloadProgress(0);
       
-      await localDownloadService.saveVideo({
-        id: downloadId,
-        title: downloadTitle,
-        poster: details.poster,
-        quality,
-        blob,
-        timestamp: Date.now()
-      });
+      const response = await fetch(finalUrl);
+      if (!response.ok) throw new Error("Network response was not ok");
       
-      // In a real app, this would show a toast or notification
-      console.log('Download complete!');
-    } catch (err: any) {
-      const isAborted = err.name === 'AbortError' || 
-                        (typeof err === 'string' && err.includes('aborted')) || 
-                        (err.message && err.message.includes('aborted'));
-      if (isAborted) {
-        console.log('Download cancelled by user');
-      } else {
-        console.error("Download failed:", err);
-        // In a real app, this would show a toast or notification
-        console.error('Download failed.');
+      const contentLength = response.headers.get('content-length');
+      const total = contentLength ? parseInt(contentLength, 10) : 0;
+      
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("ReadableStream not supported");
+      
+      const chunks = [];
+      let received = 0;
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          chunks.push(value);
+          received += value.length;
+          if (total) {
+            setDownloadProgress(Math.round((received / total) * 100));
+          }
+        }
       }
+      
+      const blob = new Blob(chunks, { type: 'video/mp4' });
+      const blobUrl = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      setIsDownloadTrayOpen(false);
+    } catch (err) {
+      console.error("Download failed:", err);
+      // Fallback: just open the link and let the browser handle it, even if the filename is wrong
+      const a = document.createElement('a');
+      a.href = finalUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     } finally {
-      setDownloadingUrl(null);
+      setIsDownloadingItem(false);
       setDownloadProgress(0);
     }
   };
@@ -425,25 +433,6 @@ export default function Details() {
           </button>
 
           <button 
-            onClick={() => {
-              if (!user) {
-                // In a real app, this would show a toast or notification
-                console.log("Please sign in to watch with friends.");
-                navigate('/profile');
-                return;
-              }
-              const roomLink = `${window.location.origin}/details/${details.id}?room=${Math.random().toString(36).substring(2, 9)}`;
-              navigator.clipboard.writeText(roomLink);
-              // In a real app, this would show a toast or notification
-              console.log(`Room link copied to clipboard: ${roomLink}`);
-            }}
-            className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-sm font-bold uppercase tracking-wider border border-white/10 hover:border-white/30"
-          >
-            <Users className="w-4 h-4" />
-            Watch Party
-          </button>
-
-          <button 
             onClick={async () => {
               if (navigator.share) {
                 try {
@@ -583,19 +572,18 @@ export default function Details() {
             else if (source.quality.includes("auto")) estimatedSize = "Variable";
 
             const downloadTargetUrl = source.downloadUrl || source.url;
-            const isDownloading = downloadingUrl === downloadTargetUrl;
             const isHls = (source.downloadType || source.type) === 'hls';
 
             return (
               <button
                 key={`${source.url}-${idx}`}
                 onClick={() => handleDownload(downloadTargetUrl, source.quality)}
-                disabled={downloadingUrl !== null || isHls}
-                className={`flex items-center justify-between p-5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-brand/50 rounded-xl transition-all group ${(downloadingUrl !== null && !isDownloading) || isHls ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={isHls}
+                className={`flex items-center justify-between p-5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-brand/50 rounded-xl transition-all group ${isHls ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <div className="flex items-center gap-5">
                   <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white group-hover:scale-110 group-hover:bg-brand/20 group-hover:border-brand/50 group-hover:text-brand transition-all">
-                    {isDownloading ? (
+                    {isDownloadingItem ? (
                       <div className="w-6 h-6 flex items-center justify-center">
                         <PopcornLoader />
                       </div>
@@ -606,11 +594,11 @@ export default function Details() {
                   <div className="text-left">
                     <p className="font-bold text-white text-lg">{source.quality}</p>
                     <p className="text-xs text-gray-500 uppercase tracking-widest mt-1 font-medium">
-                      {isDownloading ? <span className="text-brand">Downloading... {downloadProgress}%</span> : `${estimatedSize} • ${(source.downloadType || source.type || 'mp4').toUpperCase()}`}
+                      {isDownloadingItem ? <span className="text-brand">Downloading... {downloadProgress}%</span> : `${estimatedSize} • ${(source.downloadType || source.type || 'mp4').toUpperCase()}`}
                     </p>
                   </div>
                 </div>
-                {isDownloading ? (
+                {isDownloadingItem ? (
                   <div className="w-14 h-14 relative flex items-center justify-center">
                     <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                       <path

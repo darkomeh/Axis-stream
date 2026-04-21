@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Search, Compass, Download, User } from "lucide-react";
+import { Home, Search, Compass, Trophy, User } from "lucide-react";
 import { motion } from "motion/react";
 
 export default function BottomNav() {
@@ -9,7 +9,7 @@ export default function BottomNav() {
     { path: "/", icon: Home, label: "Home" },
     { path: "/browse", icon: Compass, label: "Browse" },
     { path: "/search", icon: Search, label: "Search" },
-    { path: "/downloads", icon: Download, label: "Downloads" },
+    { path: "/ranking", icon: Trophy, label: "Ranking" },
     { path: "/profile", icon: User, label: "Profile" },
   ];
 

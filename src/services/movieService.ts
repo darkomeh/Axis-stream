@@ -15,20 +15,35 @@ const API_KEY = 'Godszeal';
 
 const api = axios.create();
 
+// Global runtime cache for lightning-fast speeds on repeated navigation
+const globalRequestCache = new Map<string, { data: any, timestamp: number }>();
+const CACHE_TTL = 15 * 60 * 1000; // 15 mins
+
+function getCacheKey(config: AxiosRequestConfig) {
+  return `${config.url}?${new URLSearchParams(config.params || {}).toString()}`;
+}
+
 // Helper for requests to our own backend
 async function fetchWithRetry(config: AxiosRequestConfig, retries = 3, backoff = 1000): Promise<any> {
+  const cacheKey = getCacheKey(config);
+  const cached = globalRequestCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+
   const tryDirect = !config.url?.startsWith('http');
   if (tryDirect) {
     try {
       const directResponse = await axios.get(`${EXTERNAL_API_URL}${config.url}`, {
         params: { ...config.params, apikey: API_KEY },
-        timeout: 10000
+        timeout: 2500 // Dramatically reduced timeout to fail fast and fall back gracefully
       });
       const data = directResponse.data?.data;
       if (data) {
+        let processedData;
         // Special normalization for some endpoints if needed
         if (config.url === '/homepage') {
-          return {
+          processedData = {
             topPickList: (data.topPickList || []).map(normalizeItem),
             homeList: (data.homeList || []).map(normalizeItem),
             latestMovies: (data.latestMovies || []).map(normalizeItem),
@@ -38,44 +53,77 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 3, backoff =
               subjects: (op.subjects || []).map(normalizeItem)
             }))
           };
-        }
-        if (config.url === '/trending') return (data.subjectList || []).map(normalizeItem);
-        if (config.url === '/search') return (data.items || []).map(normalizeItem);
-        if (config.url === '/popular-search') return (data.everyoneSearch || []).map((i: any) => i.title);
-        if (config.url === '/hot') return { movies: (data.movie || []).map(normalizeItem), series: (data.tv || []).map(normalizeItem) };
-        if (config.url === '/search/suggest') return data;
-        if (config.url === '/browse' || config.url === '/recommend' || config.url === '/staff/works') return (data.items || []).map(normalizeItem);
-        if (config.url === '/ranking') {
-          return (data.subjectList || []).map((item: any, index: number) => ({
+        } else if (config.url === '/trending') processedData = (data.subjectList || []).map(normalizeItem);
+        else if (config.url === '/search') processedData = (data.items || []).map(normalizeItem);
+        else if (config.url === '/popular-search') processedData = (data.everyoneSearch || []).map((i: any) => i.title);
+        else if (config.url === '/hot') processedData = { movies: (data.movie || []).map(normalizeItem), series: (data.tv || []).map(normalizeItem) };
+        else if (config.url === '/search/suggest') processedData = data;
+        else if (config.url === '/browse' || config.url === '/recommend' || config.url === '/staff/works') processedData = (data.items || []).map(normalizeItem);
+        else if (config.url === '/ranking') {
+          processedData = (data.subjectList || []).map((item: any, index: number) => ({
             id: String(item.subjectId || item.id),
             title: item.title,
-            poster: item.cover || item.poster || '',
+            poster: getImageUrl(item.cover) || getImageUrl(item.poster) || '',
             rating: item.score || item.imdbRatingValue || item.rating,
             rank: index + 1,
             year: item.releaseDate ? item.releaseDate.substring(0, 4) : item.year,
           }));
         }
-        if (config.url === '/detail') {
+        else if (config.url === '/live') {
+          processedData = (data || []).map((item: any) => ({
+            id: String(item.id),
+            title: item.title,
+            cover: getImageUrl(item.cover),
+            url: item.url,
+            status: item.status,
+            time: item.time
+          }));
+        }
+        else if (config.url === '/staff/detail') {
+          processedData = {
+            id: String(data.staffId),
+            name: data.name,
+            avatar: getImageUrl(data.avatar) || getImageUrl(data.cover) || getImageUrl(data.image) || getImageUrl(data.photo) || '',
+            description: data.description,
+            birthday: data.birthday,
+            birthPlace: data.birthPlace,
+            popularity: data.popularity,
+            biography: data.biography || data.description
+          };
+        }
+        else if (config.url === '/staff/related') {
+          processedData = (data || []).map((d: any) => ({
+            id: String(d.staffId),
+            name: d.name,
+            avatar: getImageUrl(d.avatar) || getImageUrl(d.cover) || getImageUrl(d.image) || getImageUrl(d.photo) || ''
+          }));
+        }
+        else if (config.url === '/detail') {
           const subject = data.subject || {};
-          return {
+          processedData = {
             id: String(subject.subjectId || subject.id),
             title: subject.title,
             description: subject.description,
-            poster: subject.cover || subject.poster || '',
-            background: subject.stills?.[0]?.url || subject.cover || '',
+            poster: getImageUrl(subject.cover) || getImageUrl(subject.poster) || '',
+            background: getImageUrl(subject.stills?.[0]) || getImageUrl(subject.cover) || '',
             rating: subject.imdbRatingValue || subject.rating,
             year: subject.releaseDate ? subject.releaseDate.substring(0, 4) : subject.year,
             genres: subject.genre ? subject.genre.split(',') : [],
             cast: (data.stars || subject.stars || []).map((s: any) => ({
               id: String(s.staffId),
               name: s.name,
-              avatar: s.avatar || s.cover || ''
+              avatar: getImageUrl(s.avatar) || getImageUrl(s.cover) || ''
             })),
             type: subject.subjectType === 2 ? 'Series' : 'Movie',
             seasons: data.resource?.seasons
           };
         }
-        return data;
+        else {
+          processedData = data;
+        }
+
+        globalRequestCache.set(cacheKey, { data: processedData, timestamp: Date.now() });
+        return processedData;
       }
     } catch (e) {
       console.warn(`Direct fetch failed for ${config.url}, falling back...`);
@@ -87,6 +135,8 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 3, backoff =
       ...config,
       url: `${TARGET_API}${config.url}`
     });
+    
+    globalRequestCache.set(cacheKey, { data: response.data, timestamp: Date.now() });
     return response.data;
   } catch (error) {
     if (retries > 0) {
@@ -99,12 +149,12 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 3, backoff =
 }
 
 function normalizeItem(item: any): MediaItem {
-  let poster = (typeof item.cover === 'string' ? item.cover : item.cover?.url) || 
-               item.poster || 
-               item.coverUrl || 
-               item.image || 
-               item.img || 
-               item.stills?.url ||
+  let poster = getImageUrl(item.cover) || 
+               getImageUrl(item.poster) || 
+               getImageUrl(item.coverUrl) || 
+               getImageUrl(item.image) || 
+               getImageUrl(item.img) || 
+               getImageUrl(item.stills) ||
                '';
   
   return {
@@ -116,6 +166,15 @@ function normalizeItem(item: any): MediaItem {
     year: item.releaseDate ? item.releaseDate.substring(0, 4) : item.year,
     quality: item.quality
   };
+}
+
+function getImageUrl(img: any): string {
+  if (!img) return '';
+  if (typeof img === 'string') return img;
+  if (typeof img === 'object') {
+    return img.url || img.coverUrl || img.posterUrl || img.avatar || img.cover || '';
+  }
+  return '';
 }
 
 export const movieService = {
@@ -172,7 +231,7 @@ export const movieService = {
         ...(ranking || []).map((r: any) => ({
           id: String(r.id),
           title: r.title,
-          poster: r.cover,
+          poster: getImageUrl(r.cover),
           type: r.type === 1 ? 'Movie' : r.type === 2 ? 'Series' : 'Media',
           year: r.year,
           rating: String(r.score || '')

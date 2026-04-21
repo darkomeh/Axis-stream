@@ -73,7 +73,7 @@ export default function Carousel({ items }: CarouselProps) {
             <div className="flex items-center gap-3 mb-6">
               {currentItem.type && (
                 <span className="inline-block px-4 py-1.5 text-[11px] font-black tracking-[0.3em] text-white uppercase bg-brand rounded-full shadow-[0_0_20px_rgba(229,9,20,0.4)]">
-                  {currentItem.type === '1' ? 'Movie' : 'Series'}
+                  {currentItem.type == 1 || currentItem.type === '1' || currentItem.type === 'Movie' || currentItem.category === 'Movies' ? 'Movie' : 'Series'}
                 </span>
               )}
               <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-[11px] font-bold text-white uppercase tracking-widest">

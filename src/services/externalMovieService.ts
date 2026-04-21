@@ -37,13 +37,13 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 3, backoff =
 }
 
 function normalizeItem(item: any): MediaItem {
-  let poster = (typeof item.cover === 'string' ? item.cover : item.cover?.url) || 
-                 item.poster || 
-                 item.coverUrl || 
-                 item.image || 
-                 item.img || 
-                 item.stills?.url ||
-                 '';
+  let poster = getImageUrl(item.cover) || 
+               getImageUrl(item.poster) || 
+               getImageUrl(item.coverUrl) || 
+               getImageUrl(item.image) || 
+               getImageUrl(item.img) || 
+               getImageUrl(item.stills) ||
+               '';
   
   return {
     id: String(item.subjectId || item.id),
@@ -56,6 +56,16 @@ function normalizeItem(item: any): MediaItem {
     quality: item.quality,
     detailPath: item.detailPath
   };
+}
+
+function getImageUrl(img: any): string {
+  if (!img) return '';
+  if (typeof img === 'string') return img;
+  if (typeof img === 'object') {
+    // Check common nested structures from this API
+    return img.url || img.coverUrl || img.posterUrl || img.avatar || img.cover || img.image || '';
+  }
+  return '';
 }
 
 export const externalMovieService = {

@@ -4,10 +4,12 @@ export interface MediaItem {
   poster: string;
   rating?: string;
   contentRating?: string;
-  type?: string;
+  type?: string | number;
+  category?: string;
   year?: string;
   quality?: string;
   detailPath?: string;
+  genres?: string[];
 }
 
 export interface HomepageSection {
@@ -34,7 +36,7 @@ export interface ItemDetails {
   year?: string;
   genres?: string[];
   cast?: { id: string; name: string; avatar?: string }[];
-  type?: string;
+  type?: string | number;
   duration?: string;
   detailPath?: string;
   seasons?: {
@@ -93,9 +95,12 @@ export interface RankingItem {
   id: string;
   title: string;
   cover: string;
+  poster?: string;
   score?: string;
+  rating?: string;
   rank: number;
-  type?: number;
+  type?: number | string;
+  category?: string;
   year?: string;
 }
 

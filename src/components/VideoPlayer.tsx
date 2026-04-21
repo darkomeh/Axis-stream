@@ -6,7 +6,7 @@ import {
   Download, Settings, Check, ChevronDown, MonitorPlay, Gauge, Maximize, 
   Cast, Play, Pause, Volume2, VolumeX, Info, X, ArrowLeft, Sun, Lock, 
   Unlock, FastForward, Keyboard, Clock, Repeat, Globe, Languages, Type,
-  RotateCcw, RotateCw, SkipForward, SkipBack, Sliders, Minus, Plus, Maximize2
+  RotateCcw, RotateCw, SkipForward, SkipBack, Sliders, Minus, Plus, Maximize2, HelpCircle
 } from "lucide-react";
 import { useDownloadManager } from "../services/downloadService";
 import { motion, AnimatePresence } from "motion/react";
@@ -51,7 +51,7 @@ export default function VideoPlayer({
   isOffline,
   isMiniPlayer,
   onCloseMiniPlayer,
-  initialTime
+  initialTime,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -86,13 +86,14 @@ export default function VideoPlayer({
   const [customSubtitles, setCustomSubtitles] = useState<SubtitleItem[]>([]);
   const [activeSubtitle, setActiveSubtitle] = useState<SubtitleItem | null>(null);
   const [subtitleSettings, setSubtitleSettings] = useState({
-    fontSize: 24,
+    fontSize: 18,
     color: '#ffffff',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    verticalPosition: 5, // percentage from bottom
   });
 
   // Gestures & UI State
-  const [activeMenu, setActiveMenu] = useState<'settings' | 'quality' | 'subtitles' | 'audio' | 'speed' | null>(null);
+  const [activeMenu, setActiveMenu] = useState<'settings' | 'quality' | 'subtitles' | 'audio' | 'speed' | 'caption-settings' | null>(null);
   const [brightness, setBrightness] = useState(1);
   const [zoom, setZoom] = useState<'contain' | 'cover' | 'fill'>('contain');
   const [playbackSpeed, setPlaybackSpeed] = useState(preferences?.playbackSpeed || 1);
@@ -105,27 +106,54 @@ export default function VideoPlayer({
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const initialPinchDistanceRef = useRef<number | null>(null);
 
-  const { startDownload } = useDownloadManager();
-
   // Load Subtitles
+  const [sortedSubtitles, setSortedSubtitles] = useState<any[]>([]);
+
   useEffect(() => {
-    const subs = subtitleTracks.length > 0 ? subtitleTracks : (mediaData.subtitles || []);
-    if (currentSubtitleTrack >= 0 && subs[currentSubtitleTrack]?.url) {
-      const url = subs[currentSubtitleTrack].url;
-      if (url.endsWith('.srt')) {
-        fetch(url)
-          .then(res => res.text())
-          .then(text => {
-            setCustomSubtitles(parseSRT(text));
-          })
-          .catch(err => console.error("Failed to load subtitles", err));
-      } else {
-        setCustomSubtitles([]);
-      }
+    const rawSubs = subtitleTracks.length > 0 ? subtitleTracks : (mediaData.subtitles || []);
+    // Map languageCodes to full names
+    const languageMap: Record<string, string> = {
+      'en': 'English', 'ar': 'Arabic', 'es': 'Spanish', 'fr': 'French',
+      'de': 'German', 'it': 'Italian', 'pt': 'Portuguese', 'ru': 'Russian',
+      'zh': 'Chinese', 'ja': 'Japanese', 'ko': 'Korean', 'hi': 'Hindi',
+      'id': 'Indonesian', 'tr': 'Turkish', 'nl': 'Dutch', 'pl': 'Polish',
+      'vi': 'Vietnamese', 'th': 'Thai', 'ms': 'Malay', 'tl': 'Tagalog'
+    };
+    
+    const processedSubs = [...rawSubs].map(sub => ({
+      ...sub,
+      displayName: languageMap[sub.languageCode] || sub.language || sub.name || sub.languageCode || 'Unknown'
+    })).sort((a, b) => {
+      if (a.languageCode === 'en') return -1;
+      if (b.languageCode === 'en') return 1;
+      return 0;
+    });
+
+    setSortedSubtitles(processedSubs);
+  }, [subtitleTracks, mediaData.subtitles]);
+
+  useEffect(() => {
+    if (currentSubtitleTrack >= 0 && sortedSubtitles[currentSubtitleTrack]?.url) {
+      const url = sortedSubtitles[currentSubtitleTrack].url;
+      // Many stream CDNs block CORS. We can reuse image proxy for fetching text securely.
+      const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(url)}`;
+      
+      fetch(proxyUrl)
+        .then(res => res.text())
+        .then(text => {
+          setCustomSubtitles(parseSRT(text));
+        })
+        .catch(err => {
+           console.error("Failed to load subtitles via proxy, falling back to direct", err);
+           fetch(url)
+            .then(res => res.text())
+            .then(text => setCustomSubtitles(parseSRT(text)))
+            .catch(e => console.error("Total failure loading subtitles:", e));
+        });
     } else {
       setCustomSubtitles([]);
     }
-  }, [currentSubtitleTrack, subtitleTracks, mediaData.subtitles]);
+  }, [currentSubtitleTrack, sortedSubtitles]);
 
   // Sync Subtitles
   useEffect(() => {
@@ -171,6 +199,7 @@ export default function VideoPlayer({
   // Video State Handlers
   const togglePlay = useCallback(() => {
     if (!videoRef.current) return;
+    
     if (videoRef.current.paused) {
       videoRef.current.play().catch(() => {});
     } else {
@@ -178,16 +207,23 @@ export default function VideoPlayer({
     }
   }, []);
 
+  const seekTo = useCallback((time: number) => {
+    if (!videoRef.current) return;
+    videoRef.current.currentTime = time;
+  }, []);
+
   const seek = useCallback((seconds: number) => {
     if (!videoRef.current) return;
-    videoRef.current.currentTime += seconds;
+    const newTime = Math.max(0, videoRef.current.currentTime + seconds);
+    seekTo(newTime);
+    
     setGestureFeedback({ 
       type: seconds > 0 ? 'forward' : 'backward', 
       value: Math.abs(seconds),
       side: seconds > 0 ? 'right' : 'left'
     });
     setTimeout(() => setGestureFeedback(null), 600);
-  }, []);
+  }, [seekTo]);
 
   // Gesture Handlers
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -418,7 +454,7 @@ export default function VideoPlayer({
     const s = Math.floor(time % 60);
     return h > 0 
       ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
-      : `${m}:${s.toString().padStart(2, '0')}`;
+      : `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -498,14 +534,20 @@ export default function VideoPlayer({
 
       {/* Subtitles Overlay */}
       {activeSubtitle && (
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 text-center w-full px-10 pointer-events-none">
+        <div 
+          className="absolute inset-x-0 flex items-center justify-center pointer-events-none z-30 px-4 transition-all overflow-visible"
+          style={{ bottom: `${subtitleSettings.verticalPosition}%` }}
+        >
           <span 
-            className="inline-block px-4 py-1 rounded-md shadow-lg"
+            className="font-medium leading-tight inline-block px-3 py-1 rounded backdrop-blur-sm"
             style={{ 
               fontSize: `${subtitleSettings.fontSize}px`,
               color: subtitleSettings.color,
               backgroundColor: subtitleSettings.backgroundColor,
-              textShadow: '0 2px 4px rgba(0,0,0,0.5)'
+              textShadow: "1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black",
+              whiteSpace: "pre-wrap",
+              textAlign: "center",
+              maxWidth: "90%"
             }}
           >
             {activeSubtitle.text}
@@ -520,45 +562,38 @@ export default function VideoPlayer({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className={`absolute inset-0 z-40 flex flex-col justify-between p-4 md:p-8 pointer-events-none ${useIframeFallback ? 'bg-transparent' : 'bg-gradient-to-t from-black/80 via-transparent to-black/60'}`}
+            className={`absolute inset-0 z-40 flex flex-col justify-between pointer-events-none ${useIframeFallback ? 'bg-transparent' : 'bg-gradient-to-t from-black/80 via-transparent to-black/60'}`}
           >
-            {/* Top Bar - ALWAYS VISIBLE */}
-            <div className="flex items-center justify-between pointer-events-auto">
-              <button onClick={onClose} className="p-2 bg-black/40 backdrop-blur-md hover:bg-black/80 rounded-full transition-all">
-                <ArrowLeft className="w-6 h-6 text-white" />
+            {/* Top Bar - Matching screenshot */}
+            <div className="flex items-center justify-between p-4 md:p-6 pointer-events-auto">
+              <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-all text-white">
+                <ArrowLeft className="w-8 h-8 drop-shadow-md" />
               </button>
-              <div className="flex-1 text-center px-4">
-                <h1 className="text-white font-medium text-sm md:text-base truncate drop-shadow-lg">{title}</h1>
-              </div>
+              
               {!useIframeFallback && (
-                <button onClick={() => setIsLocked(true)} className="p-2 hover:bg-white/10 rounded-full transition-all">
-                  <Lock className="w-6 h-6 text-white" />
-                </button>
+                <div className="flex items-center gap-4">
+                  <button onClick={() => setIsLocked(true)} className="p-2 hover:bg-white/20 rounded-full transition-all text-white">
+                    <Lock className="w-6 h-6 drop-shadow-md" />
+                  </button>
+                  <button className="flex flex-col items-center p-2 text-white hover:text-gray-300 transition-colors cursor-help">
+                    <HelpCircle className="w-7 h-7 drop-shadow-md mb-1" />
+                    <span className="text-[10px] font-medium drop-shadow-md">Help</span>
+                  </button>
+                </div>
               )}
             </div>
 
             {/* Middle and Bottom Controls - HIDDEN FOR IFRAME */}
             {!useIframeFallback && (
                <>
-                {/* Left Side Brightness Slider */}
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col items-center gap-4 pointer-events-auto">
-                  <Sun className="w-5 h-5 text-white/80" />
-                  <div className="relative h-32 w-1 bg-white/20 rounded-full overflow-hidden">
-                    <div 
-                      className="absolute bottom-0 left-0 w-full bg-white transition-all duration-100"
-                      style={{ height: `${(brightness / 2) * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Center Controls */}
+                {/* Center Controls (Big Play button for when paused/loading or just keeping the existing one) */}
                 <div className="flex items-center justify-center gap-12 md:gap-24 pointer-events-auto">
                   <button 
                     onClick={() => seek(-10)} 
                     className="group flex flex-col items-center gap-1 text-white/80 hover:text-white transition-all transform active:scale-95"
                   >
                     <div className="relative">
-                      <RotateCcw className="w-10 h-10 md:w-14 md:h-14" strokeWidth={1.5} />
+                      <RotateCcw className="w-10 h-10 md:w-14 md:h-14 drop-shadow-lg" strokeWidth={1.5} />
                       <span className="absolute inset-0 flex items-center justify-center text-[10px] md:text-xs font-bold mt-1">10</span>
                     </div>
                   </button>
@@ -579,91 +614,109 @@ export default function VideoPlayer({
                     className="group flex flex-col items-center gap-1 text-white/80 hover:text-white transition-all transform active:scale-95"
                   >
                     <div className="relative">
-                      <RotateCw className="w-10 h-10 md:w-14 md:h-14" strokeWidth={1.5} />
+                      <RotateCw className="w-10 h-10 md:w-14 md:h-14 drop-shadow-lg" strokeWidth={1.5} />
                       <span className="absolute inset-0 flex items-center justify-center text-[10px] md:text-xs font-bold mt-1">10</span>
                     </div>
                   </button>
                 </div>
 
-                {/* Bottom Controls */}
-                <div className="space-y-6 pointer-events-auto">
-                  {/* Progress Bar */}
-                  <div className="group/progress relative pt-4 pb-2">
-                    <div className="relative h-1.5 w-full bg-white/20 rounded-full overflow-hidden transition-all duration-300 group-hover/progress:h-2">
-                       <div 
-                        className="absolute inset-y-0 left-0 bg-brand rounded-full transition-all duration-100 ease-out"
-                        style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
-                      />
+                {/* Bottom Controls (Screenshot Match) */}
+                <div className="pointer-events-auto bg-gradient-to-t from-black/90 to-transparent p-4 md:p-8">
+                  <div className="flex flex-col gap-4">
+                    
+                    {/* Top Row of Bottom Bar (Optional tools like Download/Settings we kept) */}
+                    <div className="flex items-center justify-between px-2">
+                       <div className="flex items-center gap-4">
+                         <button 
+                            onClick={() => {
+                              const currentSource = mediaData.sources[selectedSourceIdx];
+                              if (currentSource) {
+                                let downloadTargetUrl = currentSource.downloadUrl || currentSource.url;
+                                const finalUrl = downloadTargetUrl.includes('download=1') ? downloadTargetUrl : `${downloadTargetUrl}&download=1`;
+                                
+                                let cleanTitle = title.replace(/[^a-zA-Z0-9 -]/g, '');
+                                const fileName = `[${cleanTitle}] [Axis Stream].mp4`;
+                                
+                                const a = document.createElement('a');
+                                a.href = finalUrl;
+                                a.download = fileName;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                              }
+                            }}
+                            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
+                          >
+                            <Download className="w-5 h-5 drop-shadow-md" />
+                         </button>
+                       </div>
+                       <div className="flex items-center gap-4">
+                         <button onClick={() => setActiveMenu('speed')} className="text-white/70 hover:text-white pb-1">
+                            <span className="text-sm font-bold uppercase tracking-widest drop-shadow-md">{playbackSpeed}x</span>
+                         </button>
+                         <button onClick={() => setActiveMenu('settings')} className="text-white/70 hover:text-white">
+                           <Settings className="w-5 h-5 drop-shadow-md" />
+                         </button>
+                       </div>
                     </div>
-                    <input 
-                      type="range"
-                      min={0}
-                      max={duration}
-                      step={0.1}
-                      value={currentTime}
-                      onChange={(e) => {
-                        const time = parseFloat(e.target.value);
-                        if (videoRef.current) videoRef.current.currentTime = time;
-                      }}
-                      className="absolute inset-x-0 bottom-0 top-0 w-full opacity-0 cursor-pointer z-10"
-                    />
-                    <div 
-                      className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-brand rounded-full shadow-lg scale-0 group-hover/progress:scale-100 transition-transform duration-200 pointer-events-none"
-                      style={{ left: `calc(${(currentTime / (duration || 1)) * 100}% - 8px)` }}
-                    />
-                  </div>
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-6 md:gap-10">
-                      <div className="flex items-center gap-3 text-white/90 text-sm md:text-base font-medium tabular-nums">
-                        <span>{formatTime(currentTime)}</span>
-                        <span className="text-white/30">/</span>
-                        <span className="text-white/60">{formatTime(duration)}</span>
+                    {/* Bottom Row: Play, Progress, Time, Screen Icons */}
+                    <div className="flex items-center gap-4 md:gap-6 w-full">
+                      <button onClick={togglePlay} className="text-white hover:text-gray-300 transition-colors flex-shrink-0">
+                        {isPlaying ? <Pause className="w-6 h-6 md:w-8 md:h-8 fill-white drop-shadow-md" /> : <Play className="w-6 h-6 md:w-8 md:h-8 fill-white drop-shadow-md" />}
+                      </button>
+
+                      <div className="group/progress relative flex-1 h-6 flex items-center cursor-pointer">
+                        <div className="w-full h-1.5 md:h-2 bg-white/30 rounded-full overflow-hidden relative">
+                           <div 
+                            className="absolute inset-y-0 left-0 bg-[#00A8E1] rounded-full transition-all duration-100 ease-out"
+                            style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+                          />
+                        </div>
+                        <input 
+                          type="range"
+                          min={0}
+                          max={duration || 100}
+                          step={0.1}
+                          value={currentTime}
+                          onChange={(e) => {
+                            const time = parseFloat(e.target.value);
+                            if (videoRef.current) videoRef.current.currentTime = time;
+                          }}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div 
+                          className="absolute top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 bg-white rounded-full shadow-lg transition-transform duration-100 pointer-events-none"
+                          style={{ left: `calc(${(currentTime / (duration || 1)) * 100}% - 8px)` }}
+                        />
                       </div>
-                      
-                      <div className="flex items-center gap-6">
+
+                      <div className="flex items-center gap-4 md:gap-6 flex-shrink-0">
+                        <div className="text-white/90 text-xs md:text-sm font-mono tracking-wide drop-shadow-md">
+                          {formatTime(currentTime)}/{formatTime(duration)}
+                        </div>
+                        
+                        <button className="text-white hover:text-gray-300 transition-colors relative group">
+                           {/* Using a screen icon to represent "Episodes" or "Picture in Picture" next to fullscreen */}
+                           <MonitorPlay className="w-5 h-5 md:w-6 md:h-6 drop-shadow-md" />
+                           {seasons && seasons.length > 0 && (
+                             <div className="absolute bottom-full right-0 mb-4 bg-black/90 text-white text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                               Episodes
+                             </div>
+                           )}
+                        </button>
+
                         <button 
                           onClick={() => {
-                            const currentSource = mediaData.sources[selectedSourceIdx];
-                            if (currentSource) {
-                              startDownload(id, title, currentSource.downloadUrl || currentSource.url);
+                            if (containerRef.current?.requestFullscreen) {
+                              containerRef.current.requestFullscreen();
                             }
                           }}
-                          className="flex items-center gap-2 text-white/70 hover:text-white transition-colors group"
+                          className="text-white hover:text-gray-300 transition-colors"
                         >
-                          <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                          <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest hidden md:inline">Download</span>
-                        </button>
-                        
-                        <button 
-                          onClick={() => setActiveMenu('speed')}
-                          className="flex items-center gap-2 text-white/70 hover:text-white transition-colors group"
-                        >
-                          <Gauge className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                          <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest hidden md:inline">{playbackSpeed}x</span>
+                          <Maximize className="w-5 h-5 md:w-6 md:h-6 drop-shadow-md" />
                         </button>
                       </div>
-                    </div>
-
-                    <div className="flex items-center gap-6">
-                      <button 
-                        onClick={() => setActiveMenu('settings')}
-                        className="flex items-center gap-2 text-white/70 hover:text-white transition-colors group"
-                      >
-                        <Languages className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                        <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest hidden md:inline">Audio & Subtitles</span>
-                      </button>
-                      
-                      <button 
-                        onClick={() => {
-                          if (containerRef.current?.requestFullscreen) {
-                            containerRef.current.requestFullscreen();
-                          }
-                        }}
-                        className="flex items-center gap-2 text-white/70 hover:text-white transition-colors group"
-                      >
-                        <Maximize2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -688,127 +741,215 @@ export default function VideoPlayer({
         )}
       </AnimatePresence>
 
-      {/* Settings Modals - Updated to be more compact and centered */}
+      {/* Settings Modals - Compact Popover matched to screenshot style */}
       <AnimatePresence>
         {activeMenu && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="absolute inset-0 z-50" onClick={() => setActiveMenu(null)}>
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="w-full max-w-md bg-zinc-900/95 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden"
+              initial={{ opacity: 0, y: 10, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              transition={{ duration: 0.15 }}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute bottom-20 right-4 md:right-8 w-60 max-w-[calc(100vw-2rem)] bg-[#e6e6e6] dark:bg-[#1c1c1c] rounded-md shadow-2xl overflow-hidden pointer-events-auto text-[#333] dark:text-[#eee]"
             >
-              <div className="flex items-center justify-between p-6 border-b border-white/5">
-                <h2 className="text-lg font-bold text-white capitalize">{activeMenu === 'settings' ? 'Audio & Subtitles' : activeMenu}</h2>
-                <button onClick={() => setActiveMenu(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                  <X className="w-5 h-5 text-white" />
-                </button>
-              </div>
+              {activeMenu !== 'settings' && (
+                <div className="flex items-center p-3 border-b border-black/5 dark:border-white/5 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors" onClick={() => setActiveMenu('settings')}>
+                  <ArrowLeft className="w-4 h-4 mr-2 opacity-70" />
+                  <span className="font-medium text-[13px] capitalize">{activeMenu}</span>
+                </div>
+              )}
 
-              <div className="p-4 max-h-[60vh] overflow-y-auto no-scrollbar">
-                <div className="grid grid-cols-1 gap-2">
+              <div className="max-h-[60vh] overflow-y-auto no-scrollbar py-2">
                   {activeMenu === 'settings' && (
-                    <div className="space-y-6">
-                      <div>
-                        <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest mb-3 px-2">Audio</h3>
-                        <div className="space-y-1">
-                          {/* Use mediaData audioTracks if available, otherwise fallback to HLS tracks */}
-                          {(mediaData.audioTracks && mediaData.audioTracks.length > 0 ? mediaData.audioTracks.slice(0, 5) : audioTracks.slice(0, 5)).map((track: any, idx) => {
-                            const isSelected = track.subjectId 
-                              ? (track.subjectId === id || track.isOriginal)
-                              : currentAudioTrack === idx;
-                              
-                            return (
-                              <button 
-                                key={idx}
-                                onClick={() => handleAudioTrackChangeInternal(track.subjectId ? track : { ...track, idx })}
-                                className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all ${isSelected ? 'bg-brand text-white shadow-lg' : 'hover:bg-white/5 text-white/60'}`}
-                              >
-                                <span className="font-bold">{track.language || track.name || `Track ${idx + 1}`}</span>
-                                {isSelected && <Check className="w-5 h-5" />}
-                              </button>
-                            );
-                          })}
+                    <div className="flex flex-col">
+                      <button 
+                        onClick={() => setActiveMenu('audio')}
+                        className="w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      >
+                        <span className="text-[14px] font-medium opacity-80">Audio</span>
+                        <div className="flex items-center gap-1 text-[13px] opacity-70">
+                           <span>{mediaData.audioTracks?.[currentAudioTrack]?.language || 'Default'}</span>
+                           <ChevronDown className="w-3 h-3 -rotate-90 ml-1" />
                         </div>
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest mb-3 px-2">Subtitles</h3>
-                        <div className="space-y-1">
-                          <button 
-                            onClick={() => {
-                              if (hlsRef.current) hlsRef.current.subtitleTrack = -1;
-                              setCurrentSubtitleTrack(-1);
-                            }}
-                            className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all ${currentSubtitleTrack === -1 ? 'bg-brand text-white shadow-lg' : 'hover:bg-white/5 text-white/60'}`}
-                          >
-                            <span className="font-bold">Off</span>
-                            {currentSubtitleTrack === -1 && <Check className="w-5 h-5" />}
+                      </button>
+                      <button 
+                        onClick={() => setActiveMenu('subtitles')}
+                        className="w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      >
+                        <span className="text-[14px] font-medium opacity-80">Captions</span>
+                        <div className="flex items-center gap-1 text-[13px] opacity-70">
+                           <span>{currentSubtitleTrack === -1 ? 'Off' : sortedSubtitles[currentSubtitleTrack]?.displayName || 'Default'}</span>
+                           <ChevronDown className="w-3 h-3 -rotate-90 ml-1" />
+                        </div>
+                      </button>
+                      <button 
+                        onClick={() => setActiveMenu('caption-settings')}
+                        className="w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      >
+                        <span className="text-[14px] font-medium opacity-80">Caption Style</span>
+                        <div className="flex items-center gap-1 text-[13px] opacity-70">
+                           <ChevronDown className="w-3 h-3 -rotate-90 ml-1" />
+                        </div>
+                      </button>
+                      <button 
+                        onClick={() => setActiveMenu('quality')}
+                        className="w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      >
+                        <span className="text-[14px] font-medium opacity-80">Quality</span>
+                        <div className="flex items-center gap-1 text-[13px] opacity-70">
+                           <span>
+                             {hlsRef.current && hlsRef.current.currentLevel === -1 ? 'Auto' : 
+                              hlsRef.current ? `${hlsLevels[hlsCurrentLevel]?.height}p` : 
+                              selectedSourceIdx >= 0 && mediaData.sources[selectedSourceIdx] ? `${mediaData.sources[selectedSourceIdx]?.quality}p` : 'Auto'}
+                           </span>
+                           <ChevronDown className="w-3 h-3 -rotate-90 ml-1" />
+                        </div>
+                      </button>
+                      <button 
+                        onClick={() => setActiveMenu('speed')}
+                        className="w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      >
+                        <span className="text-[14px] font-medium opacity-80">Speed</span>
+                        <div className="flex items-center gap-1 text-[13px] opacity-70">
+                           <span>{playbackSpeed === 1 ? 'Normal' : `${playbackSpeed}x`}</span>
+                           <ChevronDown className="w-3 h-3 -rotate-90 ml-1" />
+                        </div>
+                      </button>
+                    </div>
+                  )}
+
+                  {activeMenu === 'caption-settings' && (
+                    <div className="flex flex-col text-[14px]">
+                      <button onClick={() => setActiveMenu('settings')} className="flex items-center gap-2 px-4 py-3 border-b border-white/10 hover:bg-white/5 transition-colors font-medium">
+                        <ChevronDown className="w-4 h-4 rotate-90" />
+                        Back to Settings
+                      </button>
+                      <div className="px-5 py-2 font-medium opacity-80 text-white/60">Font Size</div>
+                      <div className="flex px-5 pb-3 gap-2 border-b border-white/10">
+                        {[14, 18, 22, 28].map(size => (
+                          <button key={size} onClick={() => setSubtitleSettings(s => ({...s, fontSize: size}))} className={`px-3 py-1.5 rounded transition-colors ${subtitleSettings.fontSize === size ? 'bg-[#00A8E1] text-white' : 'bg-black/20 dark:bg-white/10 hover:bg-white/20'}`}>
+                            {size === 14 ? 'S' : size === 18 ? 'M' : size === 22 ? 'L' : 'XL'}
                           </button>
-                          {(mediaData.subtitles && mediaData.subtitles.length > 0 ? mediaData.subtitles.slice(0, 7) : subtitleTracks.slice(0, 7)).map((track: any, idx) => (
-                            <button 
-                              key={idx}
-                              onClick={() => {
-                                if (hlsRef.current) hlsRef.current.subtitleTrack = idx;
-                                setCurrentSubtitleTrack(idx);
-                              }}
-                              className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all ${currentSubtitleTrack === idx ? 'bg-brand text-white shadow-lg' : 'hover:bg-white/5 text-white/60'}`}
-                            >
-                              <span className="font-bold">{track.language || track.name || `Track ${idx + 1}`}</span>
-                              {currentSubtitleTrack === idx && <Check className="w-5 h-5" />}
-                            </button>
-                          ))}
-                        </div>
+                        ))}
                       </div>
-                      <div className="pt-2">
-                        <button 
-                          onClick={() => setActiveMenu('quality')}
-                          className="w-full flex items-center justify-between p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all text-white"
-                        >
-                          <div className="flex items-center gap-3">
-                            <Sliders className="w-5 h-5 text-brand" />
-                            <span className="font-bold">Quality</span>
-                          </div>
-                          <span className="text-white/40 text-sm font-bold">
-                            {hlsRef.current && hlsRef.current.currentLevel === -1 ? 'Auto' : 
-                             hlsRef.current ? `${hlsLevels[hlsCurrentLevel]?.height}p` : 
-                             `${mediaData.sources[selectedSourceIdx]?.quality}p`}
-                          </span>
-                        </button>
+                      
+                      <div className="px-5 py-2 font-medium opacity-80 text-white/60 mt-2">Color</div>
+                      <div className="flex px-5 pb-3 gap-3 border-b border-white/10">
+                        {['#ffffff', '#ffff00', '#00ffff', '#ff00ff'].map(color => (
+                          <button key={color} onClick={() => setSubtitleSettings(s => ({...s, color}))} className={`w-8 h-8 rounded-full border-2 transition-transform ${subtitleSettings.color === color ? 'scale-110 border-white shadow-[0_0_8px_rgba(255,255,255,0.5)]' : 'border-transparent shadow-none'}`} style={{ backgroundColor: color }} />
+                        ))}
+                      </div>
+
+                      <div className="px-5 py-2 font-medium opacity-80 text-white/60 mt-2">Position</div>
+                      <div className="flex px-5 pb-4 gap-2">
+                         {[5, 12, 20, 35].map(pos => (
+                          <button key={pos} onClick={() => setSubtitleSettings(s => ({...s, verticalPosition: pos}))} className={`px-2 py-1.5 text-xs rounded transition-colors ${subtitleSettings.verticalPosition === pos ? 'bg-[#00A8E1] text-white' : 'bg-black/20 dark:bg-white/10 hover:bg-white/20'}`}>
+                            {pos === 5 ? 'Bottom' : pos === 12 ? 'Low' : pos === 20 ? 'Mid' : 'High'}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   )}
 
-                  {activeMenu === 'speed' && [0.5, 0.75, 1, 1.25, 1.5, 2].map(speed => (
-                    <button 
-                      key={speed}
-                      onClick={() => {
-                        setPlaybackSpeed(speed);
-                        if (videoRef.current) videoRef.current.playbackRate = speed;
-                        updatePreferences({ playbackSpeed: speed });
-                        setActiveMenu(null);
-                      }}
-                      className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all ${playbackSpeed === speed ? 'bg-brand text-white shadow-lg' : 'hover:bg-white/5 text-white/60'}`}
-                    >
-                      <span className="font-bold">{speed}x</span>
-                      {playbackSpeed === speed && <Check className="w-5 h-5" />}
-                    </button>
-                  ))}
+                  {activeMenu === 'audio' && (
+                    <div className="flex flex-col">
+                      <button onClick={() => setActiveMenu('settings')} className="flex items-center gap-2 px-4 py-3 border-b border-white/10 hover:bg-white/5 transition-colors font-medium">
+                        <ChevronDown className="w-4 h-4 rotate-90" />
+                        Back 
+                      </button>
+                      {(mediaData.audioTracks && mediaData.audioTracks.length > 0 ? mediaData.audioTracks.slice(0, 5) : audioTracks.slice(0, 5)).map((track: any, idx) => {
+                         const isSelected = track.subjectId ? (track.subjectId === id || track.isOriginal) : currentAudioTrack === idx;
+                         return (
+                           <button 
+                             key={idx}
+                             onClick={() => handleAudioTrackChangeInternal(track.subjectId ? track : { ...track, idx })}
+                             className={`w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-[14px] ${isSelected ? 'font-bold text-[#00A8E1]' : ''}`}
+                           >
+                             <span>{track.language || track.name || `Track ${idx + 1}`}</span>
+                             {isSelected && <Check className="w-4 h-4" />}
+                           </button>
+                         );
+                      })}
+                    </div>
+                  )}
+
+                  {activeMenu === 'subtitles' && (
+                    <div className="flex flex-col">
+                       <button onClick={() => setActiveMenu('settings')} className="flex items-center gap-2 px-4 py-3 border-b border-white/10 hover:bg-white/5 transition-colors font-medium">
+                        <ChevronDown className="w-4 h-4 rotate-90" />
+                        Back 
+                      </button>
+                       <button 
+                         onClick={() => {
+                           if (hlsRef.current) hlsRef.current.subtitleTrack = -1;
+                           setCurrentSubtitleTrack(-1);
+                           setActiveMenu('settings');
+                         }}
+                         className={`w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-[14px] ${currentSubtitleTrack === -1 ? 'font-bold text-[#00A8E1]' : ''}`}
+                       >
+                         <span>Off</span>
+                         {currentSubtitleTrack === -1 && <Check className="w-4 h-4" />}
+                       </button>
+                       {(sortedSubtitles.length > 0 ? sortedSubtitles.slice(0, 10) : subtitleTracks.slice(0, 10)).map((track: any, idx) => (
+                         <button 
+                           key={idx}
+                           onClick={() => {
+                             if (hlsRef.current) hlsRef.current.subtitleTrack = idx;
+                             setCurrentSubtitleTrack(idx);
+                             setActiveMenu('settings');
+                           }}
+                           className={`w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-[14px] ${currentSubtitleTrack === idx ? 'font-bold text-[#00A8E1]' : ''}`}
+                         >
+                           <span>{track.displayName || track.language || track.name || (idx === 0 ? 'English (Auto)' : `Track ${idx + 1}`)}</span>
+                           {currentSubtitleTrack === idx && <Check className="w-4 h-4" />}
+                         </button>
+                       ))}
+                    </div>
+                  )}
+
+                  {activeMenu === 'speed' && (
+                    <div className="flex flex-col">
+                      <button onClick={() => setActiveMenu('settings')} className="flex items-center gap-2 px-4 py-3 border-b border-white/10 hover:bg-white/5 transition-colors font-medium">
+                        <ChevronDown className="w-4 h-4 rotate-90" />
+                        Back 
+                      </button>
+                      {[0.5, 0.75, 1, 1.25, 1.5, 2].map(speed => (
+                        <button 
+                          key={speed}
+                          onClick={() => {
+                            setPlaybackSpeed(speed);
+                            if (videoRef.current) videoRef.current.playbackRate = speed;
+                            updatePreferences({ playbackSpeed: speed });
+                            setActiveMenu('settings');
+                          }}
+                          className={`w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-[14px] ${playbackSpeed === speed ? 'font-bold text-[#00A8E1]' : ''}`}
+                        >
+                          <span>{speed === 1 ? 'Normal' : `${speed}x`}</span>
+                          {playbackSpeed === speed && <Check className="w-4 h-4" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
                   {activeMenu === 'quality' && (
-                    <div className="space-y-1">
-                      {/* Quality selection for HLS */}
+                    <div className="flex flex-col">
+                      <button onClick={() => setActiveMenu('settings')} className="flex items-center gap-2 px-4 py-3 border-b border-white/10 hover:bg-white/5 transition-colors font-medium">
+                        <ChevronDown className="w-4 h-4 rotate-90" />
+                        Back 
+                      </button>
                       {hlsRef.current && (
                         <>
                           <button 
                             onClick={() => {
                               if (hlsRef.current) hlsRef.current.currentLevel = -1;
                               setHlsCurrentLevel(-1);
-                              setActiveMenu(null);
+                              setActiveMenu('settings');
                             }}
-                            className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all ${hlsCurrentLevel === -1 ? 'bg-brand text-white' : 'hover:bg-white/5 text-white/60'}`}
+                            className={`w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-[14px] ${hlsCurrentLevel === -1 ? 'font-bold text-[#00A8E1]' : ''}`}
                           >
-                            <span className="font-bold">Auto (Adaptive)</span>
-                            {hlsCurrentLevel === -1 && <Check className="w-5 h-5" />}
+                            <span>Auto (Adaptive)</span>
+                            {hlsCurrentLevel === -1 && <Check className="w-4 h-4" />}
                           </button>
                           {hlsLevels.map((level, idx) => (
                             <button 
@@ -816,34 +957,33 @@ export default function VideoPlayer({
                               onClick={() => {
                                 if (hlsRef.current) hlsRef.current.currentLevel = idx;
                                 setHlsCurrentLevel(idx);
-                                setActiveMenu(null);
+                                setActiveMenu('settings');
                               }}
-                              className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all ${hlsCurrentLevel === idx ? 'bg-brand text-white' : 'hover:bg-white/5 text-white/60'}`}
+                              className={`w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-[14px] ${hlsCurrentLevel === idx ? 'font-bold text-[#00A8E1]' : ''}`}
                             >
-                              <span className="font-bold">{level.height}p</span>
-                              {hlsCurrentLevel === idx && <Check className="w-5 h-5" />}
+                              <span>{level.height}p</span>
+                              {hlsCurrentLevel === idx && <Check className="w-4 h-4" />}
                             </button>
                           ))}
                         </>
                       )}
                       
-                      {/* Quality selection for MP4 (static sources) */}
-                      {!hlsRef.current && mediaData.sources.map((source, idx) => (
+                      {!hlsRef.current && mediaData.sources && mediaData.sources.map((source, idx) => (
                         <button 
                           key={idx}
                           onClick={() => {
                             setSelectedSourceIdx(idx);
-                            setActiveMenu(null);
+                            setActiveMenu('settings');
                           }}
-                          className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all ${selectedSourceIdx === idx ? 'bg-brand text-white shadow-lg' : 'hover:bg-white/5 text-white/60'}`}
+                          className={`w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-[14px] ${selectedSourceIdx === idx ? 'font-bold text-[#00A8E1]' : ''}`}
                         >
-                          <span className="font-bold">{source.quality}p</span>
-                          {selectedSourceIdx === idx && <Check className="w-5 h-5" />}
+                          <span>{source.quality}p</span>
+                          {selectedSourceIdx === idx && <Check className="w-4 h-4" />}
                         </button>
                       ))}
                     </div>
                   )}
-                </div>
+
               </div>
             </motion.div>
           </div>

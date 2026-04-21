@@ -28,7 +28,7 @@ export default function Ranking() {
       try {
         if (rankings.length === 0) setLoading(true);
         const data = await movieService.getRanking();
-        setRankings(data);
+        setRankings(data.slice(0, 50));
       } catch (e) {
         console.error("Failed to load rankings", e);
       } finally {
@@ -84,9 +84,9 @@ export default function Ranking() {
 
                   {/* Poster */}
                   <div className="flex-shrink-0 w-20 md:w-32 aspect-[2/3] rounded-2xl overflow-hidden border border-white/10 group-hover:scale-105 transition-transform duration-500">
-                    {item.cover ? (
+                    {item.cover || item.poster ? (
                       <MovieImage 
-                        src={item.cover} 
+                        src={item.cover || item.poster} 
                         alt={item.title} 
                         className="w-full h-full object-cover"
                       />
@@ -101,7 +101,7 @@ export default function Ranking() {
                   <div className="flex-1 space-y-2 md:space-y-4">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-500">
                       <TrendingUp className="w-3.5 h-3.5" />
-                      <span>{item.type === 2 ? 'Series' : 'Movie'}</span>
+                      <span>{item.type == 1 || item.type === '1' || item.type === 'Movie' || item.category === 'Movies' ? 'Movie' : 'Series'}</span>
                     </div>
                     <h3 className="text-xl md:text-3xl font-bold group-hover:text-brand transition-colors line-clamp-1">
                       {item.title}
@@ -109,7 +109,7 @@ export default function Ranking() {
                     <div className="flex items-center gap-4 text-sm font-medium text-gray-400">
                       <div className="flex items-center gap-1.5">
                         <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                        <span>{item.score || 'N/A'}</span>
+                        <span>{item.score || item.rating || 'N/A'}</span>
                       </div>
                       <div className="w-1 h-1 bg-white/20 rounded-full" />
                       <span>{item.year || 'N/A'}</span>

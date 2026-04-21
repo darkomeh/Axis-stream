@@ -2,8 +2,119 @@ import express from "express";
 import path from "path";
 import { externalMovieService } from "./src/services/externalMovieService";
 import axios from "axios";
+import fs from "fs";
+import os from "os";
 
 const app = express();
+app.use(express.json());
+
+// User Persistence (Simple JSON storage)
+const USERS_FILE = path.join(process.cwd(), "users.json");
+const ADMIN_STATE_FILE = path.join(process.cwd(), "admin_state.json");
+
+interface AdminState {
+  maintenanceMode: boolean;
+  broadcastMessage: string | null;
+  broadcastLevel: 'info' | 'warning' | 'critical';
+  bannedEmails: string[];
+  adminPin: string; 
+  auditLogs: { id: string, timestamp: string, type: string, detail: string }[];
+  searchLogs: { query: string, timestamp: string, userId?: string }[];
+  featuredMedia: string[]; // List of subjectIds to feature
+  siteConfig: {
+    siteName: string;
+    brandColor: string;
+    tagline: string;
+    logoUrl?: string;
+    allowGuestBrowsing: boolean;
+  };
+  reports: { id: string, userId: string, category: string, detail: string, timestamp: string, status: 'open' | 'closed' }[];
+}
+
+let adminState: AdminState = {
+  maintenanceMode: false,
+  broadcastMessage: null,
+  broadcastLevel: 'info',
+  bannedEmails: [],
+  adminPin: "1234",
+  auditLogs: [],
+  searchLogs: [],
+  featuredMedia: [],
+  siteConfig: {
+    siteName: "AxisTV",
+    brandColor: "#E50914",
+    tagline: "Home of Endless Movies and Series",
+    logoUrl: "https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg",
+    allowGuestBrowsing: true,
+  },
+  reports: []
+};
+
+function loadAdminState() {
+  try {
+    if (fs.existsSync(ADMIN_STATE_FILE)) {
+      const stored = JSON.parse(fs.readFileSync(ADMIN_STATE_FILE, "utf-8"));
+      adminState = { 
+        ...adminState, 
+        ...stored,
+        // Ensure nested objects default correctly if partially missing from old saves
+        siteConfig: { ...adminState.siteConfig, ...(stored.siteConfig || {}) }
+      };
+      if (!adminState.adminPin) adminState.adminPin = "1234";
+    }
+  } catch (e) {
+    console.error("Error loading admin state:", e);
+  }
+}
+
+function saveAdminState() {
+  fs.writeFileSync(ADMIN_STATE_FILE, JSON.stringify(adminState, null, 2));
+}
+
+function logAction(type: string, detail: string) {
+  adminState.auditLogs.unshift({
+    id: Math.random().toString(36).substr(2, 9),
+    timestamp: new Date().toISOString(),
+    type,
+    detail
+  });
+  adminState.auditLogs = adminState.auditLogs.slice(0, 100);
+  saveAdminState();
+}
+
+loadAdminState();
+
+// Global process error handlers to prevent crashes
+process.on('uncaughtException', (err) => {
+  console.error('CRITICAL: Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('CRITICAL: Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+function getUsers(): any[] {
+  try {
+    if (fs.existsSync(USERS_FILE)) {
+      const data = fs.readFileSync(USERS_FILE, "utf-8");
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.error("Error reading users file:", e);
+  }
+  return [];
+}
+
+function saveUser(user: any) {
+  const users = getUsers();
+  const existingIndex = users.findIndex(u => u.email === user.email);
+  if (existingIndex > -1) {
+    users[existingIndex] = { ...users[existingIndex], ...user, updatedAt: new Date().toISOString() };
+  } else {
+    users.push({ ...user, createdAt: new Date().toISOString() });
+  }
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+}
 
 // Simple in-memory cache
 const cache = new Map<string, { data: any, timestamp: number }>();
@@ -391,6 +502,206 @@ app.get("/api/proxy", async (req, res) => {
     console.error("[Proxy] Error:", error.message);
     res.status(500).send(error.message);
   }
+});
+
+app.get("/api/system/status", (req, res) => {
+  try {
+    res.json({
+      maintenanceMode: adminState.maintenanceMode || false,
+      broadcastMessage: adminState.broadcastMessage || null,
+      broadcastLevel: adminState.broadcastLevel || 'info',
+      siteConfig: adminState.siteConfig
+    });
+  } catch (error: any) {
+    console.error("System status endpoint error:", error);
+    res.status(500).json({ error: "Internal server error reading system status" });
+  }
+});
+
+app.post("/api/auth/sync", (req, res) => {
+  const user = req.body;
+  if (!user || !user.email) return res.status(400).json({ error: "Invalid user data" });
+  
+  if (adminState.bannedEmails.includes(user.email.toLowerCase())) {
+    return res.status(403).json({ error: "Your account has been suspended." });
+  }
+
+  saveUser(user);
+  
+  // Advanced Activity Logging
+  if (user.lastActionType) {
+    logAction("USER_ACTIVITY", `${user.username} (${user.email}): ${user.lastActionType}`);
+    
+    // Log search queries specifically
+    if (user.lastActionType.startsWith("SEARCH: ")) {
+      const query = user.lastActionType.replace("SEARCH: ", "");
+      adminState.searchLogs.unshift({
+        query,
+        timestamp: new Date().toISOString(),
+        userId: user.id
+      });
+      adminState.searchLogs = adminState.searchLogs.slice(0, 500);
+      saveAdminState();
+    }
+  }
+  res.json({ success: true, maintenance: adminState.maintenanceMode, siteConfig: adminState.siteConfig });
+});
+
+app.get("/api/admin/users", (req, res) => {
+  res.json(getUsers());
+});
+
+app.get("/api/admin/system", (req, res) => {
+  res.json({
+    maintenanceMode: adminState.maintenanceMode,
+    broadcastMessage: adminState.broadcastMessage,
+    broadcastLevel: adminState.broadcastLevel,
+    bannedEmails: adminState.bannedEmails,
+    auditLogs: adminState.auditLogs,
+    searchLogs: adminState.searchLogs,
+    featuredMedia: adminState.featuredMedia,
+    siteConfig: adminState.siteConfig,
+    reports: adminState.reports,
+    serverMetrics: {
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      cpuLoad: os.loadavg(),
+      platform: os.platform(),
+      arch: os.arch()
+    }
+  });
+});
+
+app.post("/api/admin/broadcast", (req, res) => {
+  const { message, level } = req.body;
+  adminState.broadcastMessage = message || null;
+  adminState.broadcastLevel = level || 'info';
+  logAction("BROADCAST", message ? `[${adminState.broadcastLevel}] New broadcast: ${message}` : "Broadcast cleared");
+  saveAdminState();
+  res.json({ success: true });
+});
+
+app.post("/api/admin/config", (req, res) => {
+  const { siteConfig } = req.body;
+  if (siteConfig) {
+    adminState.siteConfig = { ...adminState.siteConfig, ...siteConfig };
+    logAction("CONFIG_UPDATE", `Site identity updated: ${adminState.siteConfig.siteName}`);
+    saveAdminState();
+    res.json({ success: true });
+  } else {
+    res.status(400).send("Config required");
+  }
+});
+
+app.post("/api/admin/featured", (req, res) => {
+  const { featuredMedia } = req.body;
+  if (Array.isArray(featuredMedia)) {
+    adminState.featuredMedia = featuredMedia;
+    logAction("CONTENT_UPDATE", `Featured media list updated (${featuredMedia.length} items)`);
+    saveAdminState();
+    res.json({ success: true });
+  } else {
+    res.status(400).send("Invalid featured media data");
+  }
+});
+
+app.post("/api/admin/logs/clear", (req, res) => {
+  const { type } = req.body;
+  if (type === 'audit') {
+    adminState.auditLogs = [];
+    logAction("SYSTEM", "Audit logs cleared manually");
+  } else if (type === 'search') {
+    adminState.searchLogs = [];
+    logAction("SYSTEM", "Search logs cleared manually");
+  }
+  saveAdminState();
+  res.json({ success: true });
+});
+
+app.post("/api/admin/maintenance", (req, res) => {
+  const { enabled } = req.body;
+  adminState.maintenanceMode = !!enabled;
+  logAction("MAINTENANCE", `Maintenance mode ${enabled ? "enabled" : "disabled"}`);
+  saveAdminState();
+  res.json({ success: true });
+});
+
+app.post("/api/admin/verify-pin", (req, res) => {
+  const { pin } = req.body;
+  if (pin === adminState.adminPin) {
+    res.json({ success: true });
+  } else {
+    res.status(401).json({ success: false, error: "Incorrect Security PIN" });
+  }
+});
+
+app.post("/api/admin/update-pin", (req, res) => {
+  const { oldPin, newPin } = req.body;
+  if (oldPin === adminState.adminPin) {
+    if (!newPin || newPin.length < 4) return res.status(400).json({ error: "Invalid PIN" });
+    adminState.adminPin = newPin;
+    logAction("SECURITY", "Admin Security PIN updated");
+    saveAdminState();
+    res.json({ success: true });
+  } else {
+    res.status(401).json({ error: "Incorrect current PIN" });
+  }
+});
+
+app.post("/api/admin/ban", (req, res) => {
+  const { email, unban } = req.body;
+  if (!email) return res.status(400).send("Email required");
+  
+  if (unban) {
+    adminState.bannedEmails = adminState.bannedEmails.filter(e => e !== email.toLowerCase());
+    logAction("UNBAN", `User unbanned: ${email}`);
+  } else {
+    if (!adminState.bannedEmails.includes(email.toLowerCase())) {
+      adminState.bannedEmails.push(email.toLowerCase());
+      logAction("BAN", `User banned: ${email}`);
+    }
+  }
+  saveAdminState();
+  res.json({ success: true });
+});
+
+app.post("/api/report", (req, res) => {
+  const { userId, category, detail } = req.body;
+  const report = {
+    id: Math.random().toString(36).substr(2, 9),
+    userId,
+    category,
+    detail,
+    timestamp: new Date().toISOString(),
+    status: 'open' as const
+  };
+  adminState.reports.unshift(report);
+  saveAdminState();
+  res.json({ success: true, reportId: report.id });
+});
+
+app.post("/api/admin/reports/resolve", (req, res) => {
+  const { reportId } = req.body;
+  const report = adminState.reports.find(r => r.id === reportId);
+  if (report) {
+    report.status = 'closed';
+    logAction("REPORT", `Report ${reportId} resolved`);
+    saveAdminState();
+    res.json({ success: true });
+  } else {
+    res.status(404).send("Report not found");
+  }
+});
+
+app.get("/api/admin/stats", (req, res) => {
+  const users = getUsers();
+  res.json({
+    totalUsers: users.length,
+    newToday: users.filter(u => u.createdAt && new Date(u.createdAt).toDateString() === new Date().toDateString()).length,
+    mostActive: users.sort((a, b) => (b.stats?.totalViews || 0) - (a.stats?.totalViews || 0)).slice(0, 5),
+    searchVelocity: adminState.searchLogs.filter(s => new Date(s.timestamp).getTime() > Date.now() - 3600000).length,
+    openReports: adminState.reports.filter(r => r.status === 'open').length
+  });
 });
 
 // Legacy fallback for any other /api/* routes

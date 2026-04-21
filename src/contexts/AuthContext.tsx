@@ -30,6 +30,16 @@ export interface ContinueWatchingItem extends MediaItem {
   episode?: number;
 }
 
+export interface UserStats {
+  watchTimeMinutes: number;
+  totalViews: number;
+  lastWatchDate: string | null;
+  currentStreak: number;
+  genreProgress: Record<string, number>;
+  weekendCount: number;
+  badges: string[];
+}
+
 interface AuthContextType {
   user: User | null;
   login: (username: string, email: string) => void;
@@ -45,8 +55,15 @@ interface AuthContextType {
   // New Features
   preferences: UserPreferences;
   updatePreferences: (prefs: Partial<UserPreferences>) => void;
-  stats: { watchTimeMinutes: number };
+  stats: UserStats;
+  isAdmin: boolean;
+  systemMessage: string | null;
+  isMaintenance: boolean;
+  isBanned: boolean;
+  broadcastLevel: 'info' | 'warning' | 'critical';
+  siteConfig: { siteName: string; brandColor: string; tagline: string; logoUrl?: string };
   addWatchTime: (minutes: number) => void;
+  trackWatchActivity: (item: MediaItem) => void;
   following: string[];
   toggleFollow: (id: string) => void;
   isFollowing: (id: string) => boolean;
@@ -58,7 +75,18 @@ interface AuthContextType {
   continueWatching: ContinueWatchingItem[];
   updateContinueWatching: (item: ContinueWatchingItem) => void;
   removeFromContinueWatching: (id: string) => void;
+  setLastActionType: (type: string | null) => void;
 }
+
+const initialStats: UserStats = {
+  watchTimeMinutes: 0,
+  totalViews: 0,
+  lastWatchDate: null,
+  currentStreak: 0,
+  genreProgress: {},
+  weekendCount: 0,
+  badges: []
+};
 
 const defaultPreferences: UserPreferences = {
   autoPlayNext: true,
@@ -77,10 +105,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   // New State
   const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
-  const [stats, setStats] = useState({ watchTimeMinutes: 0 });
+  const [stats, setStats] = useState<UserStats>(initialStats);
   const [following, setFollowing] = useState<string[]>([]);
   const [customPlaylists, setCustomPlaylists] = useState<Playlist[]>([]);
   const [continueWatching, setContinueWatching] = useState<ContinueWatchingItem[]>([]);
+  const [systemMessage, setSystemMessage] = useState<string | null>(null);
+  const [isMaintenance, setIsMaintenance] = useState(false);
+  const [isBanned, setIsBanned] = useState(false);
+  const [broadcastLevel, setBroadcastLevel] = useState<'info' | 'warning' | 'critical'>('info');
+  const [siteConfig, setSiteConfig] = useState<{ siteName: string; brandColor: string; tagline: string; logoUrl?: string; }>({ siteName: 'AxisTV', brandColor: '#E50914', tagline: 'Home of Endless Movies and Series', logoUrl: 'https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg' });
+  const [lastActionType, setLastActionType] = useState<string | null>(null);
+
+  useEffect(() => {
+    let retryCount = 0;
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch('/api/system/status');
+        if (!res.ok) throw new Error(`Server returned ${res.status}`);
+        
+        const data = await res.json();
+        setSystemMessage(data.broadcastMessage);
+        setIsMaintenance(data.maintenanceMode);
+        if (data.broadcastLevel) setBroadcastLevel(data.broadcastLevel);
+        if (data.siteConfig) setSiteConfig(data.siteConfig);
+        retryCount = 0; // Reset on success
+      } catch (e) {
+        // Only log after 3 consecutive failures to avoid noise during server restarts
+        retryCount++;
+        if (retryCount >= 3) {
+          console.error("Failed to fetch system status after retries", e);
+        }
+      }
+    };
+    
+    // Initial fetch with slight delay to ensure server is ready
+    const timer = setTimeout(fetchStatus, 1000);
+    const interval = setInterval(fetchStatus, 30000); // 30s polling
+    
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('axis_user');
@@ -101,7 +167,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (storedPrefs) setPreferences({ ...defaultPreferences, ...JSON.parse(storedPrefs) });
 
       const storedStats = localStorage.getItem(`axis_stats_${user.id}`);
-      if (storedStats) setStats(JSON.parse(storedStats));
+      if (storedStats) {
+        const parsed = JSON.parse(storedStats);
+        setStats({ ...initialStats, ...parsed });
+      } else {
+        setStats(initialStats);
+      }
 
       const storedFollowing = localStorage.getItem(`axis_following_${user.id}`);
       if (storedFollowing) setFollowing(JSON.parse(storedFollowing));
@@ -115,16 +186,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setWatchlist([]);
       setHistory([]);
       setPreferences(defaultPreferences);
-      setStats({ watchTimeMinutes: 0 });
+      setStats(initialStats);
       setFollowing([]);
       setCustomPlaylists([]);
       setContinueWatching([]);
     }
   }, [user]);
 
+  const isAdmin = useMemo(() => {
+    return user?.username.toLowerCase() === 'great' && user?.email === 'greatmayuku2@gmail.com';
+  }, [user]);
+
+  // Sync with server for Admin view
+  useEffect(() => {
+    if (user && !isBanned) {
+      const syncData = async () => {
+        try {
+          const res = await fetch('/api/auth/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...user,
+              watchlistCount: watchlist.length,
+              historyCount: history.length,
+              stats,
+              preferences,
+              lastAction: new Date().toISOString(),
+              lastActionType
+            })
+          });
+          
+          if (res.status === 403) {
+            setIsBanned(true);
+            return;
+          }
+
+          if (lastActionType) setLastActionType(null); // Clear after sync
+        } catch (e) {
+          console.error("Sync failed", e);
+        }
+      };
+      syncData();
+    }
+  }, [user, watchlist.length, history.length, stats, preferences, isBanned, lastActionType]);
+
   const login = useCallback((username: string, email: string) => {
     const newUser = { id: email, username, email, avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}` };
     setUser(newUser);
+    setLastActionType(`LOGGED_IN: ${username}`);
     localStorage.setItem('axis_user', JSON.stringify(newUser));
   }, []);
 
@@ -137,6 +246,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     setWatchlist(prev => {
       const updated = [...prev.filter(i => i.id !== item.id), item];
+      setLastActionType(`WATCHLIST_ADD: ${item.title}`);
       localStorage.setItem(`axis_watchlist_${user.id}`, JSON.stringify(updated));
       return updated;
     });
@@ -159,6 +269,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     setHistory(prev => {
       const updated = [item, ...prev.filter(i => i.id !== item.id)].slice(0, 50);
+      setLastActionType(`WATCH_START: ${item.title}`);
       localStorage.setItem(`axis_history_${user.id}`, JSON.stringify(updated));
       return updated;
     });
@@ -182,7 +293,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const addWatchTime = useCallback((minutes: number) => {
     if (!user) return;
     setStats(prev => {
-      const updated = { watchTimeMinutes: prev.watchTimeMinutes + minutes };
+      const updated = { ...prev, watchTimeMinutes: prev.watchTimeMinutes + minutes };
+      localStorage.setItem(`axis_stats_${user.id}`, JSON.stringify(updated));
+      return updated;
+    });
+  }, [user]);
+
+  const trackWatchActivity = useCallback((item: MediaItem) => {
+    if (!user) return;
+    setStats(prev => {
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+      const isWeekend = now.getDay() === 0 || now.getDay() === 6;
+      
+      let newStreak = prev.currentStreak;
+      if (prev.lastWatchDate) {
+        const lastDate = new Date(prev.lastWatchDate);
+        const diffTime = Math.abs(now.getTime() - lastDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 1) {
+          newStreak += 1;
+        } else if (diffDays > 1) {
+          newStreak = 1;
+        }
+      } else {
+        newStreak = 1;
+      }
+
+      const category = item.type === "Series" ? "Series" : (item.genres?.[0] || "Film");
+      const newGenreProgress = { ...prev.genreProgress, [category]: (prev.genreProgress[category] || 0) + 1 };
+      
+      const newBadges = [...prev.badges];
+      if (newStreak >= 7 && !newBadges.includes('7-day streak')) newBadges.push('7-day streak');
+      if (newGenreProgress['Horror'] >= 5 && !newBadges.includes('Horror Master')) newBadges.push('Horror Master');
+      if (newGenreProgress['Romance'] >= 5 && !newBadges.includes('Romance King')) newBadges.push('Romance King');
+      if (isWeekend && !newBadges.includes('Weekend Binger')) {
+        // Simulating 3+ watches in a weekend day
+        const dayCount = (prev.lastWatchDate === today) ? (prev.totalViews % 3) + 1 : 1;
+        if (dayCount >= 3) newBadges.push('Weekend Binger');
+      }
+
+      const updated = {
+        ...prev,
+        totalViews: prev.totalViews + 1,
+        lastWatchDate: today,
+        currentStreak: newStreak,
+        genreProgress: newGenreProgress,
+        badges: newBadges
+      };
+      
       localStorage.setItem(`axis_stats_${user.id}`, JSON.stringify(updated));
       return updated;
     });
@@ -267,23 +427,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   const value = useMemo(() => ({
-    user, login, logout, 
+    user, login, logout, isAdmin, 
+    systemMessage, isMaintenance, isBanned,
+    broadcastLevel, siteConfig,
     watchlist, addToWatchlist, removeFromWatchlist, isInWatchlist,
     history, addToHistory, clearHistory,
     preferences, updatePreferences,
-    stats, addWatchTime,
+    stats, addWatchTime, trackWatchActivity,
     following, toggleFollow, isFollowing,
     customPlaylists, createPlaylist, deletePlaylist, addToPlaylist, removeFromPlaylist,
-    continueWatching, updateContinueWatching, removeFromContinueWatching
+    continueWatching, updateContinueWatching, removeFromContinueWatching,
+    setLastActionType
   }), [
-    user, login, logout, 
+    user, login, logout, isAdmin,
+    systemMessage, isMaintenance, isBanned,
+    broadcastLevel, siteConfig,
     watchlist, addToWatchlist, removeFromWatchlist, isInWatchlist,
     history, addToHistory, clearHistory,
     preferences, updatePreferences,
-    stats, addWatchTime,
+    stats, addWatchTime, trackWatchActivity,
     following, toggleFollow, isFollowing,
     customPlaylists, createPlaylist, deletePlaylist, addToPlaylist, removeFromPlaylist,
-    continueWatching, updateContinueWatching, removeFromContinueWatching
+    continueWatching, updateContinueWatching, removeFromContinueWatching,
+    setLastActionType
   ]);
 
   return (

@@ -124,11 +124,11 @@ export default function Live() {
 
                 {/* Match Footer / Action */}
                 <div className="p-6 pt-0">
-                  <button className="w-full py-4 bg-white text-black font-bold rounded-2xl hover:bg-brand hover:text-white hover:shadow-[0_0_20px_rgba(229,9,20,0.5)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 group/btn">
+                  <a href={match.url} target="_blank" rel="noopener noreferrer" className="w-full py-4 bg-white text-black font-bold rounded-2xl hover:bg-brand hover:text-white hover:shadow-[0_0_20px_rgba(229,9,20,0.5)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 group/btn">
                     <PlayCircle className="w-5 h-5" />
                     <span>Watch Match</span>
                     <ExternalLink className="w-4 h-4 opacity-0 group-hover/btn:opacity-100 transition-opacity" />
-                  </button>
+                  </a>
                 </div>
               </motion.div>
             ))}

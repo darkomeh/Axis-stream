@@ -1,179 +1,169 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Search, Menu, X, Play, User, Download, Sparkles } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { 
+  Search, Bell, Home, Film, Tv, ListPlus, Radio, 
+  LayoutGrid, Grid2X2, Settings, User as UserIcon
+} from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAdmin, siteConfig } = useAuth();
-
-  const handleSurpriseMe = async () => {
-    try {
-      const { movieService } = await import("../services/movieService");
-      const trending = await movieService.getTrending();
-      if (trending && trending.length > 0) {
-        const randomItem = trending[Math.floor(Math.random() * trending.length)];
-        navigate(`/details/${randomItem.id}`);
-      }
-    } catch (error) {
-      console.error("Failed to fetch surprise me item", error);
-    }
-  };
+  const { user, siteConfig } = useAuth();
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
+      setIsScrolled(window.scrollY > 10);
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Close mobile menu on route change
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [location.pathname]);
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+    }
+  };
+
+  const SIDEBAR_LINKS = [
+    { label: 'Home', path: '/', icon: Home, isActive: location.pathname === '/' },
+    { label: 'Movies', path: '/browse?type=1', icon: Film, isActive: location.search.includes('type=1') },
+    { label: 'Series', path: '/browse?type=2', icon: Tv, isActive: location.search.includes('type=2') },
+    { label: 'My List', path: '/profile', icon: ListPlus, isActive: location.pathname === '/profile' },
+    { label: 'Live TV', path: '/live', icon: Radio, isActive: location.pathname === '/live' },
+    { label: 'Browse', path: '/browse', icon: LayoutGrid, isActive: location.pathname === '/browse' && !location.search },
+    { label: 'Categories', path: '/categories', icon: Grid2X2, isActive: location.pathname === '/categories' },
+  ];
 
   return (
-    <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ${
-        isScrolled ? "glass-nav py-3" : "bg-gradient-to-b from-black/90 via-black/40 to-transparent py-5"
-      }`}
-    >
-      <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
-        <div className="flex items-center justify-between">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
-            {siteConfig?.logoUrl ? (
-              <motion.img
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                src={siteConfig.logoUrl}
-                alt={siteConfig?.siteName || "Logo"}
-                className="h-10 w-auto rounded-lg object-contain shadow-lg shadow-brand/20 group-hover:shadow-brand/40 transition-all duration-500"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <motion.div 
-                whileHover={{ scale: 1.05, rotate: 5 }}
-                whileTap={{ scale: 0.95 }}
-                className="w-10 h-10 rounded-xl bg-brand flex items-center justify-center shadow-lg shadow-brand/20 group-hover:shadow-brand/40 transition-all duration-500"
-              >
-                <Play className="w-5 h-5 text-white ml-1" fill="currentColor" />
-              </motion.div>
-            )}
-            <div className="flex flex-col -space-y-1">
-              <span className="text-xl md:text-2xl font-black tracking-tighter text-white group-hover:text-brand transition-colors duration-500 uppercase italic">
-                {siteConfig?.siteName || 'AXIS'}
-              </span>
-              <span className="text-[8px] font-black tracking-[0.3em] text-gray-500 group-hover:text-gray-300 transition-colors uppercase italic ml-0.5">
-                {siteConfig?.tagline || 'STREAM'}
+    <>
+      {/* DESKTOP SIDEBAR */}
+      <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 bg-[#050505] border-r border-white/5 flex-col z-[100]">
+        <div className="p-8">
+          <Link to="/" className="flex items-center gap-1.5 group">
+            <div className="relative">
+               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-brand">
+                 <path d="M12 2L22 20H2L12 2Z" fill="currentColor"/>
+               </svg>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-2xl font-black tracking-widest text-white group-hover:text-brand transition-colors duration-500 uppercase">
+                AXIS TV
               </span>
             </div>
           </Link>
+        </div>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-10">
-            {['Home', 'Browse', 'Anime', 'Toons'].map((item) => (
-              <Link 
-                key={item}
-                to={item === 'Home' ? '/' : `/${item.toLowerCase()}`} 
-                className="relative text-[13px] font-bold text-gray-400 hover:text-white transition-colors uppercase tracking-[0.2em] group"
+        <nav className="flex-1 px-6 space-y-1 overflow-y-auto hide-scrollbar">
+          {SIDEBAR_LINKS.map((link) => {
+            const Icon = link.icon;
+            return (
+              <Link
+                key={link.label}
+                to={link.path}
+                className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 font-medium ${
+                  link.isActive
+                    ? "text-brand bg-brand/10 pb-3"
+                    : "text-gray-400 hover:text-white hover:bg-white/5"
+                }`}
               >
-                {item}
-                <span className="absolute -bottom-2 left-0 w-0 h-0.5 bg-brand transition-all duration-300 group-hover:w-full" />
+                <Icon className="w-5 h-5" />
+                <span className="text-sm">{link.label}</span>
               </Link>
-            ))}
-            {isAdmin && (
-              <Link 
-                to="/admin" 
-                className="relative text-[13px] font-black text-brand hover:text-brand-hover transition-colors uppercase tracking-[0.2em] group flex items-center gap-2"
-              >
-                Admin
-                <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
-                <span className="absolute -bottom-2 left-0 w-0 h-0.5 bg-brand transition-all duration-300 group-hover:w-full" />
-              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="p-6 space-y-1 mb-2">
+          <Link to="/settings" className="flex items-center gap-4 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all duration-300 font-medium">
+            <Settings className="w-5 h-5" />
+            <span className="text-sm">Settings</span>
+          </Link>
+          <Link to="/profile" className="flex items-center gap-4 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all duration-300 font-medium">
+            {user?.avatar ? (
+              <img src={user.avatar} alt="Profile" className="w-6 h-6 rounded-full object-cover" />
+            ) : (
+              <UserIcon className="w-5 h-5" />
             )}
-          </nav>
+            <span className="text-sm">Profile</span>
+          </Link>
+        </div>
+      </aside>
 
-          {/* Search & Actions */}
-          <div className="flex items-center gap-4 md:gap-8">
-            <button
-              onClick={handleSurpriseMe}
-              className="hidden md:flex items-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-brand border border-white/10 hover:border-brand rounded-full text-white font-bold transition-all duration-500 hover:shadow-[0_0_20px_rgba(229,9,20,0.4)] group"
-            >
-              <Sparkles className="w-4 h-4 text-brand group-hover:text-white transition-colors" />
-              <span className="text-[11px] uppercase tracking-[0.15em]">Surprise Me</span>
-            </button>
+      {/* DESKTOP TOP HEADER */}
+      <header className={`hidden lg:flex fixed left-64 right-0 top-0 h-24 z-50 transition-all duration-300 items-center px-10 ${
+        isScrolled ? "bg-black/95 border-b border-white/5 backdrop-blur-md" : "bg-gradient-to-b from-black/80 to-transparent"
+      }`}>
+        <div className="flex-1 flex justify-center">
+          <form onSubmit={handleSearch} className="w-full max-w-xl relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input 
+              type="text" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search for movies, series, actors..." 
+              className="w-full bg-[#1A1A1A] border-none rounded-full py-3.5 pl-12 pr-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-white/20 transition-all font-medium placeholder-gray-500"
+            />
+          </form>
+        </div>
+        <div className="flex shrink-0 items-center gap-6">
+          <button className="relative text-white hover:scale-110 transition-transform">
+             <Bell className="w-6 h-6" />
+             <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-brand rounded-full border-2 border-black" />
+          </button>
+          <Link to="/profile">
+             {user?.avatar ? (
+               <img src={user.avatar} alt="Profile" className="w-10 h-10 rounded-full object-cover border-2 border-transparent hover:border-white transition-colors" />
+             ) : (
+               <div className="w-10 h-10 bg-[#1A1A1A] rounded-full flex items-center justify-center text-white border-2 border-transparent hover:border-white transition-colors">
+                 <UserIcon className="w-5 h-5" />
+               </div>
+             )}
+          </Link>
+        </div>
+      </header>
 
-            <div className="flex items-center gap-2 md:gap-6">
-              <button
-                onClick={() => navigate("/search")}
-                className="p-2 text-gray-400 hover:text-white hover:scale-110 transition-all duration-300"
-                aria-label="Search"
-              >
-                <Search className="w-5 h-5" />
-              </button>
-
-              <Link to="/downloads" className="hidden sm:flex p-2 text-gray-400 hover:text-white hover:scale-110 transition-all duration-300">
-                <Download className="w-5 h-5" />
-              </Link>
-
-              <Link to="/profile" className="flex items-center gap-3 group">
-                <div className="relative">
-                  {user ? (
-                    <img src={user.avatar} alt={user.username} className="w-9 h-9 rounded-full border-2 border-white/10 group-hover:border-brand transition-all duration-500 object-cover" loading="lazy" />
-                  ) : (
-                    <div className="w-9 h-9 rounded-full border-2 border-white/10 group-hover:border-brand flex items-center justify-center text-gray-400 group-hover:text-white transition-all duration-500">
-                      <User className="w-5 h-5" />
-                    </div>
-                  )}
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-black rounded-full" />
+      {/* MOBILE HEADER */}
+      <header className={`lg:hidden fixed left-0 right-0 top-0 z-50 transition-all duration-300 ${
+        isScrolled ? "bg-black/95 backdrop-blur-md border-b border-white/5" : "bg-gradient-to-b from-black/80 to-transparent"
+      }`}>
+        <div className="flex items-center justify-between px-6 py-4">
+          <Link to="/" className="flex items-center gap-1">
+             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-brand">
+               <path d="M12 2L22 20H2L12 2Z" fill="currentColor"/>
+             </svg>
+            <span className="text-xl font-black tracking-widest text-white uppercase">
+              AXIS TV
+            </span>
+          </Link>
+          <div className="flex items-center gap-5">
+            <Link to="/search" className="text-white hover:text-brand transition-colors">
+              <Search className="w-5 h-5" />
+            </Link>
+            <Link to="/profile" className="relative group">
+              {user?.avatar ? (
+                <img src={user.avatar} alt="Profile" className="w-8 h-8 rounded-full object-cover" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-[#1A1A1A] flex items-center justify-center text-white">
+                  <UserIcon className="w-4 h-4" />
                 </div>
-              </Link>
-
-              <button
-                className="lg:hidden p-2 text-gray-400 hover:text-white transition-colors"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              >
-                {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </button>
-            </div>
+              )}
+              <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-brand rounded-full border-2 border-black" />
+            </Link>
           </div>
         </div>
-      </div>
 
-      {/* Mobile Navigation */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-black/95 backdrop-blur-2xl border-t border-white/5"
-          >
-            <div className="px-6 pt-4 pb-8 space-y-2">
-              <Link to="/" className="block py-3 text-lg font-medium text-gray-300 hover:text-white transition-colors uppercase tracking-widest">Home</Link>
-              <Link to="/browse" className="block py-3 text-lg font-medium text-gray-300 hover:text-white transition-colors uppercase tracking-widest">Browse</Link>
-              <Link to="/anime" className="block py-3 text-lg font-medium text-gray-300 hover:text-white transition-colors uppercase tracking-widest">Anime</Link>
-              <Link to="/toons" className="block py-3 text-lg font-medium text-gray-300 hover:text-white transition-colors uppercase tracking-widest">Toons</Link>
-              {isAdmin && (
-                <Link to="/admin" className="block py-3 text-lg font-black text-brand hover:text-brand-hover transition-colors uppercase tracking-widest flex items-center gap-2">
-                  Admin Panel <span className="w-2 h-2 rounded-full bg-brand" />
-                </Link>
-              )}
-              <button onClick={handleSurpriseMe} className="w-full text-left py-3 text-lg font-medium text-brand hover:text-brand-hover transition-colors flex items-center gap-2 uppercase tracking-widest">
-                <Sparkles className="w-5 h-5" /> Surprise Me
-              </button>
-              <Link to="/downloads" className="block py-3 text-lg font-medium text-gray-300 hover:text-white transition-colors uppercase tracking-widest">Downloads</Link>
-              <Link to="/profile" className="block py-3 text-lg font-medium text-gray-300 hover:text-white transition-colors uppercase tracking-widest">Profile</Link>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </header>
+        {/* Mobile Tabs Container */}
+        <div className="flex items-center justify-between px-6 overflow-x-auto hide-scrollbar gap-6 pb-2">
+           <Link to="/" className={`text-[13px] font-bold pb-2 border-b-2 whitespace-nowrap transition-colors ${location.pathname === '/' ? 'text-white border-brand' : 'text-gray-400 border-transparent hover:text-white'}`}>Home</Link>
+           <Link to="/browse?type=1" className={`text-[13px] font-bold pb-2 border-b-2 whitespace-nowrap transition-colors ${location.search.includes('type=1') ? 'text-white border-brand' : 'text-gray-400 border-transparent hover:text-white'}`}>Movies</Link>
+           <Link to="/browse?type=2" className={`text-[13px] font-bold pb-2 border-b-2 whitespace-nowrap transition-colors ${location.search.includes('type=2') ? 'text-white border-brand' : 'text-gray-400 border-transparent hover:text-white'}`}>Series</Link>
+           <Link to="/profile" className={`text-[13px] font-bold pb-2 border-b-2 whitespace-nowrap transition-colors ${location.pathname === '/profile' ? 'text-white border-brand' : 'text-gray-400 border-transparent hover:text-white'}`}>My List</Link>
+        </div>
+      </header>
+    </>
   );
 }

@@ -19,13 +19,13 @@ export default function PosterGrid({ title, items, viewAllLink, loading }: Poste
     <section className="py-6 md:py-10">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
         {title && (
-          <div className="flex items-end justify-between mb-6">
-            <h2 className="text-xl md:text-3xl font-black text-white tracking-tighter uppercase">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg md:text-xl font-bold text-white tracking-wide">
               {title}
             </h2>
             {viewAllLink && (
-              <Link to={viewAllLink} className="text-xs font-black text-gray-500 hover:text-brand transition-all flex items-center gap-2 uppercase tracking-[0.2em] group">
-                View All <span className="group-hover:translate-x-1 transition-transform">&rarr;</span>
+              <Link to={viewAllLink} className="text-sm font-medium text-brand hover:text-white transition-colors">
+                See All
               </Link>
             )}
           </div>
@@ -34,7 +34,7 @@ export default function PosterGrid({ title, items, viewAllLink, loading }: Poste
         {loading ? (
           <ListSkeleton count={items.length > 0 ? items.length : 12} />
         ) : (
-          <div className="flex overflow-x-auto gap-5 pb-8 pt-2 snap-x snap-mandatory hide-scrollbar -mx-6 px-6 lg:-mx-12 lg:px-12">
+          <div className="flex overflow-x-auto gap-3 sm:gap-4 md:gap-5 pb-8 pt-2 snap-x snap-mandatory hide-scrollbar -mx-6 px-6 lg:-mx-12 lg:px-12">
             {Array.isArray(items) && items.map((item, index) => (
               <motion.div
                 key={`${item.id}-${index}`}
@@ -42,11 +42,11 @@ export default function PosterGrid({ title, items, viewAllLink, loading }: Poste
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.05 }}
-                className="flex-none w-[160px] sm:w-[200px] md:w-[240px] snap-start group flex flex-col gap-4"
+                className="flex-none w-[120px] sm:w-[140px] md:w-[160px] lg:w-[180px] snap-start group flex flex-col gap-3"
               >
                 <Link 
                   to={`/details/${item.id}`} 
-                  className="relative block aspect-[2/3] rounded-2xl overflow-hidden bg-white/5 transition-all duration-700 group-hover:scale-105 group-hover:-translate-y-2 group-hover:shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-white/5 group-hover:border-white/20"
+                  className="relative block aspect-[2/3] rounded-xl md:rounded-2xl overflow-hidden bg-white/5 transition-all duration-700 group-hover:scale-[1.03] group-hover:-translate-y-2 group-hover:shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-white/5 group-hover:border-white/20"
                 >
                   {item.poster ? (
                     <MovieImage
@@ -60,57 +60,58 @@ export default function PosterGrid({ title, items, viewAllLink, loading }: Poste
                     </div>
                   )}
                   
-                  {/* Overlay Gradient */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-500" />
+                  {/* Overlay Gradient (Always visible at bottom for text, darker on hover) */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-500" />
                   
-                  {/* Hover Info */}
-                  <div className="absolute inset-0 flex flex-col justify-end p-4 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-4 group-hover:translate-y-0">
-                    <div className="flex items-center gap-2 mb-2">
-                       <div className="w-10 h-10 rounded-full bg-brand flex items-center justify-center shadow-lg">
-                        <Play className="w-4 h-4 text-white ml-0.5" fill="currentColor" />
-                      </div>
-                      <span className="text-[10px] font-black text-white uppercase tracking-widest">Watch Now</span>
+                  {/* Persistent Info Overlay at Bottom */}
+                  <div className="absolute inset-x-0 bottom-0 p-4 flex flex-col justify-end transform transition-transform duration-500 group-hover:translate-y-[-10px] z-20">
+                    <h3 className="text-white font-bold text-sm md:text-base line-clamp-2 uppercase tracking-wide mb-1.5 drop-shadow-md">
+                      {item.title}
+                    </h3>
+                    <div className="flex items-center gap-2 text-[10px] text-gray-300 font-bold tracking-widest uppercase">
+                      {item.year && <span>{item.year}</span>}
+                      {item.rating && (
+                        <span className="flex items-center gap-0.5 text-[#f5c518]">
+                          <Star className="w-2.5 h-2.5 fill-current" />
+                          {item.rating}
+                        </span>
+                      )}
+                      {item.type && (
+                        <span className="text-[8px] px-1 py-0.5 rounded border border-white/20 bg-white/10 text-white">
+                          {item.type == 1 || item.type === '1' || item.type === 'Movie' || item.category === 'Movies' ? 'Movie' : 'Series'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Hover Play Button */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 transform scale-75 group-hover:scale-100 z-10">
+                     <div className="w-14 h-14 rounded-full bg-brand flex items-center justify-center shadow-[0_0_20px_rgba(229,9,20,0.6)]">
+                      <Play className="w-6 h-6 text-white ml-0.5" fill="currentColor" />
                     </div>
                   </div>
 
                   {/* Top Badges */}
-                  <div className="absolute top-3 right-3 flex flex-col gap-1 items-end">
+                  <div className="absolute top-2 left-2 flex flex-col gap-1 items-start z-20">
+                    {(item as any).isNew && (
+                      <span className="px-2 py-0.5 rounded bg-brand text-[8px] font-black text-white shadow-md uppercase tracking-wider">
+                        NEW
+                      </span>
+                    )}
+                  </div>
+                  <div className="absolute top-2 right-2 flex flex-col gap-1 items-end z-20">
                     {(item as any).isPopular && (
-                      <span className="px-2 py-1 rounded-md bg-brand text-[9px] font-black text-white shadow-lg uppercase tracking-widest">
-                        Popular
+                      <span className="px-2 py-0.5 rounded bg-brand text-[8px] font-black text-white shadow-md uppercase tracking-wider">
+                        POPULAR
                       </span>
                     )}
                     {item.quality && (
-                      <span className="px-2 py-1 rounded-md bg-black/60 backdrop-blur-xl text-[9px] font-black text-white border border-white/10 uppercase tracking-widest">
+                      <span className="px-2 py-0.5 rounded bg-black/60 backdrop-blur text-[8px] font-black text-white border border-white/10 uppercase tracking-wider">
                         {item.quality}
                       </span>
                     )}
                   </div>
                 </Link>
-
-                <div className="flex flex-col gap-1.5 px-1">
-                  <Link 
-                    to={`/details/${item.id}`} 
-                    className="text-white font-black text-sm md:text-base line-clamp-1 group-hover:text-brand transition-colors duration-500 tracking-tight"
-                  >
-                    {item.title}
-                  </Link>
-                  
-                  <div className="flex items-center gap-3 text-[11px] text-gray-500 font-bold uppercase tracking-widest">
-                    {item.year && <span>{item.year}</span>}
-                    {item.rating && (
-                      <span className="flex items-center gap-1 text-brand">
-                        <Star className="w-3 h-3 fill-brand" />
-                        {item.rating}
-                      </span>
-                    )}
-                    {item.type && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-md border border-white/10 bg-white/5">
-                        {item.type == 1 || item.type === '1' || item.type === 'Movie' || item.category === 'Movies' ? 'Movie' : 'Series'}
-                      </span>
-                    )}
-                  </div>
-                </div>
               </motion.div>
             ))}
           </div>

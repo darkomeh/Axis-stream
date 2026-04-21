@@ -17,6 +17,7 @@ import Tray from "../components/Tray";
 import { useAuth } from "../contexts/AuthContext";
 import { localDownloadService } from "../services/localDownloadService";
 import { MovieImage } from "../components/MovieImage";
+import { PlaylistModal } from "../components/PlaylistModal";
 
 export default function Details() {
   const { id } = useParams<{ id: string }>();
@@ -38,11 +39,11 @@ export default function Details() {
   const [selectedSeason, setSelectedSeason] = useState<number>(1);
   const [selectedEpisode, setSelectedEpisode] = useState<number>(1);
   const [isDownloadTrayOpen, setIsDownloadTrayOpen] = useState(false);
+  const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   
   const [downloadingUrl, setDownloadingUrl] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
-  const [isDownloadingSeason, setIsDownloadingSeason] = useState(false);
   const [isDownloadingItem, setIsDownloadingItem] = useState(false);
 
   const [isMiniPlayer, setIsMiniPlayer] = useState(false);
@@ -173,13 +174,6 @@ export default function Details() {
     }
   };
 
-  const handleDownloadSeason = async () => {
-    // Bulk direct browser downloads can be blocked by popup blockers.
-    // For now, we'll just alert the user.
-    alert("Bulk downloading seasons directly is not supported in browser mode. Please download episodes individually.");
-    setIsDownloadingSeason(false);
-  };
-
   const handleDownload = async (url: string, quality: string) => {
     if (!details) return;
     if (isDownloadingItem) return;
@@ -253,7 +247,7 @@ export default function Details() {
   const toggleWatchlist = () => {
     if (!details || !user) {
       // In a real app, this would show a toast or notification
-      console.log("Please sign in to use the watchlist.");
+      alert("Please sign in to use the watchlist.");
       navigate('/profile');
       return;
     }
@@ -398,38 +392,17 @@ export default function Details() {
           <button 
             onClick={() => {
               if (!user) {
-                // In a real app, this would show a toast or notification
-                console.log("Please sign in to use playlists.");
+                alert("Please sign in to save to playlists.");
                 navigate('/profile');
                 return;
               }
-              const playlistName = prompt('Enter playlist name (existing or new):');
-              if (playlistName) {
-                let playlist = customPlaylists?.find(p => p.name.toLowerCase() === playlistName.toLowerCase());
-                if (!playlist) {
-                  const newId = createPlaylist(playlistName);
-                  if (newId) {
-                    playlist = { id: newId, name: playlistName, items: [] };
-                  }
-                }
-                if (playlist) {
-                  addToPlaylist(playlist.id, {
-                    id: details.id,
-                    title: details.title,
-                    poster: details.poster,
-                    type: details.type,
-                    year: details.year,
-                    rating: details.rating
-                  });
-                  // In a real app, this would show a toast or notification
-                  console.log(`Added to playlist: ${playlistName}`);
-                }
-              }
+              setIsPlaylistModalOpen(true);
             }}
             className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-sm font-bold uppercase tracking-wider border border-white/10 hover:border-white/30"
           >
             <ListVideo className="w-4 h-4" />
-            Add to Playlist
+            <span className="hidden md:inline">Save to Playlist</span>
+            <span className="md:hidden">Playlist</span>
           </button>
 
           <button 
@@ -446,8 +419,7 @@ export default function Details() {
                 }
               } else {
                 navigator.clipboard.writeText(window.location.href);
-                // In a real app, this would show a toast or notification
-                console.log("Link copied to clipboard!");
+                alert("Link copied to clipboard!");
               }
             }}
             className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-sm font-bold uppercase tracking-wider border border-white/10 hover:border-white/30"
@@ -540,28 +512,6 @@ export default function Details() {
 
       <Tray isOpen={isDownloadTrayOpen} onClose={() => setIsDownloadTrayOpen(false)} title="Download Options">
         <div className="grid grid-cols-1 gap-4">
-          {details.type === "Series" && details.seasons && (
-            <button
-              onClick={handleDownloadSeason}
-              disabled={isDownloadingSeason}
-              className="flex items-center justify-center gap-2 p-5 bg-brand hover:bg-brand-hover text-white rounded-xl font-bold transition-colors mb-4 uppercase tracking-wider shadow-[0_0_20px_rgba(229,9,20,0.3)]"
-            >
-              {isDownloadingSeason ? (
-                <>
-                  <div className="w-5 h-5 flex items-center justify-center">
-                    <PopcornLoader />
-                  </div>
-                  Starting Bulk Download...
-                </>
-              ) : (
-                <>
-                  <Download className="w-5 h-5" />
-                  Download Entire Season {selectedSeason}
-                </>
-              )}
-            </button>
-          )}
-          
           {Array.isArray(mediaData?.sources) && mediaData.sources.map((source, idx) => {
             // Estimate size based on quality
             let estimatedSize = "Unknown Size";
@@ -626,6 +576,21 @@ export default function Details() {
           })}
         </div>
       </Tray>
+
+      {isPlaylistModalOpen && details && (
+        <PlaylistModal
+          isOpen={isPlaylistModalOpen}
+          onClose={() => setIsPlaylistModalOpen(false)}
+          item={{
+            id: details.id,
+            title: details.title,
+            poster: details.poster,
+            type: details.type,
+            year: details.year,
+            rating: details.rating
+          }}
+        />
+      )}
     </div>
   );
 }

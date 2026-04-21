@@ -157,9 +157,6 @@ export default function Profile() {
               >
                 <LogOut className="w-4 h-4" /> Sign Out
               </button>
-              <button className="flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors text-sm font-medium">
-                <Settings className="w-4 h-4" /> Edit Profile
-              </button>
             </div>
           </div>
           

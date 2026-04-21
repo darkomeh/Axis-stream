@@ -41,10 +41,13 @@ export default function TopTenGrid({ title, items, loading, showNumbers = true }
     <section className="py-6 md:py-10">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
         {title && (
-          <div className="flex items-end justify-between mb-6">
-            <h2 className="text-xl md:text-3xl font-black text-white tracking-tighter uppercase">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg md:text-xl font-bold text-white tracking-wide">
               {title}
             </h2>
+            <Link to="/browse" className="text-sm font-medium text-brand hover:text-white transition-colors">
+              See All
+            </Link>
           </div>
         )}
 
@@ -56,19 +59,19 @@ export default function TopTenGrid({ title, items, loading, showNumbers = true }
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: index * 0.1 }}
-              className="flex-none w-[260px] sm:w-[300px] md:w-[340px] snap-start relative group"
+              className="flex-none w-[180px] sm:w-[220px] md:w-[260px] snap-start relative group"
             >
               <Link to={`/details/${item.id}`} className="flex items-end h-full">
                 {/* Huge Number */}
                 {showNumbers && (
-                  <div className="absolute -left-6 bottom-0 z-20 font-black text-[160px] md:text-[200px] leading-[0.7] tracking-tighter text-transparent transition-all duration-700 group-hover:text-brand/20 group-hover:scale-110" style={{ WebkitTextStroke: '4px rgba(255,255,255,0.1)', textShadow: '0 0 40px rgba(0,0,0,0.5)' }}>
+                  <div className="absolute -left-4 bottom-0 z-20 font-black text-[120px] md:text-[160px] leading-[0.75] tracking-tighter text-transparent transition-all duration-700 group-hover:text-brand/20 group-hover:scale-110" style={{ WebkitTextStroke: '3px rgba(255,255,255,0.1)', textShadow: '0 0 20px rgba(0,0,0,0.5)' }}>
                     {index + 1}
                   </div>
                 )}
                 
                 {/* Poster */}
-                <div className={`relative flex flex-col gap-4 ${showNumbers ? 'ml-20 md:ml-28' : 'mx-auto'}`}>
-                  <div className="relative w-[180px] sm:w-[220px] md:w-[260px] aspect-[2/3] rounded-2xl overflow-hidden bg-white/5 transition-all duration-700 group-hover:scale-105 group-hover:-translate-y-4 shadow-[0_30px_60px_rgba(0,0,0,0.8)] z-10 border border-white/5 group-hover:border-white/20">
+                <div className={`relative flex flex-col gap-3 ${showNumbers ? 'ml-14 md:ml-20' : 'mx-auto'}`}>
+                  <div className="relative w-[140px] sm:w-[160px] md:w-[180px] aspect-[2/3] rounded-xl md:rounded-2xl overflow-hidden bg-white/5 transition-all duration-700 group-hover:scale-[1.03] group-hover:-translate-y-2 shadow-[0_30px_60px_rgba(0,0,0,0.6)] z-10 border border-white/5 group-hover:border-white/20">
                     {item.poster ? (
                       <MovieImage
                         src={item.poster}
@@ -82,10 +85,10 @@ export default function TopTenGrid({ title, items, loading, showNumbers = true }
                     )}
                     
                     {/* Overlay Gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-500" />
                     
                     {/* Hover Play Button */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-8 group-hover:translate-y-0">
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-8 group-hover:translate-y-0 z-10">
                       <div className="w-16 h-16 rounded-full bg-brand flex items-center justify-center shadow-[0_0_40px_rgba(229,9,20,0.6)] border border-white/20">
                         <Play className="w-7 h-7 text-white ml-1.5" fill="currentColor" />
                       </div>
@@ -100,20 +103,26 @@ export default function TopTenGrid({ title, items, loading, showNumbers = true }
                         />
                       </div>
                     )}
-                  </div>
 
-                  <div className="flex flex-col gap-1.5 px-1 z-10">
-                    <h3 className="text-white font-black text-sm md:text-lg line-clamp-1 group-hover:text-brand transition-colors duration-500 tracking-tight">
-                      {item.title}
-                    </h3>
-                    <div className="flex items-center gap-3 text-[11px] text-gray-500 font-bold uppercase tracking-widest">
-                      {item.rating && (
-                        <span className="flex items-center gap-1 text-brand">
-                          <Star className="w-3.5 h-3.5 fill-brand" />
-                          {item.rating}
-                        </span>
-                      )}
-                      {item.year && <span>{item.year}</span>}
+                    {/* Persistent Info Overlay at Bottom */}
+                    <div className="absolute inset-x-0 bottom-0 p-4 pb-5 flex flex-col justify-end transform transition-transform duration-500 group-hover:translate-y-[-5px] z-20 text-center items-center">
+                      <h3 className="text-brand font-black text-sm md:text-base line-clamp-2 uppercase tracking-widest mb-1.5 drop-shadow-lg">
+                        {item.title}
+                      </h3>
+                      <div className="flex flex-wrap justify-center items-center gap-1.5 text-[9px] text-gray-300 font-bold tracking-widest uppercase opacity-80 group-hover:opacity-100 transition-opacity">
+                        {item.year && <span>{item.year}</span>}
+                        {item.rating && (
+                          <span className="flex items-center gap-0.5 text-[#f5c518]">
+                            <Star className="w-2.5 h-2.5 fill-current" />
+                            {item.rating}
+                          </span>
+                        )}
+                        {item.type && (
+                          <span className="text-[8px] px-1 py-0.5 rounded border border-white/20 bg-white/10 text-white">
+                            {item.type == 1 || item.type === '1' || item.type === 'Movie' || item.category === 'Movies' ? 'Movie' : 'Series'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

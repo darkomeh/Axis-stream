@@ -10,6 +10,7 @@ export interface MediaItem {
   quality?: string;
   detailPath?: string;
   genres?: string[];
+  description?: string;
 }
 
 export interface HomepageSection {

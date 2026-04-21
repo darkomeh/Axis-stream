@@ -4,6 +4,7 @@ import { HomepageData, MediaItem } from "../types";
 import Carousel from "../components/Carousel";
 import PosterGrid from "../components/PosterGrid";
 import TopTenGrid from "../components/TopTenGrid";
+import ContinueWatchingGrid from "../components/ContinueWatchingGrid";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import PopcornLoader from "../components/PopcornLoader";
@@ -16,6 +17,7 @@ import {
   Skeleton
 } from "../components/Skeleton";
 import { ErrorMessage } from "../components/ErrorMessage";
+import { Link } from "react-router-dom";
 
 export default function Home() {
   const [homepageData, setHomepageData] = useState<HomepageData | null>(null);
@@ -150,7 +152,7 @@ export default function Home() {
       
       <div className="relative z-10 -mt-10 md:-mt-20 space-y-12 md:space-y-20 pb-20">
         {user && continueWatching.length > 0 && (
-          <TopTenGrid title="Continue Watching" items={continueWatching.slice(0, 10)} showNumbers={false} />
+          <ContinueWatchingGrid title="Continue Watching" items={continueWatching.slice(0, 10)} />
         )}
 
         {trending.length > 0 && (
@@ -166,13 +168,13 @@ export default function Home() {
             <h2 className="text-2xl font-bold mb-6 tracking-tight">Popular Searches</h2>
             <div className="flex flex-wrap gap-3">
               {Array.isArray(popularSearches) && popularSearches.slice(0, 10).map((search, idx) => (
-                <a 
+                <Link 
                   key={idx} 
-                  href={`/search?q=${encodeURIComponent(search)}`}
+                  to={`/search?q=${encodeURIComponent(search)}`}
                   className="px-4 py-2 bg-white/5 hover:bg-brand hover:text-white border border-white/10 hover:border-brand rounded-full text-sm transition-all shadow-sm hover:shadow-[0_0_15px_rgba(229,9,20,0.4)]"
                 >
                   {search}
-                </a>
+                </Link>
               ))}
             </div>
           </div>

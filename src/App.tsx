@@ -90,7 +90,7 @@ function AppContent() {
   const shouldShowNav = showNavRoutes.includes(location.pathname);
 
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-brand/30 selection:text-white font-sans antialiased pb-20">
+    <div className="min-h-screen bg-black text-white selection:bg-brand/30 selection:text-white font-sans antialiased pb-20 lg:pl-64">
       <SystemAlerts />
       
       {systemMessage && (

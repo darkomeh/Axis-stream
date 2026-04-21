@@ -45,6 +45,33 @@ export default function Details() {
 
   const [isMiniPlayer, setIsMiniPlayer] = useState(false);
   const [userClosedMiniPlayer, setUserClosedMiniPlayer] = useState(false);
+  const [sourceSizes, setSourceSizes] = useState<Record<string, string>>({});
+
+  const fetchSourceSize = async (url: string) => {
+    if (sourceSizes[url]) return;
+    try {
+      const response = await fetch(url, { method: 'HEAD' });
+      const size = response.headers.get('content-length');
+      if (size) {
+        const bytes = parseInt(size, 10);
+        const gb = (bytes / (1024 * 1024 * 1024)).toFixed(2);
+        const mb = (bytes / (1024 * 1024)).toFixed(0);
+        const formattedSize = bytes > 1024 * 1024 * 1024 ? `${gb} GB` : `${mb} MB`;
+        setSourceSizes(prev => ({ ...prev, [url]: formattedSize }));
+      }
+    } catch (e) {
+      console.warn("Could not fetch size for source", url);
+    }
+  };
+
+  useEffect(() => {
+    if (mediaData?.sources && isDownloadTrayOpen) {
+      mediaData.sources.forEach(source => {
+        const url = source.downloadUrl || source.url;
+        fetchSourceSize(url);
+      });
+    }
+  }, [mediaData, isDownloadTrayOpen]);
 
   useEffect(() => {
     if (details) {
@@ -222,74 +249,38 @@ export default function Details() {
     }
   };
 
-  const handleDownload = async (url: string, quality: string) => {
+  const handleDownload = (url: string) => {
     if (!details) return;
-    if (isDownloadingItem) return;
     
-    // Format: [ Movies name ] [Axis stream].mp4
-    let cleanTitle = details.type === 'Series' 
+    const dlTitle = details.type === 'Series' 
       ? `${details.title} S${selectedSeason} E${selectedEpisode}` 
       : details.title;
-    
-    // Clean up filename to prevent weird characters
-    cleanTitle = cleanTitle.replace(/[^a-zA-Z0-9 -]/g, '');
-    
+    const cleanTitle = dlTitle.replace(/[^a-zA-Z0-9 -]/g, '');
     const fileName = `[${cleanTitle}] [Axis Stream].mp4`;
-    const finalUrl = url.includes('download=1') ? url : `${url}&download=1`;
+    const finalUrl = url.includes('download=1') ? url : (url.includes('?') ? `${url}&download=1` : `${url}?download=1`);
     
-    try {
-      setIsDownloadingItem(true);
-      setDownloadProgress(0);
-      
-      const response = await fetch(finalUrl);
-      if (!response.ok) throw new Error("Network response was not ok");
-      
-      const contentLength = response.headers.get('content-length');
-      const total = contentLength ? parseInt(contentLength, 10) : 0;
-      
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("ReadableStream not supported");
-      
-      const chunks = [];
-      let received = 0;
-      
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (value) {
-          chunks.push(value);
-          received += value.length;
-          if (total) {
-            setDownloadProgress(Math.round((received / total) * 100));
-          }
-        }
+    // Trigger browser native download without exposing URL in address bar or new tab
+    // We use a hidden iframe to ensure the current page state remains intact
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = finalUrl;
+    document.body.appendChild(iframe);
+    
+    // Also try direct anchor as backup (sometimes required for specific browser behaviors)
+    const a = document.createElement('a');
+    a.href = finalUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    setTimeout(() => {
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
       }
-      
-      const blob = new Blob(chunks, { type: 'video/mp4' });
-      const blobUrl = URL.createObjectURL(blob);
-      
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-      setIsDownloadTrayOpen(false);
-    } catch (err) {
-      console.error("Download failed:", err);
-      // Fallback: just open the link and let the browser handle it, even if the filename is wrong
-      const a = document.createElement('a');
-      a.href = finalUrl;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } finally {
-      setIsDownloadingItem(false);
-      setDownloadProgress(0);
-    }
+    }, 60000);
+
+    setIsDownloadTrayOpen(false);
   };
 
   const toggleWatchlist = () => {
@@ -577,40 +568,7 @@ export default function Details() {
         </div>
       </Tray>
 
-      {/* Poster Download Modal */}
-      <Tray 
-        isOpen={isShareModalOpen} 
-        onClose={() => setIsShareModalOpen(false)} 
-        title="Download Poster?"
-      >
-        <div className="flex flex-col items-center gap-6 p-4">
-           <div className="w-32 aspect-[2/3] rounded-lg overflow-hidden shadow-2xl border border-white/10">
-              <MovieImage src={details.poster} alt={details.title} className="w-full h-full object-cover" />
-           </div>
-           
-           <div className="text-center space-y-2">
-              <h3 className="text-xl font-black uppercase tracking-tight">Nice Share!</h3>
-              <p className="text-gray-500 text-sm font-medium">Would you like to download the movie poster as well? It looks great on WhatsApp status!</p>
-           </div>
-           
-           <div className="flex gap-4 w-full">
-              <button 
-                onClick={downloadPoster}
-                className="flex-1 py-4 bg-brand text-white font-black uppercase text-[11px] tracking-widest rounded-xl shadow-lg active:scale-95 transition-all"
-              >
-                 Yes, Download
-              </button>
-              <button 
-                onClick={() => setIsShareModalOpen(false)}
-                className="flex-1 py-4 bg-white/5 border border-white/10 text-white font-black uppercase text-[11px] tracking-widest rounded-xl hover:bg-white/10 active:scale-95 transition-all"
-              >
-                 No, Thanks
-              </button>
-           </div>
-        </div>
-      </Tray>
-
-      {/* Poster Download Modal */}
+      {/* Share/Poster Download Modal */}
       <Tray 
         isOpen={isShareModalOpen} 
         onClose={() => setIsShareModalOpen(false)} 
@@ -646,8 +604,7 @@ export default function Details() {
         </div>
       </Tray>
 
-      {isDownloadTrayOpen && (
-        <Tray isOpen={isDownloadTrayOpen} onClose={() => setIsDownloadTrayOpen(false)} title="Download Options">
+      <Tray isOpen={isDownloadTrayOpen} onClose={() => setIsDownloadTrayOpen(false)} title="Download Options">
         <div className="grid grid-cols-1 gap-4">
           {Array.isArray(mediaData?.sources) && mediaData.sources.map((source, idx) => {
             // Estimate size based on quality
@@ -660,61 +617,38 @@ export default function Details() {
 
             const downloadTargetUrl = source.downloadUrl || source.url;
             const isHls = (source.downloadType || source.type) === 'hls';
+            const dlSize = sourceSizes[downloadTargetUrl];
 
             return (
               <button
                 key={`${source.url}-${idx}`}
-                onClick={() => handleDownload(downloadTargetUrl, source.quality)}
+                onClick={() => handleDownload(downloadTargetUrl)}
                 disabled={isHls}
-                className={`flex items-center justify-between p-5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-brand/50 rounded-xl transition-all group ${isHls ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`flex items-center justify-between p-5 bg-white/5 border border-white/10 rounded-xl transition-all group ${isHls ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10 hover:border-brand/50 active:scale-[0.98]'}`}
               >
                 <div className="flex items-center gap-5">
                   <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white group-hover:scale-110 group-hover:bg-brand/20 group-hover:border-brand/50 group-hover:text-brand transition-all">
-                    {isDownloadingItem ? (
-                      <div className="w-6 h-6 flex items-center justify-center">
-                        <PopcornLoader />
-                      </div>
-                    ) : (
-                      <Film className="w-6 h-6" />
-                    )}
+                    <Film className="w-6 h-6" />
                   </div>
                   <div className="text-left">
                     <p className="font-bold text-white text-lg">{source.quality}</p>
                     <p className="text-xs text-gray-500 uppercase tracking-widest mt-1 font-medium">
-                      {isDownloadingItem ? <span className="text-brand">Downloading... {downloadProgress}%</span> : `${estimatedSize} • ${(source.downloadType || source.type || 'mp4').toUpperCase()}`}
+                      <span className="flex items-center gap-1.5">
+                        {dlSize || "Checking Size..."}
+                        <span className="text-white/10">•</span>
+                        {(source.downloadType || source.type || 'mp4').toUpperCase()}
+                      </span>
                     </p>
                   </div>
                 </div>
-                {isDownloadingItem ? (
-                  <div className="w-14 h-14 relative flex items-center justify-center">
-                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                      <path
-                        className="text-white/10"
-                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                      />
-                      <path
-                        className="text-brand transition-all duration-300"
-                        strokeDasharray={`${downloadProgress}, 100`}
-                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                      />
-                    </svg>
-                  </div>
-                ) : (
+                <div className="flex items-center gap-3">
                   <Download className="w-6 h-6 text-gray-500 group-hover:text-brand transition-colors" />
-                )}
+                </div>
               </button>
             );
           })}
         </div>
       </Tray>
-
-      )}
     </div>
   );
 }

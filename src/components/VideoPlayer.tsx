@@ -931,6 +931,42 @@ export default function VideoPlayer({
                            <ChevronDown className="w-3 h-3 -rotate-90 ml-1" />
                         </div>
                       </button>
+                      <button 
+                        onClick={() => {
+                          const source = mediaData.sources[selectedSourceIdx];
+                          const url = source.downloadUrl || source.url;
+                          const fileName = `[${title}] [Axis Stream].mp4`.replace(/[^a-zA-Z0-9 -\[\]]/g, '');
+                          const finalUrl = url.includes('download=1') ? url : (url.includes('?') ? `${url}&download=1` : `${url}?download=1`);
+
+                          setActiveMenu(null);
+                          
+                          // Trigger native downloader via hidden iframe to keep it in same tab and hide URL from address bar
+                          const iframe = document.createElement('iframe');
+                          iframe.style.display = 'none';
+                          iframe.src = finalUrl;
+                          document.body.appendChild(iframe);
+                          
+                          // Backup triggering
+                          const a = document.createElement('a');
+                          a.href = finalUrl;
+                          a.download = fileName;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          
+                          setTimeout(() => {
+                            if (document.body.contains(iframe)) {
+                              document.body.removeChild(iframe);
+                            }
+                          }, 60000);
+                        }}
+                        className="w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      >
+                        <span className="text-[14px] font-medium opacity-80">Download</span>
+                        <div className="flex items-center gap-1 text-brand">
+                           <Download className="w-4 h-4 ml-1" />
+                        </div>
+                      </button>
                     </div>
                   )}
 

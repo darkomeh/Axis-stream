@@ -571,13 +571,28 @@ export default function VideoPlayer({
               </button>
               
               {!useIframeFallback && (
-                <div className="flex items-center gap-4">
-                  <button onClick={() => setIsLocked(true)} className="p-2 hover:bg-white/20 rounded-full transition-all text-white">
-                    <Lock className="w-6 h-6 drop-shadow-md" />
+                <div className="flex items-center gap-6">
+                  <button 
+                    onClick={() => {
+                      if (navigator.share) {
+                        navigator.share({
+                          title,
+                          text: `Check out ${title} on AXIS TV!`,
+                          url: window.location.href,
+                        }).catch(() => {});
+                      } else {
+                        navigator.clipboard.writeText(window.location.href);
+                        alert("Link copied to clipboard!");
+                      }
+                    }}
+                    className="p-2 hover:bg-white/20 rounded-full transition-all text-white flex flex-col items-center gap-1"
+                  >
+                    <Download className="w-6 h-6 drop-shadow-md" />
+                    <span className="text-[10px] font-black uppercase tracking-tighter">Download</span>
                   </button>
                   <button className="flex flex-col items-center p-2 text-white hover:text-gray-300 transition-colors cursor-help">
                     <HelpCircle className="w-7 h-7 drop-shadow-md mb-1" />
-                    <span className="text-[10px] font-medium drop-shadow-md">Help</span>
+                    <span className="text-[10px] font-black uppercase tracking-tighter">Help</span>
                   </button>
                 </div>
               )}
@@ -586,137 +601,132 @@ export default function VideoPlayer({
             {/* Middle and Bottom Controls - HIDDEN FOR IFRAME */}
             {!useIframeFallback && (
                <>
-                {/* Center Controls (Big Play button for when paused/loading or just keeping the existing one) */}
-                <div className="flex items-center justify-center gap-12 md:gap-24 pointer-events-auto">
+                {/* Center Controls */}
+                <div className="flex items-center justify-center gap-12 md:gap-24 lg:gap-32 pointer-events-auto">
                   <button 
                     onClick={() => seek(-10)} 
-                    className="group flex flex-col items-center gap-1 text-white/80 hover:text-white transition-all transform active:scale-95"
+                    className="group transition-all transform active:scale-90"
                   >
-                    <div className="relative">
-                      <RotateCcw className="w-10 h-10 md:w-14 md:h-14 drop-shadow-lg" strokeWidth={1.5} />
-                      <span className="absolute inset-0 flex items-center justify-center text-[10px] md:text-xs font-bold mt-1">10</span>
-                    </div>
+                    <RotateCcw className="w-12 h-12 md:w-16 md:h-16 text-white/90 drop-shadow-lg" strokeWidth={1} />
                   </button>
                   
                   <button 
                     onClick={togglePlay} 
-                    className="w-20 h-20 md:w-28 md:h-28 flex items-center justify-center bg-black/20 backdrop-blur-sm rounded-full border border-white/10 text-white hover:scale-110 active:scale-90 transition-all shadow-2xl group"
+                    className="w-24 h-24 md:w-32 md:h-32 flex items-center justify-center bg-brand/90 premium-blur rounded-full border border-white/20 text-white hover:scale-110 active:scale-90 transition-all shadow-[0_0_50px_rgba(229,9,20,0.5)] glow-brand"
                   >
                     {isPlaying ? (
-                      <Pause className="w-10 h-10 md:w-14 md:h-14 fill-white transition-transform group-hover:scale-110" />
+                      <Pause className="w-12 h-12 md:w-16 md:h-16 fill-white drop-shadow-2xl" />
                     ) : (
-                      <Play className="w-10 h-10 md:w-14 md:h-14 fill-white ml-2 transition-transform group-hover:scale-110" />
+                      <Play className="w-12 h-12 md:w-16 md:h-16 fill-white ml-2 drop-shadow-2xl" />
                     )}
                   </button>
 
                   <button 
                     onClick={() => seek(10)} 
-                    className="group flex flex-col items-center gap-1 text-white/80 hover:text-white transition-all transform active:scale-95"
+                    className="group transition-all transform active:scale-90"
                   >
-                    <div className="relative">
-                      <RotateCw className="w-10 h-10 md:w-14 md:h-14 drop-shadow-lg" strokeWidth={1.5} />
-                      <span className="absolute inset-0 flex items-center justify-center text-[10px] md:text-xs font-bold mt-1">10</span>
-                    </div>
+                    <RotateCw className="w-12 h-12 md:w-16 md:h-16 text-white/90 drop-shadow-lg" strokeWidth={1} />
                   </button>
                 </div>
 
-                {/* Bottom Controls (Screenshot Match) */}
-                <div className="pointer-events-auto bg-gradient-to-t from-black/90 to-transparent p-4 md:p-8">
-                  <div className="flex flex-col gap-4">
+                {/* Bottom Controls */}
+                <div className="pointer-events-auto p-4 md:p-10 lg:p-12 mb-4">
+                  <div className="flex flex-col gap-6">
                     
-                    {/* Top Row of Bottom Bar (Optional tools like Download/Settings we kept) */}
-                    <div className="flex items-center justify-between px-2">
-                       <div className="flex items-center gap-4">
-                         <button 
-                            onClick={() => {
-                              const currentSource = mediaData.sources[selectedSourceIdx];
-                              if (currentSource) {
-                                let downloadTargetUrl = currentSource.downloadUrl || currentSource.url;
-                                const finalUrl = downloadTargetUrl.includes('download=1') ? downloadTargetUrl : `${downloadTargetUrl}&download=1`;
-                                
-                                let cleanTitle = title.replace(/[^a-zA-Z0-9 -]/g, '');
-                                const fileName = `[${cleanTitle}] [Axis Stream].mp4`;
-                                
-                                const a = document.createElement('a');
-                                a.href = finalUrl;
-                                a.download = fileName;
-                                document.body.appendChild(a);
-                                a.click();
-                                document.body.removeChild(a);
-                              }
-                            }}
-                            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
-                          >
-                            <Download className="w-5 h-5 drop-shadow-md" />
-                         </button>
+                    {/* Time & Title Label */}
+                    <div className="flex items-end justify-between px-2 mb-[-8px]">
+                       <div className="flex flex-col gap-1">
+                          <h2 className="text-white font-black text-xl md:text-3xl uppercase tracking-tighter drop-shadow-2xl drop-shadow-[0_0_20px_rgba(0,0,0,1)]">
+                             {title}
+                          </h2>
+                          <div className="flex items-center gap-3 text-gray-400 text-xs md:text-sm font-bold tracking-widest uppercase">
+                             <span>{selectedSeason ? `Season ${selectedSeason}` : ''}</span>
+                             {selectedEpisode && <span className="text-white/20">•</span>}
+                             <span>{selectedEpisode ? `Episode ${selectedEpisode}` : ''}</span>
+                          </div>
                        </div>
-                       <div className="flex items-center gap-4">
-                         <button onClick={() => setActiveMenu('speed')} className="text-white/70 hover:text-white pb-1">
-                            <span className="text-sm font-bold uppercase tracking-widest drop-shadow-md">{playbackSpeed}x</span>
-                         </button>
-                         <button onClick={() => setActiveMenu('settings')} className="text-white/70 hover:text-white">
-                           <Settings className="w-5 h-5 drop-shadow-md" />
-                         </button>
+                       <div className="text-white font-mono text-sm md:text-lg tracking-widest drop-shadow-md">
+                          {formatTime(currentTime)} <span className="text-white/30 px-1">/</span> {formatTime(duration)}
                        </div>
                     </div>
 
-                    {/* Bottom Row: Play, Progress, Time, Screen Icons */}
-                    <div className="flex items-center gap-4 md:gap-6 w-full">
-                      <button onClick={togglePlay} className="text-white hover:text-gray-300 transition-colors flex-shrink-0">
-                        {isPlaying ? <Pause className="w-6 h-6 md:w-8 md:h-8 fill-white drop-shadow-md" /> : <Play className="w-6 h-6 md:w-8 md:h-8 fill-white drop-shadow-md" />}
-                      </button>
-
-                      <div className="group/progress relative flex-1 h-6 flex items-center cursor-pointer">
-                        <div className="w-full h-1.5 md:h-2 bg-white/30 rounded-full overflow-hidden relative">
-                           <div 
-                            className="absolute inset-y-0 left-0 bg-[#00A8E1] rounded-full transition-all duration-100 ease-out"
-                            style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
-                          />
-                        </div>
-                        <input 
-                          type="range"
-                          min={0}
-                          max={duration || 100}
-                          step={0.1}
-                          value={currentTime}
-                          onChange={(e) => {
-                            const time = parseFloat(e.target.value);
-                            if (videoRef.current) videoRef.current.currentTime = time;
-                          }}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                        />
-                        <div 
-                          className="absolute top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 bg-white rounded-full shadow-lg transition-transform duration-100 pointer-events-none"
-                          style={{ left: `calc(${(currentTime / (duration || 1)) * 100}% - 8px)` }}
+                    {/* Progress Slider */}
+                    <div className="group/progress relative w-full h-8 flex items-center cursor-pointer">
+                      <div className="w-full h-[6px] md:h-[8px] bg-white/20 rounded-full relative">
+                         <div 
+                          className="absolute inset-y-0 left-0 bg-brand rounded-full shadow-[0_0_15px_rgba(229,9,20,0.8)]"
+                          style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
                         />
                       </div>
+                      <input 
+                        type="range"
+                        min={0}
+                        max={duration || 100}
+                        step={0.1}
+                        value={currentTime}
+                        onChange={(e) => {
+                          const time = parseFloat(e.target.value);
+                          if (videoRef.current) videoRef.current.currentTime = time;
+                        }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      />
+                      {/* Custom Handle */}
+                      <div 
+                        className="absolute top-1/2 -translate-y-1/2 w-5 h-5 md:w-6 md:h-6 bg-white rounded-full shadow-[0_0_20px_rgba(229,9,20,0.5)] transition-transform duration-100 pointer-events-none scale-0 group-hover/progress:scale-100 border-2 border-brand"
+                        style={{ left: `calc(${(currentTime / (duration || 1)) * 100}% - 12px)` }}
+                      />
+                    </div>
 
-                      <div className="flex items-center gap-4 md:gap-6 flex-shrink-0">
-                        <div className="text-white/90 text-xs md:text-sm font-mono tracking-wide drop-shadow-md">
-                          {formatTime(currentTime)}/{formatTime(duration)}
-                        </div>
-                        
-                        <button className="text-white hover:text-gray-300 transition-colors relative group">
-                           {/* Using a screen icon to represent "Episodes" or "Picture in Picture" next to fullscreen */}
-                           <MonitorPlay className="w-5 h-5 md:w-6 md:h-6 drop-shadow-md" />
-                           {seasons && seasons.length > 0 && (
-                             <div className="absolute bottom-full right-0 mb-4 bg-black/90 text-white text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                               Episodes
+                    {/* Meta/Action Bar */}
+                    <div className="flex items-center justify-between px-1">
+                       <div className="flex items-center gap-8 md:gap-12">
+                          <button onClick={togglePlay} className="text-white hover:scale-110 transition-transform">
+                            {isPlaying ? <Pause className="w-7 h-7 md:w-9 md:h-9 fill-white" /> : <Play className="w-7 h-7 md:w-9 md:h-9 fill-white" />}
+                          </button>
+                          
+                          <div className="flex items-center gap-4">
+                             <Volume2 className="w-6 h-6 text-white/80" />
+                             <div className="w-24 md:w-32 h-1 bg-white/20 rounded-full relative overflow-hidden">
+                                <div className="absolute inset-y-0 left-0 bg-white rounded-full" style={{ width: `${volume * 100}%` }} />
                              </div>
-                           )}
-                        </button>
+                             <input 
+                                type="range" 
+                                min="0" max="1" step="0.01" 
+                                value={volume} 
+                                onChange={(e) => {
+                                  const v = parseFloat(e.target.value);
+                                  setVolume(v);
+                                  if (videoRef.current) videoRef.current.volume = v;
+                                }}
+                                className="absolute opacity-0 w-24 md:w-32 cursor-pointer ml-10"
+                             />
+                          </div>
+                       </div>
 
-                        <button 
-                          onClick={() => {
-                            if (containerRef.current?.requestFullscreen) {
-                              containerRef.current.requestFullscreen();
-                            }
-                          }}
-                          className="text-white hover:text-gray-300 transition-colors"
-                        >
-                          <Maximize className="w-5 h-5 md:w-6 md:h-6 drop-shadow-md" />
-                        </button>
-                      </div>
+                       <div className="flex items-center gap-6 md:gap-10">
+                          <button onClick={() => setActiveMenu('audio')} className="flex flex-col items-center gap-1 group">
+                             <Languages className="w-6 h-6 text-white group-hover:text-brand transition-colors" />
+                             <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest group-hover:text-white">Audio</span>
+                          </button>
+                          <button onClick={() => setActiveMenu('subtitles')} className="flex flex-col items-center gap-1 group">
+                             <Type className="w-6 h-6 text-white group-hover:text-brand transition-colors" />
+                             <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest group-hover:text-white">Subs</span>
+                          </button>
+                          <button onClick={() => setActiveMenu('speed')} className="flex flex-col items-center gap-1 group">
+                             <span className="text-sm font-black text-white">{playbackSpeed}x</span>
+                             <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest group-hover:text-white">Speed</span>
+                          </button>
+                          <button 
+                            onClick={() => {
+                              if (containerRef.current?.requestFullscreen) {
+                                containerRef.current.requestFullscreen();
+                              }
+                            }}
+                            className="text-white hover:scale-110 transition-transform"
+                          >
+                            <Maximize2 className="w-6 h-6 md:w-8 md:h-8" />
+                          </button>
+                       </div>
                     </div>
                   </div>
                 </div>

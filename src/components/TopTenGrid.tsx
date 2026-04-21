@@ -51,7 +51,7 @@ export default function TopTenGrid({ title, items, loading, showNumbers = true }
           </div>
         )}
 
-        <div className="flex overflow-x-auto gap-12 pb-12 pt-4 snap-x snap-mandatory hide-scrollbar -mx-6 px-6 lg:-mx-12 lg:px-12">
+        <div className="flex overflow-x-auto gap-8 md:gap-12 pb-12 pt-10 snap-x snap-mandatory hide-scrollbar -mx-6 px-6 lg:-mx-12 lg:px-12">
           {Array.isArray(items) && items.slice(0, 10).map((item, index) => (
             <motion.div
               key={`${item.id}-${index}`}
@@ -59,19 +59,20 @@ export default function TopTenGrid({ title, items, loading, showNumbers = true }
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: index * 0.1 }}
-              className="flex-none w-[180px] sm:w-[220px] md:w-[260px] snap-start relative group"
+              className="flex-none w-[170px] sm:w-[200px] md:w-[240px] snap-start relative group"
             >
-              <Link to={`/details/${item.id}`} className="flex items-end h-full">
-                {/* Huge Number */}
+              <Link to={`/details/${item.id}`} className="block relative h-full">
+                {/* Huge Number behind card */}
                 {showNumbers && (
-                  <div className="absolute -left-4 bottom-0 z-20 font-black text-[120px] md:text-[160px] leading-[0.75] tracking-tighter text-transparent transition-all duration-700 group-hover:text-brand/20 group-hover:scale-110" style={{ WebkitTextStroke: '3px rgba(255,255,255,0.1)', textShadow: '0 0 20px rgba(0,0,0,0.5)' }}>
+                  <div className="absolute -left-12 lg:-left-16 bottom-[-5px] z-0 font-black text-[180px] md:text-[220px] lg:text-[240px] leading-none tracking-tighter text-transparent select-none transition-all duration-700 pointer-events-none group-hover:scale-105" style={{ WebkitTextStroke: '2.5px rgba(255,255,255,0.12)', fontFamily: 'Inter' }}>
                     {index + 1}
                   </div>
                 )}
                 
-                {/* Poster */}
-                <div className={`relative flex flex-col gap-3 ${showNumbers ? 'ml-14 md:ml-20' : 'mx-auto'}`}>
-                  <div className="relative w-[140px] sm:w-[160px] md:w-[180px] aspect-[2/3] rounded-xl md:rounded-2xl overflow-hidden bg-white/5 transition-all duration-700 group-hover:scale-[1.03] group-hover:-translate-y-2 shadow-[0_30px_60px_rgba(0,0,0,0.6)] z-10 border border-white/5 group-hover:border-white/20">
+                {/* Card Container */}
+                <div className={`relative flex flex-col items-center z-10 ${showNumbers ? 'ml-10 lg:ml-12' : ''}`}>
+                  {/* Poster */}
+                  <div className="relative w-full aspect-[2/3] rounded-[18px] overflow-hidden bg-[#141414] transition-all duration-500 transform hover:scale-[1.02] hover:-translate-y-2 border border-white/5 group-hover:border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
                     {item.poster ? (
                       <MovieImage
                         src={item.poster}
@@ -79,50 +80,24 @@ export default function TopTenGrid({ title, items, loading, showNumbers = true }
                         className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
                       />
                     ) : (
-                      <div className="w-full h-full bg-[#0A0A0A] flex items-center justify-center text-gray-500 text-xs text-center p-4">
-                        No Poster Available
-                      </div>
+                      <div className="w-full h-full bg-[#1A1A1A]" />
                     )}
                     
-                    {/* Overlay Gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-500" />
+                    {/* Dark overlay for text readability */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent" />
                     
-                    {/* Hover Play Button */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-8 group-hover:translate-y-0 z-10">
-                      <div className="w-16 h-16 rounded-full bg-brand flex items-center justify-center shadow-[0_0_40px_rgba(229,9,20,0.6)] border border-white/20">
-                        <Play className="w-7 h-7 text-white ml-1.5" fill="currentColor" />
-                      </div>
+                    {/* Hover State: Play Button */}
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-4 group-hover:translate-y-0">
+                       <div className="w-16 h-16 rounded-full bg-brand/90 premium-blur flex items-center justify-center border border-white/20 shadow-2xl">
+                          <Play className="w-6 h-6 text-white fill-current translate-x-0.5" />
+                       </div>
                     </div>
 
-                    {/* Progress Bar for Continue Watching */}
-                    {('progress' in item) && ('duration' in item) && (
-                      <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-white/10 z-20">
-                        <div 
-                          className="h-full bg-brand shadow-[0_0_10px_rgba(229,9,20,0.8)]" 
-                          style={{ width: `${((item as any).progress / (item as any).duration) * 100}%` }}
-                        />
-                      </div>
-                    )}
-
-                    {/* Persistent Info Overlay at Bottom */}
-                    <div className="absolute inset-x-0 bottom-0 p-4 pb-5 flex flex-col justify-end transform transition-transform duration-500 group-hover:translate-y-[-5px] z-20 text-center items-center">
-                      <h3 className="text-brand font-black text-sm md:text-base line-clamp-2 uppercase tracking-widest mb-1.5 drop-shadow-lg">
-                        {item.title}
-                      </h3>
-                      <div className="flex flex-wrap justify-center items-center gap-1.5 text-[9px] text-gray-300 font-bold tracking-widest uppercase opacity-80 group-hover:opacity-100 transition-opacity">
-                        {item.year && <span>{item.year}</span>}
-                        {item.rating && (
-                          <span className="flex items-center gap-0.5 text-[#f5c518]">
-                            <Star className="w-2.5 h-2.5 fill-current" />
-                            {item.rating}
-                          </span>
-                        )}
-                        {item.type && (
-                          <span className="text-[8px] px-1 py-0.5 rounded border border-white/20 bg-white/10 text-white">
-                            {item.type == 1 || item.type === '1' || item.type === 'Movie' || item.category === 'Movies' ? 'Movie' : 'Series'}
-                          </span>
-                        )}
-                      </div>
+                    {/* Poster Bottom Info */}
+                    <div className="absolute inset-x-0 bottom-0 p-4 pb-6 text-center">
+                       <h3 className="text-brand font-black text-[13px] md:text-[15px] tracking-widest uppercase line-clamp-1 drop-shadow-xl mb-1">
+                          {item.title}
+                       </h3>
                     </div>
                   </div>
                 </div>

@@ -156,7 +156,7 @@ export default function Home() {
         )}
 
         {trending.length > 0 && (
-          <TopTenGrid title="Top 10 Trending Today" items={trending.slice(6, 16)} />
+          <TopTenGrid title="Top 10 in AXIS TV" items={trending.slice(6, 16)} />
         )}
 
         {recommendations.length > 0 && (

@@ -41,84 +41,82 @@ export default function Navbar() {
   return (
     <>
       {/* DESKTOP SIDEBAR */}
-      <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 bg-[#050505] border-r border-white/5 flex-col z-[100]">
+      <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 bg-bg-sidebar border-r border-white/5 flex-col z-[100]">
         <div className="p-8">
-          <Link to="/" className="flex items-center gap-1.5 group">
-            <div className="relative">
-               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-brand">
-                 <path d="M12 2L22 20H2L12 2Z" fill="currentColor"/>
-               </svg>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-2xl font-black tracking-widest text-white group-hover:text-brand transition-colors duration-500 uppercase">
-                AXIS TV
-              </span>
-            </div>
+          <Link to="/" className="flex items-center gap-2 group">
+             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-brand">
+               <path d="M12 2L22 20H2L12 2Z" fill="currentColor"/>
+             </svg>
+             <span className="text-2xl font-black tracking-widest text-white uppercase italic">
+               AXIS <span className="text-brand not-italic">TV</span>
+             </span>
           </Link>
         </div>
 
-        <nav className="flex-1 px-6 space-y-1 overflow-y-auto hide-scrollbar">
+        <nav className="flex-1 px-4 space-y-2 overflow-y-auto hide-scrollbar">
           {SIDEBAR_LINKS.map((link) => {
             const Icon = link.icon;
             return (
               <Link
                 key={link.label}
                 to={link.path}
-                className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 font-medium ${
+                className={`flex items-center gap-4 px-5 py-3.5 rounded-xl transition-all duration-300 font-bold tracking-wide ${
                   link.isActive
-                    ? "text-brand bg-brand/10 pb-3"
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
+                    ? "text-brand bg-brand/5 border-l-4 border-brand"
+                    : "text-gray-500 hover:text-white hover:bg-white/5"
                 }`}
               >
                 <Icon className="w-5 h-5" />
-                <span className="text-sm">{link.label}</span>
+                <span className="text-[15px]">{link.label}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-6 space-y-1 mb-2">
-          <Link to="/settings" className="flex items-center gap-4 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all duration-300 font-medium">
+        <div className="p-4 space-y-2 mb-4 border-t border-white/5 pt-4">
+          <Link to="/settings" className="flex items-center gap-4 px-5 py-3.5 rounded-xl text-gray-500 hover:text-white hover:bg-white/5 transition-all duration-300 font-bold tracking-wide">
             <Settings className="w-5 h-5" />
-            <span className="text-sm">Settings</span>
+            <span className="text-[15px]">Settings</span>
           </Link>
-          <Link to="/profile" className="flex items-center gap-4 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all duration-300 font-medium">
+          <Link to="/profile" className="flex items-center gap-4 px-5 py-3.5 rounded-xl text-gray-500 hover:text-white hover:bg-white/5 transition-all duration-300 font-bold tracking-wide">
             {user?.avatar ? (
               <img src={user.avatar} alt="Profile" className="w-6 h-6 rounded-full object-cover" />
             ) : (
               <UserIcon className="w-5 h-5" />
             )}
-            <span className="text-sm">Profile</span>
+            <span className="text-[15px]">Profile</span>
           </Link>
         </div>
       </aside>
 
       {/* DESKTOP TOP HEADER */}
-      <header className={`hidden lg:flex fixed left-64 right-0 top-0 h-24 z-50 transition-all duration-300 items-center px-10 ${
-        isScrolled ? "bg-black/95 border-b border-white/5 backdrop-blur-md" : "bg-gradient-to-b from-black/80 to-transparent"
+      <header className={`hidden lg:flex fixed left-64 right-0 top-0 h-24 z-50 transition-all duration-500 items-center px-12 ${
+        isScrolled ? "bg-bg-base/95 border-b border-white/5 premium-blur" : "bg-transparent"
       }`}>
         <div className="flex-1 flex justify-center">
-          <form onSubmit={handleSearch} className="w-full max-w-xl relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <form onSubmit={handleSearch} className="w-full max-w-lg relative group">
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-brand transition-colors" />
             <input 
               type="text" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search for movies, series, actors..." 
-              className="w-full bg-[#1A1A1A] border-none rounded-full py-3.5 pl-12 pr-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-white/20 transition-all font-medium placeholder-gray-500"
+              className="w-full bg-[#141414] border-none rounded-full py-3.5 pl-12 pr-6 text-sm text-white focus:outline-none focus:ring-1 focus:ring-brand/40 transition-all font-medium placeholder-gray-500 shadow-xl"
             />
           </form>
         </div>
-        <div className="flex shrink-0 items-center gap-6">
-          <button className="relative text-white hover:scale-110 transition-transform">
+        <div className="flex shrink-0 items-center gap-8">
+          <button className="relative text-gray-400 hover:text-white hover:scale-110 transition-all">
              <Bell className="w-6 h-6" />
-             <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-brand rounded-full border-2 border-black" />
+             <div className="absolute top-0 right-0 w-3 h-3 bg-brand rounded-full border-2 border-bg-base" />
           </button>
-          <Link to="/profile">
+          <Link to="/profile" className="hover:scale-110 transition-transform">
              {user?.avatar ? (
-               <img src={user.avatar} alt="Profile" className="w-10 h-10 rounded-full object-cover border-2 border-transparent hover:border-white transition-colors" />
+               <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-brand to-transparent">
+                  <img src={user.avatar} alt="Profile" className="w-10 h-10 rounded-full object-cover border-2 border-bg-base" />
+               </div>
              ) : (
-               <div className="w-10 h-10 bg-[#1A1A1A] rounded-full flex items-center justify-center text-white border-2 border-transparent hover:border-white transition-colors">
+               <div className="w-10 h-10 bg-[#141414] rounded-full flex items-center justify-center text-white border-2 border-transparent hover:border-brand transition-all">
                  <UserIcon className="w-5 h-5" />
                </div>
              )}
@@ -128,40 +126,42 @@ export default function Navbar() {
 
       {/* MOBILE HEADER */}
       <header className={`lg:hidden fixed left-0 right-0 top-0 z-50 transition-all duration-300 ${
-        isScrolled ? "bg-black/95 backdrop-blur-md border-b border-white/5" : "bg-gradient-to-b from-black/80 to-transparent"
+        isScrolled ? "bg-bg-base/95 premium-blur border-b border-white/5" : "bg-gradient-to-b from-bg-base/80 to-transparent"
       }`}>
-        <div className="flex items-center justify-between px-6 py-4">
-          <Link to="/" className="flex items-center gap-1">
-             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-brand">
+        <div className="flex items-center justify-between px-6 pt-6 pb-2">
+          <Link to="/" className="flex items-center gap-2">
+             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-brand">
                <path d="M12 2L22 20H2L12 2Z" fill="currentColor"/>
              </svg>
-            <span className="text-xl font-black tracking-widest text-white uppercase">
-              AXIS TV
+            <span className="text-xl font-black tracking-widest text-white uppercase italic">
+              AXIS <span className="text-brand not-italic">TV</span>
             </span>
           </Link>
-          <div className="flex items-center gap-5">
-            <Link to="/search" className="text-white hover:text-brand transition-colors">
+          <div className="flex items-center gap-3">
+            <Link to="/search" className="w-10 h-10 flex items-center justify-center text-gray-300 hover:text-brand transition-colors bg-white/5 rounded-full backdrop-blur-md">
               <Search className="w-5 h-5" />
             </Link>
             <Link to="/profile" className="relative group">
               {user?.avatar ? (
-                <img src={user.avatar} alt="Profile" className="w-8 h-8 rounded-full object-cover" />
+                <div className="w-10 h-10 rounded-full p-[1px] bg-gradient-to-tr from-brand to-transparent">
+                  <img src={user.avatar} alt="Profile" className="w-full h-full rounded-full object-cover border-2 border-black" />
+                </div>
               ) : (
-                <div className="w-8 h-8 rounded-full bg-[#1A1A1A] flex items-center justify-center text-white">
-                  <UserIcon className="w-4 h-4" />
+                <div className="w-10 h-10 rounded-full bg-[#141414] flex items-center justify-center text-white border border-white/20">
+                  <UserIcon className="w-5 h-5" />
                 </div>
               )}
-              <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-brand rounded-full border-2 border-black" />
+              <div className="absolute top-0 right-0 w-3 h-3 bg-brand rounded-full border-2 border-bg-base" />
             </Link>
           </div>
         </div>
 
-        {/* Mobile Tabs Container */}
-        <div className="flex items-center justify-between px-6 overflow-x-auto hide-scrollbar gap-6 pb-2">
-           <Link to="/" className={`text-[13px] font-bold pb-2 border-b-2 whitespace-nowrap transition-colors ${location.pathname === '/' ? 'text-white border-brand' : 'text-gray-400 border-transparent hover:text-white'}`}>Home</Link>
-           <Link to="/browse?type=1" className={`text-[13px] font-bold pb-2 border-b-2 whitespace-nowrap transition-colors ${location.search.includes('type=1') ? 'text-white border-brand' : 'text-gray-400 border-transparent hover:text-white'}`}>Movies</Link>
-           <Link to="/browse?type=2" className={`text-[13px] font-bold pb-2 border-b-2 whitespace-nowrap transition-colors ${location.search.includes('type=2') ? 'text-white border-brand' : 'text-gray-400 border-transparent hover:text-white'}`}>Series</Link>
-           <Link to="/profile" className={`text-[13px] font-bold pb-2 border-b-2 whitespace-nowrap transition-colors ${location.pathname === '/profile' ? 'text-white border-brand' : 'text-gray-400 border-transparent hover:text-white'}`}>My List</Link>
+        {/* Mobile Tabs */}
+        <div className="flex items-center gap-8 px-6 overflow-x-auto hide-scrollbar pb-3">
+           <Link to="/" className={`text-[15px] font-black pb-2 border-b-2 whitespace-nowrap uppercase tracking-tighter transition-all ${location.pathname === '/' ? 'text-white border-brand' : 'text-gray-500 border-transparent'}`}>Home</Link>
+           <Link to="/browse?type=1" className={`text-[15px] font-black pb-2 border-b-2 whitespace-nowrap uppercase tracking-tighter transition-all ${location.search.includes('type=1') ? 'text-white border-brand' : 'text-gray-500 border-transparent'}`}>Movies</Link>
+           <Link to="/browse?type=2" className={`text-[15px] font-black pb-2 border-b-2 whitespace-nowrap uppercase tracking-tighter transition-all ${location.search.includes('type=2') ? 'text-white border-brand' : 'text-gray-500 border-transparent'}`}>Series</Link>
+           <Link to="/profile" className={`text-[15px] font-black pb-2 border-b-2 whitespace-nowrap uppercase tracking-tighter transition-all ${location.pathname === '/profile' ? 'text-white border-brand' : 'text-gray-500 border-transparent'}`}>My List</Link>
         </div>
       </header>
     </>

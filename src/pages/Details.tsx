@@ -10,7 +10,7 @@ import { ErrorMessage } from "../components/ErrorMessage";
 import { 
   ArrowLeft, Star, Download, Film, Bookmark, Check, Share2, 
   ListVideo, Play, X, UserPlus, Users, 
-  Copy, CheckCircle2, CornerUpLeft
+  Copy, CheckCircle2, CornerUpLeft, Plus
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import Tray from "../components/Tray";
@@ -343,108 +343,117 @@ export default function Details() {
       </div>
 
       {/* Details Section */}
-      <div className="max-w-[1400px] mx-auto px-6 lg:px-12 py-8">
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tighter">{details.title}</h1>
-          <button 
-            onClick={toggleWatchlist}
-            className={`p-3 rounded-full transition-all flex-shrink-0 ${isInWatchlist(details.id) ? 'bg-brand text-white shadow-[0_0_15px_rgba(229,9,20,0.5)]' : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/10 hover:border-white/30'}`}
-          >
-            {isInWatchlist(details.id) ? <Check className="w-6 h-6" /> : <Bookmark className="w-6 h-6" />}
-          </button>
+      <div className="max-w-[1400px] mx-auto px-6 lg:px-12 py-10">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+          <div className="space-y-4">
+             <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter uppercase drop-shadow-2xl leading-[0.85]" style={{ transform: 'scaleY(1.1)', transformOrigin: 'bottom left' }}>
+               {details.title}
+             </h1>
+             
+             <div className="flex flex-wrap items-center gap-4 text-sm md:text-base text-gray-400 font-bold tracking-widest uppercase">
+                <span className="flex items-center gap-1.5 px-2 py-0.5 bg-[#f5c518] text-black rounded-sm text-xs font-black">
+                   IMDb {details.rating || "8.5"}
+                </span>
+                <span>{details.year || "2024"}</span>
+                <span className="text-white/20">•</span>
+                <span className="text-white underline underline-offset-4">{details.genres?.[0] || details.type || "Action"}</span>
+                <span className="text-white/20">•</span>
+                <span className="px-1.5 py-0.5 border border-white/20 rounded text-[11px] text-white">
+                   {details.contentRating || '18+'}
+                </span>
+             </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+             <button 
+              onClick={toggleWatchlist}
+              className={`flex items-center gap-2 px-6 py-4 rounded-xl transition-all font-black uppercase text-[13px] tracking-widest border ${isInWatchlist(details.id) ? 'bg-brand border-brand text-white shadow-xl glow-brand' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/40'}`}
+            >
+              {isInWatchlist(details.id) ? (
+                <>
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span>In List</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="w-5 h-5" />
+                  <span>My List</span>
+                </>
+              )}
+            </button>
+            <button 
+              onClick={() => {
+                if (navigator.share) {
+                  navigator.share({ title: details.title, url: window.location.href }).catch(() => {});
+                } else {
+                  navigator.clipboard.writeText(window.location.href);
+                  alert("Link copied!");
+                }
+              }}
+              className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/40 rounded-xl transition-all text-gray-400 hover:text-white"
+            >
+              <Share2 className="w-6 h-6" />
+            </button>
+          </div>
         </div>
         
-        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-400 mb-8 font-medium">
-          <span className="flex items-center gap-1 text-white bg-white/10 px-2 py-1 rounded-sm border border-white/10">
-            <Star className="w-4 h-4 text-brand fill-brand" />
-            <span>{details.rating || "N/A"}</span>
-          </span>
-          <span>{details.year || "N/A"}</span>
-          <span className="w-1 h-1 rounded-full bg-gray-600"></span>
-          <span>{details.genres?.[0] || details.type || "Action"}</span>
-          {details.type && (
-            <>
-              <span className="w-1 h-1 rounded-full bg-gray-600"></span>
-              <span className="uppercase tracking-wider text-brand border border-brand/30 bg-brand/10 px-2 py-0.5 rounded-sm text-xs">{details.type}</span>
-            </>
-          )}
-        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-16">
+           <div className="lg:col-span-2 space-y-8">
+              <div className="space-y-4">
+                 <h3 className="text-lg font-black uppercase tracking-[0.2em] text-brand">Synopsis</h3>
+                 <p className="text-gray-400 leading-relaxed text-lg font-medium">
+                    {details.description || 'Experience the ultimate cinematic journey. Dive into a world of endless entertainment with premium streaming quality natively designed for your enjoyment.'}
+                 </p>
+              </div>
 
-        <div className="flex items-center gap-4 mb-10 flex-wrap">
-          <button 
-            onClick={() => setShowDetails(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-sm font-bold uppercase tracking-wider border border-white/10 hover:border-white/30"
-          >
-            <div className="w-6 h-6 rounded-full overflow-hidden bg-white/20">
-              <MovieImage src={details.poster} alt="" className="w-full h-full object-cover" />
-            </div>
-            Details
-          </button>
-          
-          <button 
-            onClick={() => setIsDownloadTrayOpen(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-sm font-bold uppercase tracking-wider border border-white/10 hover:border-white/30"
-          >
-            <Download className="w-4 h-4" />
-            Download
-          </button>
+              {/* Series Episodes Integration */}
+              {details.type === "Series" && details.seasons && (
+                <div className="pt-8 border-t border-white/5">
+                  <EpisodeSelector 
+                    seasons={details.seasons} 
+                    selectedSeason={selectedSeason} 
+                    selectedEpisode={selectedEpisode} 
+                    onEpisodeChange={handleEpisodeChange} 
+                    poster={details.poster}
+                  />
+                </div>
+              )}
+           </div>
 
-          <button 
-            onClick={() => {
-              if (!user) {
-                alert("Please sign in to save to playlists.");
-                navigate('/profile');
-                return;
-              }
-              setIsPlaylistModalOpen(true);
-            }}
-            className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-sm font-bold uppercase tracking-wider border border-white/10 hover:border-white/30"
-          >
-            <ListVideo className="w-4 h-4" />
-            <span className="hidden md:inline">Save to Playlist</span>
-            <span className="md:hidden">Playlist</span>
-          </button>
+           <div className="space-y-8 lg:border-l lg:border-white/5 lg:pl-12">
+              <div className="space-y-4">
+                 <h3 className="text-lg font-black uppercase tracking-[0.2em] text-brand">Cast</h3>
+                 <div className="grid grid-cols-2 gap-4">
+                    {details.cast?.slice(0, 4).map((actor: any, idx: number) => (
+                       <div key={idx} className="flex flex-col gap-2">
+                          <div className="aspect-square rounded-2xl overflow-hidden bg-[#1A1A1A]">
+                             <MovieImage src={actor.avatar} alt={actor.name} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500" />
+                          </div>
+                          <span className="text-[13px] font-bold text-white uppercase tracking-tight">{actor.name}</span>
+                       </div>
+                    ))}
+                 </div>
+              </div>
 
-          <button 
-            onClick={async () => {
-              if (navigator.share) {
-                try {
-                  await navigator.share({
-                    title: details.title,
-                    text: details.description,
-                    url: window.location.href,
-                  });
-                } catch (err) {
-                  console.error("Share failed:", err);
-                }
-              } else {
-                navigator.clipboard.writeText(window.location.href);
-                alert("Link copied to clipboard!");
-              }
-            }}
-            className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-sm font-bold uppercase tracking-wider border border-white/10 hover:border-white/30"
-          >
-            <Share2 className="w-4 h-4" />
-            Share
-          </button>
+              <div className="space-y-4 pt-4">
+                 <button 
+                  onClick={() => setIsDownloadTrayOpen(true)}
+                  className="w-full flex items-center justify-between p-5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all group"
+                 >
+                    <div className="flex items-center gap-4">
+                       <Download className="w-5 h-5 text-brand" />
+                       <span className="font-black uppercase text-[13px] tracking-widest">Download Offline</span>
+                    </div>
+                    <CornerUpLeft className="w-4 h-4 opacity-20 -rotate-90" />
+                 </button>
+              </div>
+           </div>
         </div>
       </div>
 
-      {/* Episodes (if series) */}
-      {details.type === "Series" && details.seasons && (
-        <div className="max-w-[1400px] mx-auto px-6 lg:px-12 py-2 mb-10">
-          <EpisodeSelector 
-            seasons={details.seasons} 
-            selectedSeason={selectedSeason} 
-            selectedEpisode={selectedEpisode} 
-            onEpisodeChange={handleEpisodeChange} 
-          />
-        </div>
-      )}
-
       {/* Recommendations */}
-      <div className="max-w-[1400px] mx-auto">
-        <PosterGrid title="More film suggestions" items={recommendations.slice(0, 12)} />
+      <div className="max-w-[1400px] mx-auto border-t border-white/5 mt-10">
+        <PosterGrid title="More Like This" items={recommendations.slice(0, 12)} />
       </div>
 
       {/* Trays */}

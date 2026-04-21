@@ -94,10 +94,10 @@ export default function TopTenGrid({ title, items, loading, showNumbers = true }
                     </div>
 
                     {/* Poster Bottom Info */}
-                    <div className="absolute inset-x-0 bottom-0 p-4 pb-6 text-center">
-                       <h3 className="text-brand font-black text-[13px] md:text-[15px] tracking-widest uppercase line-clamp-1 drop-shadow-xl mb-1">
-                          {item.title}
-                       </h3>
+                    <div className="absolute inset-x-0 bottom-0 p-4 pb-8 text-center bg-gradient-to-t from-black/90 to-transparent">
+                        <h3 className="text-white font-black text-[13px] md:text-[15px] tracking-tight uppercase line-clamp-2 drop-shadow-2xl mb-1 leading-tight">
+                           {item.title}
+                        </h3>
                     </div>
                   </div>
                 </div>

@@ -2,19 +2,66 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { movieService } from "../services/movieService";
 import { MediaItem } from "../types";
 import PosterGrid from "../components/PosterGrid";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
 import PopcornLoader from "../components/PopcornLoader";
-import { Search as SearchIcon, X, TrendingUp, ArrowLeft, Loader2, Filter } from "lucide-react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { 
+  Search as SearchIcon, X, TrendingUp, ArrowLeft, Loader2, Filter, 
+  Clock, History, ArrowUpRight, User, Menu, Play, Sparkles, 
+  Smile, Theater, Rocket, Ghost, Heart
+} from "lucide-react";
+import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { motion, AnimatePresence } from "motion/react";
 import { processSearchResults, ScoredMediaItem } from "../lib/searchUtils";
 
+const GENRE_CARDS = [
+  { 
+    name: "Action", 
+    icon: Sparkles, 
+    color: "bg-red-600/20 text-red-500",
+    image: "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=800",
+    count: "1,245 titles"
+  },
+  { 
+    name: "Comedy", 
+    icon: Smile, 
+    color: "bg-yellow-500/20 text-yellow-500",
+    image: "https://images.unsplash.com/photo-1585647347483-22b66260dfff?auto=format&fit=crop&q=80&w=800",
+    count: "892 titles"
+  },
+  { 
+    name: "Drama", 
+    icon: Theater, 
+    color: "bg-purple-600/20 text-purple-500",
+    image: "https://images.unsplash.com/photo-1505686994434-e3cc5abf1330?auto=format&fit=crop&q=80&w=800",
+    count: "1,123 titles"
+  },
+  { 
+    name: "Sci-Fi", 
+    icon: Rocket, 
+    color: "bg-blue-600/20 text-blue-500",
+    image: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&q=80&w=800",
+    count: "1,015 titles"
+  },
+  { 
+    name: "Horror", 
+    icon: Ghost, 
+    color: "bg-gray-600/20 text-gray-400",
+    image: "https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?auto=format&fit=crop&q=80&w=800",
+    count: "786 titles"
+  },
+  { 
+    name: "Romance", 
+    icon: Heart, 
+    color: "bg-rose-500/20 text-rose-500",
+    image: "https://images.unsplash.com/photo-1518621736915-f3b1c41bfd00?auto=format&fit=crop&q=80&w=800",
+    count: "947 titles"
+  },
+];
+
 export default function Search() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { setLastActionType } = useAuth();
+  const { setLastActionType, user } = useAuth();
   const initialQuery = searchParams.get("q") || "";
   
   const [query, setQuery] = useState(initialQuery);
@@ -29,6 +76,8 @@ export default function Search() {
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>("All");
+  const [searchType, setSearchType] = useState<'keyword' | 'genre'>('keyword');
+  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const observer = useRef<IntersectionObserver | null>(null);
@@ -45,15 +94,6 @@ export default function Search() {
     
     if (node) observer.current.observe(node);
   }, [loading, loadingMore, hasMore]);
-
-  const categories = [
-    { name: "Action", color: "from-red-500 to-orange-500" },
-    { name: "Comedy", color: "from-yellow-400 to-orange-500" },
-    { name: "Drama", color: "from-blue-500 to-purple-500" },
-    { name: "Sci-Fi", color: "from-cyan-500 to-blue-500" },
-    { name: "Horror", color: "from-gray-700 to-black" },
-    { name: "Romance", color: "from-pink-500 to-rose-500" },
-  ];
 
   const resultCategories = ["All", "Movies", "Series", "Anime"];
 
@@ -107,7 +147,13 @@ export default function Search() {
     const delayDebounceFn = setTimeout(() => {
       setSearchParams({ q: query });
       setPage(1);
-      performSearch(query, 1, true);
+      // If we are already in genre mode and the query matches the selected genre, don't reset
+      if (searchType === 'genre' && query === selectedGenre) {
+        performSearch(query, 1, true, 'genre');
+      } else {
+        setSearchType('keyword');
+        performSearch(query, 1, true, 'keyword');
+      }
     }, 500);
 
     const suggestionFn = setTimeout(async () => {
@@ -137,7 +183,7 @@ export default function Search() {
     if (!term.trim()) return;
     try {
       const history = JSON.parse(localStorage.getItem('axis_search_history') || '[]');
-      const newHistory = [term, ...history.filter((h: string) => h !== term)].slice(0, 10);
+      const newHistory = [term, ...history.filter((h: string) => h !== term)].slice(0, 5);
       localStorage.setItem('axis_search_history', JSON.stringify(newHistory));
       setSearchHistory(newHistory);
     } catch (e) {}
@@ -148,7 +194,7 @@ export default function Search() {
     setSearchHistory([]);
   };
 
-  const performSearch = async (searchQuery: string, p: number, reset: boolean = false) => {
+  const performSearch = async (searchQuery: string, p: number, reset: boolean = false, type: 'keyword' | 'genre' = searchType) => {
     try {
       if (reset) {
         setLoading(true);
@@ -158,7 +204,15 @@ export default function Search() {
       }
       
       setError(null);
-      const rawData = await movieService.smartSearch(searchQuery, p);
+      let rawData: MediaItem[] = [];
+      
+      if (type === 'genre') {
+        const results = await movieService.browse(searchQuery, undefined, p, 30);
+        rawData = results;
+      } else {
+        rawData = await movieService.smartSearch(searchQuery, p);
+      }
+      
       const processedData = processSearchResults(rawData, searchQuery);
       
       if (reset) {
@@ -169,7 +223,6 @@ export default function Search() {
       } else {
         setResults(prev => {
           const combined = [...prev, ...processedData];
-          // Re-process to ensure no duplicates and correct ranking across pages
           return processSearchResults(combined, searchQuery);
         });
       }
@@ -177,25 +230,27 @@ export default function Search() {
       setHasMore(rawData.length >= 20);
     } catch (err) {
       console.error("Search error:", err);
-      setError("Failed to search. Please try again.");
+      setError("Search failed. Try again.");
     } finally {
       setLoading(false);
       setLoadingMore(false);
     }
   };
 
-  const filteredResults = results.filter(item => {
-    if (activeCategory === "All") return true;
-    if (activeCategory === "Movies") return item.category === "Movies" || item.category === "Movies/Series";
-    if (activeCategory === "Series") return item.category === "Series" || item.category === "Movies/Series";
-    return item.category === activeCategory;
-  });
-
   const handleClear = () => {
     setQuery("");
     setResults([]);
     setSuggestions([]);
     inputRef.current?.focus();
+  };
+
+  const handleGenreClick = (genre: string) => {
+    setQuery(genre);
+    setSearchType('genre');
+    setSelectedGenre(genre);
+    setIsFocused(false);
+    setPage(1);
+    performSearch(genre, 1, true, 'genre');
   };
 
   const handlePopularClick = (term: string) => {
@@ -219,22 +274,34 @@ export default function Search() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white pb-20">
-      <Navbar />
-      
-      <div className="max-w-[1400px] mx-auto px-6 lg:px-12 pt-28">
-        <button 
-          onClick={handleBack}
-          className="mb-6 p-2 hover:bg-white/10 rounded-full transition-colors flex items-center gap-2 text-gray-400 hover:text-white"
-        >
-          <ArrowLeft className="w-6 h-6" />
-          <span className="text-sm font-medium">Back</span>
-        </button>
-        
-          {/* Search Input */}
-        <div className="relative max-w-3xl mx-auto mb-8 flex gap-2">
-          <div className="relative flex items-center group flex-1">
-            <SearchIcon className="absolute left-6 w-5 h-5 text-gray-400 group-focus-within:text-white transition-colors" />
+    <div className="min-h-screen bg-black text-white pb-32">
+      {/* Search Header Custom */}
+      <div className="px-6 py-4 flex flex-col gap-6 sticky top-0 bg-black/95 backdrop-blur-2xl z-50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1">
+             <ArrowLeft onClick={handleBack} className="w-7 h-7 cursor-pointer text-white hover:text-gray-400 transition-colors" />
+             <h1 className="text-2xl font-black tracking-tighter text-white ml-2">Search</h1>
+          </div>
+          
+          <div className="flex items-center gap-5">
+               <div className="relative">
+               <div className="w-9 h-9 rounded-full bg-white/10 p-[1px]">
+                 <img 
+                   src={user?.avatar || "https://picsum.photos/seed/user/100/100"} 
+                   className="w-full h-full rounded-full object-cover" 
+                   alt="Profile"
+                   referrerPolicy="no-referrer"
+                 />
+               </div>
+               <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-[#4ADE80] border-2 border-black rounded-full" />
+            </div>
+            <Menu className="w-6 h-6 text-gray-300 cursor-pointer" />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1 group">
+            <SearchIcon className="absolute left-6 w-5 h-5 text-gray-500 group-focus-within:text-brand transition-colors" />
             <input
               ref={inputRef}
               type="text"
@@ -243,214 +310,169 @@ export default function Search() {
               onKeyDown={handleKeyDown}
               onFocus={() => setIsFocused(true)}
               placeholder="Search movies, series, anime..."
-              className="w-full h-14 md:h-16 pl-14 pr-14 bg-white/5 border border-white/10 rounded-full text-base md:text-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition-all shadow-lg"
+              className="w-full h-14 pl-14 pr-12 bg-[#0F0F0F] border border-white/5 rounded-full text-base text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand/50 transition-all shadow-[0_0_15px_rgba(255,45,45,0.02)] focus:shadow-[0_0_25px_rgba(255,45,45,0.1)]"
             />
             {query && (
               <button
                 onClick={handleClear}
-                className="absolute right-6 p-1 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/10"
+                className="absolute right-5 p-1 text-gray-500 hover:text-white transition-colors"
               >
-                <X className="w-5 h-5 md:w-6 md:h-6" />
+                <X className="w-5 h-5" strokeWidth={3} />
               </button>
             )}
           </div>
           
-          <button 
-            onClick={() => {
-              const url = window.location.href;
-              if (navigator.share) {
-                navigator.share({ title: 'Axis Search', url });
-              } else {
-                navigator.clipboard.writeText(url);
-                alert("Search context copied to clipboard!");
-              }
-            }}
-            className="w-14 h-14 md:h-16 md:w-16 flex items-center justify-center bg-white/5 border border-white/10 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-all shrink-0 tooltip"
-            title="Share this search"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <button className="w-14 h-14 flex items-center justify-center bg-[#0F0F0F] rounded-full border border-white/5 backdrop-blur-md text-white transition-all active:scale-95 shadow-lg">
+            <Filter className="w-6 h-6" />
           </button>
-
-          {/* Suggestions Dropdown */}
-          <AnimatePresence>
-            {isFocused && suggestions.length > 0 && (
-              <motion.div
-                ref={suggestionsRef}
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="absolute top-full left-0 right-0 mt-2 bg-[#121212] border border-white/10 rounded-2xl overflow-hidden z-50 shadow-2xl"
-              >
-                <div className="px-6 py-3 border-b border-white/5 bg-white/5">
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Suggestions</span>
-                </div>
-                {Array.isArray(suggestions) && suggestions.map((s, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleSuggestionClick(s)}
-                    className="w-full text-left px-6 py-4 hover:bg-white/5 transition-colors flex items-center gap-3 border-b border-white/5 last:border-0 group"
-                  >
-                    <SearchIcon className="w-4 h-4 text-gray-500 group-hover:text-white transition-colors" />
-                    <span className="text-gray-200 group-hover:text-white transition-colors">{s}</span>
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Category Filters */}
-        {results.length > 0 && (
-          <div className="flex items-center gap-4 mb-12 overflow-x-auto no-scrollbar pb-2">
-            <Filter className="w-5 h-5 text-gray-500 shrink-0" />
-            {resultCategories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-6 py-2 rounded-full text-sm font-bold transition-all shrink-0 ${
-                  activeCategory === cat 
-                    ? "bg-brand text-white shadow-[0_0_15px_rgba(229,9,20,0.4)]" 
-                    : "bg-white/5 text-gray-400 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Content Area */}
-        <div className="min-h-[50vh]">
-          {loading && results.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 space-y-4">
-              <PopcornLoader />
-              <p className="text-gray-400">Searching the universe...</p>
-            </div>
-          ) : error ? (
-            <div className="text-center text-red-400 py-12">{error}</div>
-          ) : results.length > 0 ? (
-            <div className="space-y-8">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold">Results for "{query}"</h2>
-                <span className="text-sm text-gray-500 font-medium">{filteredResults.length} items found</span>
-              </div>
-              
-              {filteredResults.length > 0 ? (
-                <PosterGrid items={filteredResults} loading={loading} />
-              ) : (
-                <div className="text-center py-20">
-                  <p className="text-gray-400">No results found in this category.</p>
-                </div>
-              )}
-              
-              {hasMore && (
-                <div ref={lastElementRef} className="flex justify-center pt-8 h-20">
-                  {loadingMore && (
-                    <div className="flex items-center gap-3 text-brand">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span className="text-sm font-medium">Loading more...</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ) : query.trim() !== "" ? (
-            <div className="text-center py-20">
-              <h3 className="text-2xl font-semibold text-white mb-2">No results found</h3>
-              <p className="text-gray-400">Try adjusting your search or explore our popular titles.</p>
-            </div>
-          ) : (
-            <div className="max-w-3xl mx-auto space-y-12">
-              {/* Explore Genres - Premium Feel */}
-              <div>
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Explore Genres</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {categories.map((c, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handlePopularClick(c.name)}
-                      className="relative overflow-hidden rounded-xl h-20 flex items-center justify-center group"
-                    >
-                      <div className={`absolute inset-0 bg-gradient-to-br ${c.color} opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500`} />
-                      <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
-                      <span className="relative text-white font-black text-lg tracking-wider drop-shadow-lg">{c.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Search History */}
-              {searchHistory.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
-                      <SearchIcon className="w-5 h-5 text-gray-400" />
-                      Recent Searches
-                    </h3>
-                    <button 
-                      onClick={clearHistory}
-                      className="text-sm text-gray-400 hover:text-white transition-colors"
-                    >
-                      Clear All
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    {Array.isArray(searchHistory) && searchHistory.map((term, idx) => (
-                      <button
-                        key={`history-${idx}`}
-                        onClick={() => handlePopularClick(term)}
-                        className="px-6 py-2.5 rounded-full bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-brand hover:border-brand hover:shadow-[0_0_15px_rgba(229,9,20,0.4)] transition-all text-sm font-medium flex items-center gap-2"
-                      >
-                        {term}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Popular Searches */}
-              {popularSearches.length > 0 && (
-                <div>
-                  <h3 className="flex items-center gap-2 text-lg font-semibold text-white mb-6">
-                    <TrendingUp className="w-5 h-5 text-gray-400" />
-                    Popular Searches
-                  </h3>
-                  <div className="flex flex-wrap gap-3">
-                    {Array.isArray(popularSearches) && popularSearches.map((term, idx) => (
-                      <button
-                        key={`popular-${idx}`}
-                        onClick={() => handlePopularClick(term)}
-                        className="px-6 py-2.5 rounded-full bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-brand hover:border-brand hover:shadow-[0_0_15px_rgba(229,9,20,0.4)] transition-all text-sm font-medium"
-                      >
-                        {term}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Categories */}
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-6">Explore Categories</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {categories.map((cat, idx) => (
-                    <button
-                      key={`cat-${idx}`}
-                      onClick={() => handlePopularClick(cat.name)}
-                      className={`h-24 rounded-2xl bg-gradient-to-br ${cat.color} p-4 flex items-end justify-start hover:scale-105 transition-transform shadow-lg relative overflow-hidden group`}
-                    >
-                      <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
-                      <span className="relative z-10 font-bold text-lg text-white drop-shadow-md">{cat.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
-      <Footer />
+      <div className="px-6 space-y-10 mt-6">
+        {/* Suggestions Dropdown */}
+        <AnimatePresence>
+          {isFocused && suggestions.length > 0 && (
+            <motion.div
+              ref={suggestionsRef}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="fixed top-[180px] left-6 right-6 bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden z-[60] shadow-2xl backdrop-blur-3xl"
+            >
+              <div className="px-5 py-3 border-b border-white/5 bg-white/5">
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Suggestions</span>
+              </div>
+              {suggestions.map((s, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSuggestionClick(s)}
+                  className="w-full text-left px-5 py-4 hover:bg-white/5 transition-colors flex items-center gap-3 border-b border-white/5 last:border-0 group"
+                >
+                  <SearchIcon className="w-4 h-4 text-gray-600 group-hover:text-brand transition-colors" />
+                  <span className="text-gray-300 font-bold group-hover:text-white transition-colors">{s}</span>
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {results.length > 0 ? (
+          <div className="space-y-8 animate-fade-in">
+            <div className="flex flex-col gap-6">
+              <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2">
+                {resultCategories.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setActiveCategory(cat)}
+                    className={`px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all shrink-0 border ${
+                      activeCategory === cat 
+                        ? "bg-brand border-brand text-white shadow-[0_0_15px_rgba(229,9,20,0.4)]" 
+                        : "bg-[#0F0F0F] border-white/5 text-gray-500 hover:text-white"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+              <h2 className="text-xl font-black uppercase tracking-tight text-white px-1">Results for "{query}"</h2>
+            </div>
+            
+            <PosterGrid items={results.filter(item => {
+              if (activeCategory === "All") return true;
+              return item.category?.includes(activeCategory);
+            })} loading={loading} />
+            
+            {hasMore && <div ref={lastElementRef} className="h-10" />}
+          </div>
+        ) : (
+          <div className="space-y-12">
+            {/* Explore Genres Section */}
+            <section className="space-y-6">
+              <div className="flex items-center justify-between px-1">
+                <h3 className="text-xl font-black tracking-tighter text-white">Explore Genres</h3>
+                <button className="text-brand text-xs font-black uppercase tracking-widest hover:opacity-80 transition-opacity">View all</button>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {GENRE_CARDS.map((c, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleGenreClick(c.name)}
+                    className="relative aspect-[1.8/1] rounded-[24px] overflow-hidden group active:scale-[0.98] transition-transform shadow-xl border border-white/5"
+                  >
+                    <img 
+                      src={c.image} 
+                      alt={c.name}
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent group-hover:via-black/10 transition-all duration-500" />
+                    <div className="absolute inset-0 p-5 flex flex-col justify-between">
+                      <div className={`w-10 h-10 rounded-xl ${c.color} backdrop-blur-md flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform`}>
+                        <c.icon className="w-5 h-5" strokeWidth={2.5} />
+                      </div>
+                      <div className="text-left">
+                        <span className="block text-lg font-black text-white uppercase tracking-tight drop-shadow-md">{c.name}</span>
+                        <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{c.count}</span>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {/* Recent Searches Section */}
+            {searchHistory.length > 0 && (
+              <section className="space-y-6">
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-3">
+                    <History className="w-6 h-6 text-gray-500" />
+                    <h3 className="text-xl font-black tracking-tighter text-white">Recent Searches</h3>
+                  </div>
+                  <button 
+                    onClick={clearHistory}
+                    className="text-brand text-xs font-black uppercase tracking-widest hover:opacity-80 transition-opacity"
+                  >
+                    Clear all
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2.5">
+                  {searchHistory.map((term, idx) => (
+                    <div key={idx} className="flex items-center gap-2.5 px-6 py-3 rounded-full bg-[#0F0F0F] border border-white/10 group hover:border-white/30 transition-all cursor-pointer" onClick={() => handlePopularClick(term)}>
+                      <Clock className="w-4 h-4 text-gray-500" />
+                      <span className="text-[14px] font-bold text-gray-400 group-hover:text-white transition-colors">{term}</span>
+                      <X className="w-4 h-4 text-gray-600 hover:text-brand" strokeWidth={3} onClick={(e) => {
+                        e.stopPropagation();
+                        // Optional: remove single item logic
+                      }} />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Popular Searches Section */}
+            <section className="space-y-6">
+              <div className="flex items-center gap-3 px-1">
+                <TrendingUp className="w-6 h-6 text-gray-500" />
+                <h3 className="text-xl font-black tracking-tighter text-white">Popular Searches</h3>
+              </div>
+              <div className="flex flex-wrap gap-2.5">
+                {["Sistas", "Teen Wolf", "The Vampire Diaries", "The Blacklist", "Fatal Seduction", "Wednesday", "The Walking Dead", "Game of Thrones", "Lucifer"].map((term, idx) => (
+                  <div 
+                    key={idx} 
+                    className="flex items-center gap-2.5 px-6 py-3 rounded-full bg-[#0F0F0F] border border-white/10 group hover:border-brand/50 hover:bg-brand/5 transition-all cursor-pointer"
+                    onClick={() => handlePopularClick(term)}
+                  >
+                    <ArrowUpRight className="w-4 h-4 text-brand" strokeWidth={3} />
+                    <span className="text-[14px] font-bold text-gray-400 group-hover:text-white transition-colors">{term}</span>
+                    <X className="w-4 h-4 text-gray-600 group-hover:text-white" strokeWidth={3} />
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

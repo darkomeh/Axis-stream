@@ -10,14 +10,13 @@ import { ErrorMessage } from "../components/ErrorMessage";
 import { 
   ArrowLeft, Star, Download, Film, Bookmark, Check, Share2, 
   ListVideo, Play, X, UserPlus, Users, 
-  Copy, CheckCircle2, CornerUpLeft, Plus
+  Copy, CheckCircle2, CornerUpLeft, Plus, Info
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import Tray from "../components/Tray";
 import { useAuth } from "../contexts/AuthContext";
 import { localDownloadService } from "../services/localDownloadService";
 import { MovieImage } from "../components/MovieImage";
-import { PlaylistModal } from "../components/PlaylistModal";
 
 export default function Details() {
   const { id } = useParams<{ id: string }>();
@@ -25,8 +24,7 @@ export default function Details() {
   const playerRef = useRef<HTMLDivElement>(null);
   const { 
     user, addToHistory, addToWatchlist, removeFromWatchlist, 
-    isInWatchlist, customPlaylists, createPlaylist, addToPlaylist, 
-    continueWatching, trackWatchActivity 
+    isInWatchlist, continueWatching, trackWatchActivity 
   } = useAuth();
   
   const [details, setDetails] = useState<ItemDetails | null>(null);
@@ -39,7 +37,6 @@ export default function Details() {
   const [selectedSeason, setSelectedSeason] = useState<number>(1);
   const [selectedEpisode, setSelectedEpisode] = useState<number>(1);
   const [isDownloadTrayOpen, setIsDownloadTrayOpen] = useState(false);
-  const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   
   const [downloadingUrl, setDownloadingUrl] = useState<string | null>(null);
@@ -160,6 +157,57 @@ export default function Details() {
 
     loadData();
   }, [id, user]);
+
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [justShared, setJustShared] = useState(false);
+
+  const handleShare = async () => {
+    if (!details) return;
+    
+    const shareText = `Movie: *${details.title}*\nRating: ${details.rating || 'N/A'} ⭐\nGenre: ${details.genres?.join(', ') || 'N/A'}\nYear: ${details.year || 'N/A'}\nLink: ${window.location.href}`;
+    
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: details.title,
+          text: shareText,
+          url: window.location.href,
+        });
+      } else {
+        await navigator.clipboard.writeText(shareText);
+        alert("Movie details copied to clipboard!");
+      }
+      setJustShared(true);
+      setIsShareModalOpen(true);
+    } catch (err) {
+      console.error("Share failed:", err);
+    }
+  };
+
+  const downloadPoster = async () => {
+    if (!details?.poster) return;
+    try {
+       const response = await fetch(details.poster);
+       const blob = await response.blob();
+       const url = window.URL.createObjectURL(blob);
+       const a = document.createElement('a');
+       a.href = url;
+       a.download = `${details.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_poster.jpg`;
+       document.body.appendChild(a);
+       a.click();
+       window.URL.revokeObjectURL(url);
+       document.body.removeChild(a);
+    } catch (err) {
+       console.error("Poster download failed", err);
+       // Fallback to direct link
+       const a = document.createElement('a');
+       a.href = details.poster;
+       a.target = '_blank';
+       a.download = `${details.title}_poster.jpg`;
+       a.click();
+    }
+    setIsShareModalOpen(false);
+  };
 
   const handleEpisodeChange = async (s: number, e: number) => {
     if (!id) return;
@@ -342,119 +390,129 @@ export default function Details() {
         )}
       </div>
 
-      {/* Details Section */}
-      <div className="max-w-[1400px] mx-auto px-6 lg:px-12 py-10">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
-          <div className="space-y-4">
-             <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter uppercase drop-shadow-2xl leading-[0.85]" style={{ transform: 'scaleY(1.1)', transformOrigin: 'bottom left' }}>
-               {details.title}
-             </h1>
-             
-             <div className="flex flex-wrap items-center gap-4 text-sm md:text-base text-gray-400 font-bold tracking-widest uppercase">
-                <span className="flex items-center gap-1.5 px-2 py-0.5 bg-[#f5c518] text-black rounded-sm text-xs font-black">
-                   IMDb {details.rating || "8.5"}
-                </span>
-                <span>{details.year || "2024"}</span>
-                <span className="text-white/20">•</span>
-                <span className="text-white underline underline-offset-4">{details.genres?.[0] || details.type || "Action"}</span>
-                <span className="text-white/20">•</span>
-                <span className="px-1.5 py-0.5 border border-white/20 rounded text-[11px] text-white">
-                   {details.contentRating || '18+'}
-                </span>
-             </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-             <button 
-              onClick={toggleWatchlist}
-              className={`flex items-center gap-2 px-6 py-4 rounded-xl transition-all font-black uppercase text-[13px] tracking-widest border ${isInWatchlist(details.id) ? 'bg-brand border-brand text-white shadow-xl glow-brand' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/40'}`}
-            >
-              {isInWatchlist(details.id) ? (
-                <>
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span>In List</span>
-                </>
-              ) : (
-                <>
-                  <Plus className="w-5 h-5" />
-                  <span>My List</span>
-                </>
-              )}
-            </button>
-            <button 
-              onClick={() => {
-                if (navigator.share) {
-                  navigator.share({ title: details.title, url: window.location.href }).catch(() => {});
-                } else {
-                  navigator.clipboard.writeText(window.location.href);
-                  alert("Link copied!");
-                }
-              }}
-              className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/40 rounded-xl transition-all text-gray-400 hover:text-white"
-            >
-              <Share2 className="w-6 h-6" />
-            </button>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-16">
-           <div className="lg:col-span-2 space-y-8">
-              <div className="space-y-4">
-                 <h3 className="text-lg font-black uppercase tracking-[0.2em] text-brand">Synopsis</h3>
-                 <p className="text-gray-400 leading-relaxed text-lg font-medium">
-                    {details.description || 'Experience the ultimate cinematic journey. Dive into a world of endless entertainment with premium streaming quality natively designed for your enjoyment.'}
-                 </p>
-              </div>
-
-              {/* Series Episodes Integration */}
-              {details.type === "Series" && details.seasons && (
-                <div className="pt-8 border-t border-white/5">
-                  <EpisodeSelector 
-                    seasons={details.seasons} 
-                    selectedSeason={selectedSeason} 
-                    selectedEpisode={selectedEpisode} 
-                    onEpisodeChange={handleEpisodeChange} 
-                    poster={details.poster}
-                  />
-                </div>
-              )}
-           </div>
-
-           <div className="space-y-8 lg:border-l lg:border-white/5 lg:pl-12">
-              <div className="space-y-4">
-                 <h3 className="text-lg font-black uppercase tracking-[0.2em] text-brand">Cast</h3>
-                 <div className="grid grid-cols-2 gap-4">
-                    {details.cast?.slice(0, 4).map((actor: any, idx: number) => (
-                       <div key={idx} className="flex flex-col gap-2">
-                          <div className="aspect-square rounded-2xl overflow-hidden bg-[#1A1A1A]">
-                             <MovieImage src={actor.avatar} alt={actor.name} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500" />
-                          </div>
-                          <span className="text-[13px] font-bold text-white uppercase tracking-tight">{actor.name}</span>
-                       </div>
-                    ))}
+      {/* Content Info Section - Exact match to screenshot */}
+      <div className="max-w-[1400px] mx-auto px-5 py-8 space-y-8">
+        <div className="flex justify-between items-start">
+           <div className="space-y-4 flex-1 pr-6">
+              <h1 className="text-4xl md:text-7xl font-black uppercase tracking-tight text-white mb-2 leading-[0.9]">
+                 {details.title}
+              </h1>
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+                 <div className="flex items-center gap-1.5 bg-[#1A1A1A] px-2.5 py-1 rounded-md border border-white/5">
+                    <Star className="w-3.5 h-3.5 text-brand fill-brand" />
+                    <span className="text-white text-xs font-black">{details.rating || '6.7'}</span>
                  </div>
+                 <span className="text-sm font-bold text-gray-500">{details.year || '2022'}</span>
+                 <span className="text-gray-700 font-black text-xs">•</span>
+                 <span className="text-sm font-bold text-gray-500">20:45</span>
+                 <span className="text-gray-700 font-black text-xs">•</span>
+                 <span className="text-sm font-bold text-gray-500">{details.type === 'Series' ? 'Short' : details.type}</span>
+                 {details.type === 'Series' && (
+                    <span className="px-2 py-0.5 bg-brand/10 border border-brand/30 text-brand text-[9px] font-black uppercase rounded-md tracking-[0.1em] ml-2">Series</span>
+                 )}
               </div>
+           </div>
+           
+           <button 
+             onClick={toggleWatchlist}
+             className={`w-14 h-14 md:w-16 md:h-16 flex items-center justify-center rounded-2xl border transition-all ${
+               isInWatchlist(details.id) 
+                 ? 'bg-brand border-brand text-white shadow-[0_0_20px_rgba(255,45,45,0.3)]' 
+                 : 'bg-[#121212] border-white/10 text-white/40 hover:text-white hover:border-white/30 hover:bg-[#181818]'
+             }`}
+           >
+              <Bookmark className={`w-6 h-6 md:w-7 md:h-7 ${isInWatchlist(details.id) ? 'fill-current' : ''}`} />
+           </button>
+        </div>
 
-              <div className="space-y-4 pt-4">
-                 <button 
-                  onClick={() => setIsDownloadTrayOpen(true)}
-                  className="w-full flex items-center justify-between p-5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all group"
-                 >
-                    <div className="flex items-center gap-4">
-                       <Download className="w-5 h-5 text-brand" />
-                       <span className="font-black uppercase text-[13px] tracking-widest">Download Offline</span>
-                    </div>
-                    <CornerUpLeft className="w-4 h-4 opacity-20 -rotate-90" />
-                 </button>
-              </div>
+        {/* Action Buttons Row */}
+        <div className="flex flex-wrap gap-3 overflow-x-auto no-scrollbar pb-2">
+           <button 
+             onClick={() => setShowDetails(true)}
+             className="flex items-center justify-center gap-2.5 px-6 py-3.5 bg-[#121212] border border-white/5 text-white rounded-xl font-black uppercase text-[10px] md:text-[11px] tracking-[0.2em] hover:bg-[#181818] hover:border-white/20 active:scale-95 transition-all group shrink-0"
+           >
+              <Info className="w-4 h-4 text-white/40 group-hover:text-brand transition-colors" />
+              <span>Details</span>
+           </button>
+           <button 
+             onClick={() => setIsDownloadTrayOpen(true)}
+             className="flex items-center justify-center gap-2.5 px-6 py-3.5 bg-[#121212] border border-white/5 text-white rounded-xl font-black uppercase text-[10px] md:text-[11px] tracking-[0.2em] hover:bg-[#181818] hover:border-white/20 active:scale-95 transition-all group shrink-0"
+           >
+              <Download className="w-4 h-4 text-white/40 group-hover:text-brand transition-colors" />
+              <span>Download</span>
+           </button>
+           <button 
+             onClick={toggleWatchlist}
+             className="flex items-center justify-center gap-2.5 px-6 py-3.5 bg-[#121212] border border-white/5 text-white rounded-xl font-black uppercase text-[10px] md:text-[11px] tracking-[0.2em] hover:bg-[#181818] hover:border-white/20 active:scale-95 transition-all group shrink-0"
+           >
+              <ListVideo className="w-4 h-4 text-white/40 group-hover:text-brand transition-colors" />
+              <span>Add to Playlist</span>
+           </button>
+           <button 
+             onClick={handleShare}
+             className="flex items-center justify-center gap-2.5 px-6 py-3.5 bg-[#121212] border border-white/5 text-white rounded-xl font-black uppercase text-[10px] md:text-[11px] tracking-[0.2em] hover:bg-[#181818] hover:border-white/20 active:scale-95 transition-all group shrink-0"
+           >
+              <Share2 className="w-4 h-4 text-white/40 group-hover:text-brand transition-colors" />
+              <span>Share</span>
+           </button>
+        </div>
+
+        {/* Episodes Section - Vertical mode matches redesigned component */}
+        {details.type === "Series" && (
+          <div className="pt-10 border-t border-white/5">
+            <EpisodeSelector 
+              seasons={details.seasons} 
+              selectedSeason={selectedSeason} 
+              selectedEpisode={selectedEpisode} 
+              onEpisodeChange={handleEpisodeChange} 
+              poster={details.poster}
+              itemId={details.id}
+              progressList={continueWatching}
+            />
+          </div>
+        )}
+
+        {/* More Like This - Enhanced as per image */}
+        <div className="pt-16 space-y-8">
+           <div className="flex items-center justify-between">
+              <h2 className="text-xl font-black uppercase tracking-tight text-white italic">More Like This</h2>
+           </div>
+           
+           <div className="flex overflow-x-auto gap-5 pb-6 no-scrollbar snap-x snap-mandatory">
+              {recommendations.slice(0, 8).map((item) => (
+                <Link key={item.id} to={`/details/${item.id}`} className="flex-none w-44 md:w-52 snap-start group space-y-4">
+                   <div className="relative aspect-[2/3] rounded-2xl overflow-hidden bg-[#121212] border border-white/5 transition-all duration-500 group-hover:scale-[1.03] group-hover:border-brand/40 group-hover:shadow-[0_20px_40px_-15px_rgba(255,45,45,0.2)]">
+                      <MovieImage 
+                        src={item.poster} 
+                        alt={item.title} 
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
+                      
+                      <div className="absolute bottom-3 left-3 flex flex-col gap-1">
+                         <div className="flex items-center gap-1.5">
+                            <Star className="w-3.5 h-3.5 text-brand fill-brand" />
+                            <span className="text-white font-black text-xs">{item.rating || '8.5'}</span>
+                         </div>
+                      </div>
+                      
+                      <div className="absolute bottom-3 right-3 px-1.5 py-0.5 bg-black/40 backdrop-blur-md rounded border border-white/5 text-gray-400 text-[8px] font-black uppercase tracking-tighter">
+                         {item.type === 'Series' ? 'Series' : 'Movie'}
+                      </div>
+                   </div>
+                   <div className="px-1">
+                      <h4 className="text-[14px] font-black uppercase text-white tracking-tight truncate group-hover:text-brand transition-colors mb-0.5">{item.title}</h4>
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                         <span>{item.year || '2022'}</span>
+                         {item.type === 'Series' && <span className="text-brand/60">Series</span>}
+                      </div>
+                   </div>
+                </Link>
+              ))}
            </div>
         </div>
       </div>
 
-      {/* Recommendations */}
-      <div className="max-w-[1400px] mx-auto border-t border-white/5 mt-10">
-        <PosterGrid title="More Like This" items={recommendations.slice(0, 12)} />
-      </div>
 
       {/* Trays */}
       <Tray isOpen={showDetails} onClose={() => setShowDetails(false)} title="Details">
@@ -519,7 +577,77 @@ export default function Details() {
         </div>
       </Tray>
 
-      <Tray isOpen={isDownloadTrayOpen} onClose={() => setIsDownloadTrayOpen(false)} title="Download Options">
+      {/* Poster Download Modal */}
+      <Tray 
+        isOpen={isShareModalOpen} 
+        onClose={() => setIsShareModalOpen(false)} 
+        title="Download Poster?"
+      >
+        <div className="flex flex-col items-center gap-6 p-4">
+           <div className="w-32 aspect-[2/3] rounded-lg overflow-hidden shadow-2xl border border-white/10">
+              <MovieImage src={details.poster} alt={details.title} className="w-full h-full object-cover" />
+           </div>
+           
+           <div className="text-center space-y-2">
+              <h3 className="text-xl font-black uppercase tracking-tight">Nice Share!</h3>
+              <p className="text-gray-500 text-sm font-medium">Would you like to download the movie poster as well? It looks great on WhatsApp status!</p>
+           </div>
+           
+           <div className="flex gap-4 w-full">
+              <button 
+                onClick={downloadPoster}
+                className="flex-1 py-4 bg-brand text-white font-black uppercase text-[11px] tracking-widest rounded-xl shadow-lg active:scale-95 transition-all"
+              >
+                 Yes, Download
+              </button>
+              <button 
+                onClick={() => setIsShareModalOpen(false)}
+                className="flex-1 py-4 bg-white/5 border border-white/10 text-white font-black uppercase text-[11px] tracking-widest rounded-xl hover:bg-white/10 active:scale-95 transition-all"
+              >
+                 No, Thanks
+              </button>
+           </div>
+        </div>
+      </Tray>
+
+      {/* Poster Download Modal */}
+      <Tray 
+        isOpen={isShareModalOpen} 
+        onClose={() => setIsShareModalOpen(false)} 
+        title="Download Poster?"
+      >
+        <div className="flex flex-col items-center gap-6 p-4 text-center">
+           <div className="w-40 aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl border border-white/10 ring-1 ring-white/10">
+              <MovieImage src={details.poster} alt={details.title} className="w-full h-full object-cover" />
+           </div>
+           
+           <div className="space-y-2">
+              <h3 className="text-2xl font-black uppercase tracking-tight text-white italic">Shared Successfully!</h3>
+              <p className="text-gray-500 text-sm font-bold uppercase tracking-widest leading-relaxed">
+                Would you like to download the movie poster? 
+                <span className="block mt-1 text-brand">It looks amazing on WhatsApp status!</span>
+              </p>
+           </div>
+           
+           <div className="flex flex-col gap-3 w-full">
+              <button 
+                onClick={downloadPoster}
+                className="w-full py-4 bg-brand text-white font-black uppercase text-[12px] tracking-[0.2em] rounded-xl shadow-[0_0_20px_rgba(255,45,45,0.3)] active:scale-95 transition-all"
+              >
+                 Yes, Download Poster
+              </button>
+              <button 
+                onClick={() => setIsShareModalOpen(false)}
+                className="w-full py-4 bg-white/5 border border-white/10 text-gray-400 font-black uppercase text-[11px] tracking-widest rounded-xl hover:bg-white/10 active:scale-95 transition-all"
+              >
+                 No, Just Keep Shared
+              </button>
+           </div>
+        </div>
+      </Tray>
+
+      {isDownloadTrayOpen && (
+        <Tray isOpen={isDownloadTrayOpen} onClose={() => setIsDownloadTrayOpen(false)} title="Download Options">
         <div className="grid grid-cols-1 gap-4">
           {Array.isArray(mediaData?.sources) && mediaData.sources.map((source, idx) => {
             // Estimate size based on quality
@@ -586,19 +714,6 @@ export default function Details() {
         </div>
       </Tray>
 
-      {isPlaylistModalOpen && details && (
-        <PlaylistModal
-          isOpen={isPlaylistModalOpen}
-          onClose={() => setIsPlaylistModalOpen(false)}
-          item={{
-            id: details.id,
-            title: details.title,
-            poster: details.poster,
-            type: details.type,
-            year: details.year,
-            rating: details.rating
-          }}
-        />
       )}
     </div>
   );

@@ -32,7 +32,7 @@ export default function Navbar() {
     { label: 'Home', path: '/', icon: Home, isActive: location.pathname === '/' },
     { label: 'Movies', path: '/browse?type=1', icon: Film, isActive: location.search.includes('type=1') },
     { label: 'Series', path: '/browse?type=2', icon: Tv, isActive: location.search.includes('type=2') },
-    { label: 'My List', path: '/profile', icon: ListPlus, isActive: location.pathname === '/profile' },
+    { label: 'Playlist', path: '/profile', icon: ListPlus, isActive: location.pathname === '/profile' },
     { label: 'Live TV', path: '/live', icon: Radio, isActive: location.pathname === '/live' },
     { label: 'Browse', path: '/browse', icon: LayoutGrid, isActive: location.pathname === '/browse' && !location.search },
     { label: 'Categories', path: '/categories', icon: Grid2X2, isActive: location.pathname === '/categories' },
@@ -161,7 +161,7 @@ export default function Navbar() {
            <Link to="/" className={`text-[15px] font-black pb-2 border-b-2 whitespace-nowrap uppercase tracking-tighter transition-all ${location.pathname === '/' ? 'text-white border-brand' : 'text-gray-500 border-transparent'}`}>Home</Link>
            <Link to="/browse?type=1" className={`text-[15px] font-black pb-2 border-b-2 whitespace-nowrap uppercase tracking-tighter transition-all ${location.search.includes('type=1') ? 'text-white border-brand' : 'text-gray-500 border-transparent'}`}>Movies</Link>
            <Link to="/browse?type=2" className={`text-[15px] font-black pb-2 border-b-2 whitespace-nowrap uppercase tracking-tighter transition-all ${location.search.includes('type=2') ? 'text-white border-brand' : 'text-gray-500 border-transparent'}`}>Series</Link>
-           <Link to="/profile" className={`text-[15px] font-black pb-2 border-b-2 whitespace-nowrap uppercase tracking-tighter transition-all ${location.pathname === '/profile' ? 'text-white border-brand' : 'text-gray-500 border-transparent'}`}>My List</Link>
+           <Link to="/profile" className={`text-[15px] font-black pb-2 border-b-2 whitespace-nowrap uppercase tracking-tighter transition-all ${location.pathname === '/profile' ? 'text-white border-brand' : 'text-gray-500 border-transparent'}`}>Playlist</Link>
         </div>
       </header>
     </>

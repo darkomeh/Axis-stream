@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { MediaItem } from "../types";
-import { Play, ChevronLeft, ChevronRight, Star, Plus } from "lucide-react";
+import { Play, ChevronLeft, ChevronRight, Star, Plus, Check } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { MovieImage } from "./MovieImage";
 import { useAuth } from "../contexts/AuthContext";
-import { PlaylistModal } from "./PlaylistModal";
 
 interface CarouselProps {
   items: MediaItem[];
@@ -14,8 +13,7 @@ interface CarouselProps {
 export default function Carousel({ items }: CarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
-  const { user } = useAuth();
-  const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
+  const { user, isInWatchlist, addToWatchlist, removeFromWatchlist } = useAuth();
 
   useEffect(() => {
     if (items.length === 0 || isHovered) return;
@@ -105,8 +103,10 @@ export default function Carousel({ items }: CarouselProps) {
               )}
             </div>
 
-            <p className="text-gray-400 text-[13px] md:text-base line-clamp-2 md:line-clamp-3 mb-8 md:mb-10 max-w-xl leading-relaxed font-medium">
-              {currentItem.description || 'Experience the ultimate cinematic journey. Dive into a world of endless entertainment.'}
+            <p className="text-gray-300 text-[13px] md:text-base line-clamp-2 md:line-clamp-3 mb-8 md:mb-10 max-w-xl leading-relaxed font-semibold">
+              {currentItem.description && currentItem.description.trim().length > 10 
+                ? currentItem.description 
+                : `${currentItem.title} - Dive into an unparalleled cinematic experience on AXIS TV. Explore the depths of this ${currentItem.category || (currentItem.type == 1 || currentItem.type === 'Movie' ? 'Sci-Fi' : 'Thriller')} journey as secrets unfold and destinies collide in this high-definition masterpiece.`}
             </p>
 
             <div className="flex items-center gap-3 md:gap-4">
@@ -120,15 +120,28 @@ export default function Carousel({ items }: CarouselProps) {
               <button
                 onClick={() => {
                   if (!user) {
-                    alert("Please sign in to add to your playlists.");
+                    alert("Please sign in to add to your list.");
                     return;
                   }
-                  setIsPlaylistModalOpen(true);
+                  if (isInWatchlist(currentItem.id)) {
+                    removeFromWatchlist(currentItem.id);
+                  } else {
+                    addToWatchlist(currentItem);
+                  }
                 }}
-                className="flex items-center gap-2 px-6 md:px-8 py-3.5 md:py-4 bg-white/5 text-white rounded-md font-black uppercase text-[13px] md:text-[15px] hover:bg-white/10 transition-all border border-white/20 hover:border-white active:scale-95"
+                className={`flex items-center gap-2 px-6 md:px-8 py-3.5 md:py-4 rounded-md font-black uppercase text-[13px] md:text-[15px] transition-all border active:scale-95 ${isInWatchlist(currentItem.id) ? 'bg-brand border-brand text-white shadow-brand' : 'bg-white/5 border-white/20 text-white hover:bg-white/10 hover:border-white'}`}
               >
-                <Plus className="w-4 h-4 md:w-5 md:h-5" />
-                My List
+                {isInWatchlist(currentItem.id) ? (
+                   <>
+                     <Check className="w-4 h-4 md:w-5 md:h-5" />
+                     <span>In Playlist</span>
+                   </>
+                ) : (
+                   <>
+                     <Plus className="w-4 h-4 md:w-5 md:h-5" />
+                     <span>Playlist</span>
+                   </>
+                )}
               </button>
             </div>
           </motion.div>

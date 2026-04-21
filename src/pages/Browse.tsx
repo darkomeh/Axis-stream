@@ -160,68 +160,113 @@ export default function Browse() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white pb-20">
+    <div className="min-h-screen bg-[#000000] text-white pb-20 relative overflow-hidden">
+      {/* Background Poster Collage (Subtle) */}
+      <div className="fixed inset-0 z-0 opacity-10 blur-[80px] pointer-events-none">
+        <img 
+          src="https://picsum.photos/seed/movie-collage/1920/1080?blur=10" 
+          alt="background" 
+          className="w-full h-full object-cover"
+          referrerPolicy="no-referrer"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+      </div>
+
       <Navbar />
       
-      <div className="pt-28 px-6 lg:px-12 max-w-[1400px] mx-auto">
-        <button 
+      <div className="relative z-10 pt-28 px-6 lg:px-12 max-w-[1400px] mx-auto">
+        <motion.button 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
           onClick={handleBack}
-          className="mb-8 p-2 hover:bg-white/10 rounded-full transition-colors flex items-center gap-2 text-gray-400 hover:text-white"
+          className="mb-8 p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all flex items-center gap-2 text-gray-400 hover:text-white group border border-white/5"
         >
-          <ArrowLeft className="w-6 h-6" />
-          <span className="text-sm font-medium">Back</span>
-        </button>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
-          <div>
-            <h1 className="text-4xl font-bold mb-2 tracking-tight">Browse</h1>
-            <p className="text-gray-400">Discover your next favorite movie or series</p>
-          </div>
+          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+          <span className="text-xs font-black uppercase tracking-widest">Back</span>
+        </motion.button>
 
-          <button 
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-6 py-3 border rounded-full transition-all md:hidden ${showFilters ? 'bg-brand/10 border-brand text-brand' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
           >
-            <Filter className="w-4 h-4" />
-            <span className="font-medium">Filters</span>
-            <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-          </button>
+            <h1 className="text-5xl md:text-7xl font-black mb-4 tracking-tighter uppercase leading-none italic" style={{ WebkitTextStroke: '1px rgba(255,255,255,0.1)' }}>
+              Browse <span className="text-brand">Movies</span>
+            </h1>
+            <p className="text-gray-500 font-bold uppercase tracking-[0.2em] text-xs">Discover the ultimate cinematic journey</p>
+          </motion.div>
 
-          <div className="hidden md:flex items-center gap-4">
-            <select 
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-full px-6 py-2.5 focus:outline-none focus:border-brand cursor-pointer hover:bg-white/10 transition-colors font-medium"
+          <div className="flex flex-col gap-4">
+            <button 
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center justify-center gap-3 px-8 py-4 border rounded-full transition-all group ${showFilters ? 'bg-brand/20 border-brand text-brand' : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'}`}
             >
-              {TYPES.map(t => <option key={t.id} value={t.id} className="bg-black">{t.name}</option>)}
-            </select>
-            <select 
-              value={selectedGenre}
-              onChange={(e) => setSelectedGenre(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-full px-6 py-2.5 focus:outline-none focus:border-brand cursor-pointer hover:bg-white/10 transition-colors font-medium"
-            >
-              {GENRES.map(g => <option key={g.id} value={g.id} className="bg-black">{g.name}</option>)}
-            </select>
-            <select 
-              value={selectedCountry}
-              onChange={(e) => setSelectedCountry(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-full px-6 py-2.5 focus:outline-none focus:border-brand cursor-pointer hover:bg-white/10 transition-colors font-medium"
-            >
-              {COUNTRIES.map(c => <option key={c.id} value={c.id} className="bg-black">{c.name}</option>)}
-            </select>
-            
-            {(selectedGenre || selectedCountry || selectedType !== "0") && (
-              <button
-                onClick={() => {
-                  setSelectedGenre("");
-                  setSelectedCountry("");
-                  setSelectedType("0");
-                }}
-                className="px-4 py-2 text-sm font-medium text-white/40 hover:text-brand transition-colors flex items-center gap-2"
-              >
-                <X className="w-4 h-4" /> Clear
-              </button>
-            )}
+              <Filter className={`w-4 h-4 transition-transform ${showFilters ? 'scale-110' : ''}`} />
+              <span className="font-black uppercase tracking-widest text-xs">Refine Content</span>
+              <ChevronDown className={`w-4 h-4 transition-transform duration-500 ${showFilters ? 'rotate-180' : ''}`} />
+            </button>
           </div>
+        </div>
+
+        {/* Cinematic Filters Desktop (Glass Bar) */}
+        <div className="hidden md:flex items-center gap-6 p-4 bg-white/5 backdrop-blur-3xl border border-white/5 rounded-3xl mb-12">
+          <div className="flex items-center gap-3 px-4 py-2 border-r border-white/10">
+             <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Filter By:</span>
+          </div>
+          
+          <div className="flex-1 flex items-center gap-4">
+            <div className="relative group">
+              <select 
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value)}
+                className="bg-transparent text-white rounded-xl px-4 py-2 focus:outline-none cursor-pointer hover:text-brand transition-colors font-black uppercase tracking-widest text-xs appearance-none pr-8"
+              >
+                {TYPES.map(t => <option key={t.id} value={t.id} className="bg-[#141414]">{t.name}</option>)}
+              </select>
+              <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500" />
+            </div>
+
+            <div className="w-px h-6 bg-white/10" />
+
+            <div className="relative group">
+              <select 
+                value={selectedGenre}
+                onChange={(e) => setSelectedGenre(e.target.value)}
+                className="bg-transparent text-white rounded-xl px-4 py-2 focus:outline-none cursor-pointer hover:text-brand transition-colors font-black uppercase tracking-widest text-xs appearance-none pr-8"
+              >
+                {GENRES.map(g => <option key={g.id} value={g.id} className="bg-[#141414]">{g.name}</option>)}
+              </select>
+              <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500" />
+            </div>
+
+            <div className="w-px h-6 bg-white/10" />
+
+            <div className="relative group">
+              <select 
+                value={selectedCountry}
+                onChange={(e) => setSelectedCountry(e.target.value)}
+                className="bg-transparent text-white rounded-xl px-4 py-2 focus:outline-none cursor-pointer hover:text-brand transition-colors font-black uppercase tracking-widest text-xs appearance-none pr-8"
+              >
+                {COUNTRIES.map(c => <option key={c.id} value={c.id} className="bg-[#141414]">{c.name}</option>)}
+              </select>
+              <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500" />
+            </div>
+          </div>
+          
+          {(selectedGenre || selectedCountry || selectedType !== "0") && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              onClick={() => {
+                setSelectedGenre("");
+                setSelectedCountry("");
+                setSelectedType("0");
+              }}
+              className="px-6 py-2.5 bg-brand/10 border border-brand/20 text-brand rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-brand hover:text-white transition-all shadow-[0_0_15px_rgba(255,45,45,0.2)]"
+            >
+              Reset Filters
+            </motion.button>
+          )}
         </div>
 
         <AnimatePresence>
@@ -230,47 +275,33 @@ export default function Browse() {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="md:hidden overflow-hidden mb-8 space-y-4"
+              className="md:hidden overflow-hidden mb-8 p-6 bg-white/5 border border-white/5 rounded-3xl space-y-8"
             >
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Type</label>
+              <div className="grid grid-cols-1 gap-8">
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">Pick Type</label>
                   <div className="flex flex-wrap gap-2">
                     {TYPES.map(t => (
                       <button
                         key={t.id}
                         onClick={() => setSelectedType(t.id)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedType === t.id ? 'bg-brand text-white shadow-[0_0_10px_rgba(229,9,20,0.5)]' : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10'}`}
+                        className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase transition-all tracking-widest ${selectedType === t.id ? 'bg-brand text-white shadow-[0_0_20px_rgba(255,45,45,0.4)]' : 'bg-white/5 border border-white/5 text-gray-500 hover:bg-white/10'}`}
                       >
                         {t.name}
                       </button>
                     ))}
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Genre</label>
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">Categories</label>
                   <div className="flex flex-wrap gap-2">
-                    {GENRES.slice(0, 6).map(g => (
+                    {GENRES.slice(0, 8).map(g => (
                       <button
                         key={g.id}
                         onClick={() => setSelectedGenre(g.id)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedGenre === g.id ? 'bg-brand text-white shadow-[0_0_10px_rgba(229,9,20,0.5)]' : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10'}`}
+                        className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase transition-all tracking-widest ${selectedGenre === g.id ? 'bg-brand text-white shadow-[0_0_20px_rgba(255,45,45,0.4)]' : 'bg-white/5 border border-white/5 text-gray-500 hover:bg-white/10'}`}
                       >
                         {g.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Country</label>
-                  <div className="flex flex-wrap gap-2">
-                    {COUNTRIES.slice(0, 6).map(c => (
-                      <button
-                        key={c.id}
-                        onClick={() => setSelectedCountry(c.id)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedCountry === c.id ? 'bg-brand text-white shadow-[0_0_10px_rgba(229,9,20,0.5)]' : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10'}`}
-                      >
-                        {c.name}
                       </button>
                     ))}
                   </div>
@@ -284,9 +315,9 @@ export default function Browse() {
                       setSelectedType("0");
                       setShowFilters(false);
                     }}
-                    className="w-full py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold hover:bg-white/10 hover:text-brand transition-colors mt-4"
+                    className="w-full py-4 bg-brand text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl glow-brand animate-pulse-subtle"
                   >
-                    Clear All Filters
+                    Apply & Reset
                   </button>
                 )}
               </div>
@@ -295,8 +326,8 @@ export default function Browse() {
         </AnimatePresence>
 
         {!selectedGenre && !selectedCountry && selectedType === "0" && trending.length > 0 && (
-          <div className="-mx-6 lg:-mx-12 mb-12">
-            <TopTenGrid title="Top 10 Trending" items={trending.slice(0, 10)} />
+          <div className="-mx-6 lg:-mx-12 mb-20">
+            <TopTenGrid title="Bestsellers in Axis" items={trending.slice(0, 10)} />
           </div>
         )}
 
@@ -305,15 +336,20 @@ export default function Browse() {
             <ErrorMessage message={error} onRetry={() => loadItems(1, true)} />
           </div>
         ) : (
-          <div className="space-y-12">
-            <PosterGrid items={items} loading={loading} />
+          <div className="space-y-16">
+             <div className="flex items-center gap-4 mb-4">
+                <div className="w-1 h-8 bg-brand rounded-full" />
+                <h2 className="text-2xl font-black uppercase tracking-tighter">Recommended Gallery</h2>
+             </div>
+             
+             <PosterGrid items={items} loading={loading} />
             
             {hasMore && (
-              <div ref={lastElementRef} className="flex justify-center pt-8 h-20">
+              <div ref={lastElementRef} className="flex justify-center pt-16 h-40">
                 {loadingMore && (
-                  <div className="flex items-center gap-3 text-brand">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span className="text-sm font-medium">Loading more...</span>
+                  <div className="flex flex-col items-center gap-4 text-brand">
+                    <Loader2 className="w-10 h-10 animate-spin" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Sycing Archive...</span>
                   </div>
                 )}
               </div>

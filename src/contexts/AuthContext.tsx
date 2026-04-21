@@ -8,10 +8,11 @@ interface User {
   avatar?: string;
 }
 
-export interface Playlist {
-  id: string;
-  name: string;
-  items: MediaItem[];
+export interface SubtitlePreferences {
+  fontSize: number;
+  color: string;
+  backgroundColor: string;
+  verticalPosition: number;
 }
 
 export interface UserPreferences {
@@ -20,6 +21,7 @@ export interface UserPreferences {
   defaultQuality: string;
   skipIntro: boolean;
   playbackSpeed: number;
+  subtitleSettings: SubtitlePreferences;
 }
 
 export interface ContinueWatchingItem extends MediaItem {
@@ -42,7 +44,7 @@ export interface UserStats {
 
 interface AuthContextType {
   user: User | null;
-  login: (username: string, email: string) => void;
+  login: (username: string, email: string, avatar?: string) => void;
   logout: () => void;
   watchlist: MediaItem[];
   addToWatchlist: (item: MediaItem) => void;
@@ -67,11 +69,6 @@ interface AuthContextType {
   following: string[];
   toggleFollow: (id: string) => void;
   isFollowing: (id: string) => boolean;
-  customPlaylists: Playlist[];
-  createPlaylist: (name: string) => string | undefined;
-  deletePlaylist: (id: string) => void;
-  addToPlaylist: (playlistId: string, item: MediaItem) => void;
-  removeFromPlaylist: (playlistId: string, itemId: string) => void;
   continueWatching: ContinueWatchingItem[];
   updateContinueWatching: (item: ContinueWatchingItem) => void;
   removeFromContinueWatching: (id: string) => void;
@@ -94,6 +91,12 @@ const defaultPreferences: UserPreferences = {
   defaultQuality: 'auto',
   skipIntro: false,
   playbackSpeed: 1,
+  subtitleSettings: {
+    fontSize: 14,
+    color: '#ffffff',
+    backgroundColor: 'rgba(0,0,0,0)',
+    verticalPosition: 4,
+  }
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -107,7 +110,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
   const [stats, setStats] = useState<UserStats>(initialStats);
   const [following, setFollowing] = useState<string[]>([]);
-  const [customPlaylists, setCustomPlaylists] = useState<Playlist[]>([]);
   const [continueWatching, setContinueWatching] = useState<ContinueWatchingItem[]>([]);
   const [systemMessage, setSystemMessage] = useState<string | null>(null);
   const [isMaintenance, setIsMaintenance] = useState(false);
@@ -177,9 +179,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const storedFollowing = localStorage.getItem(`axis_following_${user.id}`);
       if (storedFollowing) setFollowing(JSON.parse(storedFollowing));
 
-      const storedPlaylists = localStorage.getItem(`axis_playlists_${user.id}`);
-      if (storedPlaylists) setCustomPlaylists(JSON.parse(storedPlaylists));
-
       const storedContinueWatching = localStorage.getItem(`axis_continue_watching_${user.id}`);
       if (storedContinueWatching) setContinueWatching(JSON.parse(storedContinueWatching));
     } else {
@@ -188,7 +187,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setPreferences(defaultPreferences);
       setStats(initialStats);
       setFollowing([]);
-      setCustomPlaylists([]);
       setContinueWatching([]);
     }
   }, [user]);
@@ -230,8 +228,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, watchlist.length, history.length, stats, preferences, isBanned, lastActionType]);
 
-  const login = useCallback((username: string, email: string) => {
-    const newUser = { id: email, username, email, avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}` };
+  const login = useCallback((username: string, email: string, avatar?: string) => {
+    const newUser = { 
+      id: email, 
+      username, 
+      email, 
+      avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}` 
+    };
     setUser(newUser);
     setLastActionType(`LOGGED_IN: ${username}`);
     localStorage.setItem('axis_user', JSON.stringify(newUser));
@@ -359,54 +362,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isFollowing = useCallback((id: string) => following.includes(id), [following]);
 
-  const createPlaylist = useCallback((name: string) => {
-    if (!user) return;
-    const newPlaylist: Playlist = { id: Date.now().toString(), name, items: [] };
-    setCustomPlaylists(prev => {
-      const updated = [...prev, newPlaylist];
-      localStorage.setItem(`axis_playlists_${user.id}`, JSON.stringify(updated));
-      return updated;
-    });
-    return newPlaylist.id;
-  }, [user]);
-
-  const deletePlaylist = useCallback((id: string) => {
-    if (!user) return;
-    setCustomPlaylists(prev => {
-      const updated = prev.filter(p => p.id !== id);
-      localStorage.setItem(`axis_playlists_${user.id}`, JSON.stringify(updated));
-      return updated;
-    });
-  }, [user]);
-
-  const addToPlaylist = useCallback((playlistId: string, item: MediaItem) => {
-    if (!user) return;
-    setCustomPlaylists(prev => {
-      const updated = prev.map(p => {
-        if (p.id === playlistId && !p.items.some(i => i.id === item.id)) {
-          return { ...p, items: [...p.items, item] };
-        }
-        return p;
-      });
-      localStorage.setItem(`axis_playlists_${user.id}`, JSON.stringify(updated));
-      return updated;
-    });
-  }, [user]);
-
-  const removeFromPlaylist = useCallback((playlistId: string, itemId: string) => {
-    if (!user) return;
-    setCustomPlaylists(prev => {
-      const updated = prev.map(p => {
-        if (p.id === playlistId) {
-          return { ...p, items: p.items.filter(i => i.id !== itemId) };
-        }
-        return p;
-      });
-      localStorage.setItem(`axis_playlists_${user.id}`, JSON.stringify(updated));
-      return updated;
-    });
-  }, [user]);
-
   const updateContinueWatching = useCallback((item: ContinueWatchingItem) => {
     if (!user) return;
     setContinueWatching(prev => {
@@ -435,7 +390,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     preferences, updatePreferences,
     stats, addWatchTime, trackWatchActivity,
     following, toggleFollow, isFollowing,
-    customPlaylists, createPlaylist, deletePlaylist, addToPlaylist, removeFromPlaylist,
     continueWatching, updateContinueWatching, removeFromContinueWatching,
     setLastActionType
   }), [
@@ -447,7 +401,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     preferences, updatePreferences,
     stats, addWatchTime, trackWatchActivity,
     following, toggleFollow, isFollowing,
-    customPlaylists, createPlaylist, deletePlaylist, addToPlaylist, removeFromPlaylist,
     continueWatching, updateContinueWatching, removeFromContinueWatching,
     setLastActionType
   ]);

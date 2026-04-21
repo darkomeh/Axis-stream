@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { MediaItem } from "../types";
-import { PlayCircle } from "lucide-react";
+import { Play } from "lucide-react";
 import { motion } from "motion/react";
 import { MovieImage } from "./MovieImage";
 
@@ -16,19 +16,18 @@ export default function ContinueWatchingGrid({ title, items }: ContinueWatchingG
     <section className="py-6 md:py-10">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
         {title && (
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg md:text-xl font-bold text-white tracking-wide">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight">
               {title}
             </h2>
-            <Link to="/profile" className="text-sm font-medium text-brand hover:text-white transition-colors">
+            <Link to="/profile" className="text-sm font-bold text-[#FF2D2D] hover:text-white transition-colors uppercase tracking-widest">
               See All
             </Link>
           </div>
         )}
 
-        <div className="flex overflow-x-auto gap-4 pb-8 pt-2 snap-x snap-mandatory hide-scrollbar -mx-6 px-6 lg:-mx-12 lg:px-12">
+        <div className="flex overflow-x-auto gap-5 pb-8 pt-2 snap-x snap-mandatory hide-scrollbar -mx-6 px-6 lg:-mx-12 lg:px-12">
           {items.slice(0, 10).map((item, index) => {
-            // Assume media item format from continue watching state
             const progressPercent = item.duration ? Math.min(100, (item.progress / item.duration) * 100) : 50;
             const timeLeft = item.duration ? Math.max(0, Math.floor((item.duration - item.progress) / 60)) : 0;
             
@@ -39,59 +38,61 @@ export default function ContinueWatchingGrid({ title, items }: ContinueWatchingG
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.05 }}
-                className="flex-none w-[260px] sm:w-[300px] md:w-[360px] snap-start"
+                className="flex-none w-[280px] sm:w-[320px] md:w-[400px] snap-start"
               >
                 <Link 
                   to={`/details/${item.id}`} 
-                  className="relative block aspect-video rounded-[14px] overflow-hidden bg-[#141414] transition-all duration-300 hover:scale-[1.03] border border-white/5 active:scale-95 group shadow-2xl"
+                  className="relative block aspect-video rounded-2xl overflow-hidden bg-white/5 transition-all duration-500 hover:scale-[1.02] border border-white/10 active:scale-95 group shadow-2xl"
                 >
-                  {item.poster ? (
+                  {/* Background Image */}
+                  <div className="absolute inset-0 z-0">
                     <MovieImage
                       src={item.background || item.poster}
                       alt={item.title}
-                      className="w-full h-full object-cover object-top opacity-80 group-hover:opacity-100 transition-opacity"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                     />
-                  ) : (
-                    <div className="w-full h-full bg-[#1A1A1A] flex items-center justify-center text-gray-500" />
-                  )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                  </div>
 
-                  {/* Gradient overlay for text */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+                  {/* Play Button Overlay */}
+                  <div className="absolute right-6 top-1/2 -translate-y-1/2 z-20">
+                    <div className="w-12 h-12 rounded-full border-2 border-white flex items-center justify-center bg-black/20 backdrop-blur-sm group-hover:bg-white group-hover:scale-110 transition-all duration-300">
+                      <Play className="w-5 h-5 text-white fill-white group-hover:text-black group-hover:fill-black pl-0.5" />
+                    </div>
+                  </div>
 
-                  {/* Content Overlay */}
-                  <div className="absolute inset-0 flex flex-col justify-end p-5">
-                    {/* Title */}
-                    <h3 className="font-black text-white text-xl md:text-2xl tracking-tighter uppercase truncate mb-4 drop-shadow-2xl">
-                      {item.title}
-                    </h3>
-
-                    {/* Progress Bar Container */}
-                    <div className="relative w-full h-[3px] bg-white/20 rounded-full overflow-hidden mb-3">
-                       <div 
-                         className="h-full bg-brand rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(229,9,20,1)]" 
-                         style={{ width: `${progressPercent}%` }} 
-                       />
+                  {/* Bottom Content */}
+                  <div className="absolute inset-x-0 bottom-0 z-10 p-5 pt-10">
+                    <div className="space-y-1 mb-4">
+                      <h3 className="font-black text-white text-xl md:text-2xl tracking-tighter uppercase line-clamp-2 drop-shadow-lg leading-tight">
+                        {item.title}
+                      </h3>
+                      <p className="text-[11px] font-black text-gray-300 uppercase tracking-widest flex items-center gap-2">
+                        {item.season && item.episode ? (
+                          <>
+                            <span>S{item.season}</span>
+                            <span className="w-1 h-1 bg-white/30 rounded-full" />
+                            <span>E{item.episode}</span>
+                          </>
+                        ) : (
+                          <span>MOVIE</span>
+                        )}
+                      </p>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                       {/* Metadata */}
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-white text-xs font-black uppercase tracking-tighter">
-                            {item.title}
-                          </span>
-                          <div className="flex items-center gap-2 text-[10px] text-gray-500 font-bold tracking-widest uppercase">
-                            <span>
-                              {item.season && item.episode ? `S${item.season} • E${item.episode}` : 'MOVIE'}
-                            </span>
-                            <span className="text-white/20">•</span>
-                            <span>{timeLeft > 0 ? `${timeLeft}m left` : 'Resume'}</span>
-                          </div>
-                        </div>
-
-                        {/* Play Icon - Small circle on bottom right */}
-                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                           <PlayCircle className="w-5 h-5 text-black fill-current" />
-                        </div>
+                    {/* Progress Bar & Time Left */}
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          whileInView={{ width: `${progressPercent}%` }}
+                          transition={{ duration: 1, ease: "easeOut" }}
+                          className="h-full bg-brand shadow-[0_0_10px_rgba(255,45,45,0.8)]"
+                        />
+                      </div>
+                      <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest whitespace-nowrap">
+                        {timeLeft > 0 ? `${timeLeft}m left` : 'Resume'}
+                      </span>
                     </div>
                   </div>
                 </Link>

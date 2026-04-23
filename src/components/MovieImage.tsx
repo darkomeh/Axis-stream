@@ -54,7 +54,9 @@ export const MovieImage: React.FC<MovieImageProps> = ({ src, alt, fallback, clas
   } else {
     const cacheBuster = retryCount > 0 ? `${finalSrc.includes('?') ? '&' : '?'}retry=${retryCount}` : '';
     if (useProxy) {
-      finalSrc = `/api/image-proxy?url=${encodeURIComponent(finalSrc + cacheBuster)}`;
+      // Use absolute URL to the API to ensure proxy works correctly when deployed.
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+      finalSrc = `${baseUrl}/api/image-proxy?url=${encodeURIComponent(finalSrc + cacheBuster)}`;
     } else if (retryCount > 0) {
       finalSrc = finalSrc + cacheBuster;
     }

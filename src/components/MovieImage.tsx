@@ -15,7 +15,8 @@ export const MovieImage: React.FC<MovieImageProps> = ({ src, alt, fallback, clas
   React.useEffect(() => {
     setError(false);
     setRetryCount(0);
-    setUseProxy(src.includes('pbcdnw.aoneroom.com'));
+    // Remove forced proxying – try direct first
+    setUseProxy(false);
     setIsLoaded(false);
   }, [src]);
 

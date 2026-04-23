@@ -1,9 +1,12 @@
-import { Link } from "react-router-dom";
+import React, { memo } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { MediaItem } from "../types";
 import { Play, Star } from "lucide-react";
 import { motion } from "motion/react";
 import { ListSkeleton } from "./Skeleton";
 import { MovieImage } from "./MovieImage";
+
+import { useMediaPreview } from "../contexts/MediaPreviewContext";
 
 interface PosterGridProps {
   title?: string;
@@ -12,7 +15,10 @@ interface PosterGridProps {
   loading?: boolean;
 }
 
-export default function PosterGrid({ title, items, viewAllLink, loading }: PosterGridProps) {
+const PosterGrid = memo(({ title, items, viewAllLink, loading }: PosterGridProps) => {
+  const { openPreview } = useMediaPreview();
+  const navigate = useNavigate();
+
   if (!loading && (!items || items.length === 0)) return null;
 
   return (
@@ -44,9 +50,10 @@ export default function PosterGrid({ title, items, viewAllLink, loading }: Poste
                 transition={{ duration: 0.5, delay: index * 0.05 }}
                 className="flex-none w-[140px] sm:w-[160px] md:w-[180px] lg:w-[210px] snap-start"
               >
-                <Link 
-                  to={`/details/${item.id}`} 
-                  className="relative block aspect-[2/3] rounded-[14px] overflow-hidden bg-[#141414] transition-all duration-500 hover:scale-[1.05] hover:-translate-y-2 group shadow-xl active:scale-95 border border-white/5 hover:border-white/20"
+                <div 
+                  role="button"
+                  onClick={() => openPreview(item.id)}
+                  className="relative block aspect-[2/3] rounded-[14px] overflow-hidden bg-[#141414] transition-all duration-500 hover:scale-[1.05] hover:-translate-y-2 group shadow-xl active:scale-95 border border-white/5 hover:border-white/20 cursor-pointer"
                 >
                   {item.poster ? (
                     <MovieImage
@@ -93,7 +100,7 @@ export default function PosterGrid({ title, items, viewAllLink, loading }: Poste
 
                   {/* Hover State: Subtle glow/play indicator hint */}
                   <div className="absolute inset-x-0 bottom-0 h-1 bg-brand transform translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                </Link>
+                </div>
               </motion.div>
             ))}
           </div>
@@ -101,4 +108,6 @@ export default function PosterGrid({ title, items, viewAllLink, loading }: Poste
       </div>
     </section>
   );
-}
+});
+
+export default PosterGrid;

@@ -10,8 +10,11 @@ import { motion } from "motion/react";
 
 import { MovieImage } from "../components/MovieImage";
 
+import { useMediaPreview } from "../contexts/MediaPreviewContext";
+
 export default function Ranking() {
   const navigate = useNavigate();
+  const { openPreview } = useMediaPreview();
   const [rankings, setRankings] = useState<RankingItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -46,6 +49,7 @@ export default function Ranking() {
           src="https://picsum.photos/seed/cinema-ranking/1920/1080?blur=10" 
           alt="background" 
           className="w-full h-full object-cover"
+          loading="lazy"
           referrerPolicy="no-referrer"
         />
         <div className="absolute inset-0 bg-gradient-to-br from-brand/5 via-black to-black" />
@@ -72,7 +76,7 @@ export default function Ranking() {
             <h1 className="text-5xl md:text-7xl font-black mb-3 tracking-tighter uppercase italic leading-none">
               Axis <span className="text-brand">Rankings</span>
             </h1>
-            <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-xs">The ultimate hall of fame for cinematic excellence</p>
+            <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-[10px] md:text-xs">The Authoritative Guide to Global Cinematic Excellence</p>
           </div>
         </div>
 
@@ -95,7 +99,11 @@ export default function Ranking() {
                    {idx + 1}
                 </span>
 
-                <Link to={`/details/${item.id}`} className="relative block bg-white/[0.03] backdrop-blur-3xl border border-white/5 rounded-[40px] overflow-hidden hover:bg-white/[0.07] hover:border-white/20 transition-all duration-500 shadow-2xl active:scale-[0.99]">
+                <div 
+                  role="button"
+                  onClick={() => openPreview(item.id)}
+                  className="relative block bg-white/[0.03] backdrop-blur-3xl border border-white/5 rounded-[40px] overflow-hidden hover:bg-white/[0.07] hover:border-white/20 transition-all duration-500 shadow-2xl active:scale-[0.99] cursor-pointer"
+                >
                   <div className="flex items-center gap-6 md:gap-12 p-6 md:p-10">
                     
                     {/* Rank Number Circle */}
@@ -161,7 +169,7 @@ export default function Ranking() {
                       </div>
                     </div>
                   </div>
-                </Link>
+                </div>
               </motion.div>
             ))}
           </div>

@@ -94,8 +94,8 @@ export default function Downloads() {
               Downloading...
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {activeDownloads.map(download => (
-                <div key={download.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
+              {activeDownloads.map((download, index) => (
+                <div key={`${download.id}-${index}`} className="bg-white/5 border border-white/10 rounded-xl p-4">
                   <div className="flex justify-between items-start mb-3">
                     <h3 className="font-bold line-clamp-1 flex-1 mr-2">{download.title}</h3>
                     <div className="flex items-center gap-3">
@@ -134,9 +134,9 @@ export default function Downloads() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {videos.map(video => (
+            {videos.map((video, index) => (
               <div 
-                key={video.id} 
+                key={`${video.id}-${index}`} 
                 onClick={() => handlePlay(video)}
                 className="bg-white/5 border border-white/10 rounded-xl overflow-hidden hover:bg-white/10 transition-colors cursor-pointer group flex flex-col"
               >

@@ -10,22 +10,26 @@ import { ErrorMessage } from "../components/ErrorMessage";
 import { 
   ArrowLeft, Star, Download, Film, Bookmark, Check, Share2, 
   ListVideo, Play, X, UserPlus, Users, 
-  Copy, CheckCircle2, CornerUpLeft, Plus, Info
+  Copy, CheckCircle2, CornerUpLeft, Plus, Info, MoreHorizontal
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import Tray from "../components/Tray";
 import { useAuth } from "../contexts/AuthContext";
+import { useToast } from "../contexts/ToastContext";
 import { localDownloadService } from "../services/localDownloadService";
 import { MovieImage } from "../components/MovieImage";
+import { useMediaPreview } from "../contexts/MediaPreviewContext";
 
 export default function Details() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { openPreview } = useMediaPreview();
   const playerRef = useRef<HTMLDivElement>(null);
   const { 
     user, addToHistory, addToWatchlist, removeFromWatchlist, 
     isInWatchlist, continueWatching, trackWatchActivity 
   } = useAuth();
+  const { showToast } = useToast();
   
   const [details, setDetails] = useState<ItemDetails | null>(null);
   const [richDetails, setRichDetails] = useState<any | null>(null);
@@ -202,12 +206,14 @@ export default function Details() {
         });
       } else {
         await navigator.clipboard.writeText(shareText);
-        alert("Movie details copied to clipboard!");
+        showToast("Details copied to clipboard!", "success");
       }
       setJustShared(true);
       setIsShareModalOpen(true);
-    } catch (err) {
-      console.error("Share failed:", err);
+    } catch (err: any) {
+      if (err.name !== 'AbortError' && err.message !== 'Share canceled') {
+        console.error("Share failed:", err);
+      }
     }
   };
 
@@ -256,23 +262,16 @@ export default function Details() {
       ? `${details.title} S${selectedSeason} E${selectedEpisode}` 
       : details.title;
     const cleanTitle = dlTitle.replace(/[^a-zA-Z0-9 -]/g, '');
-    const fileName = `[${cleanTitle}] [Axis Stream].mp4`;
     const finalUrl = url.includes('download=1') ? url : (url.includes('?') ? `${url}&download=1` : `${url}?download=1`);
     
     // Trigger browser native download without exposing URL in address bar or new tab
-    // We use a hidden iframe to ensure the current page state remains intact
+    // We use a hidden iframe to ensure the current page state remains intact and keeps the API private 
     const iframe = document.createElement('iframe');
     iframe.style.display = 'none';
     iframe.src = finalUrl;
     document.body.appendChild(iframe);
     
-    // Also try direct anchor as backup (sometimes required for specific browser behaviors)
-    const a = document.createElement('a');
-    a.href = finalUrl;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    showToast(`Starting download: ${cleanTitle}`, "success");
 
     setTimeout(() => {
       if (document.body.contains(iframe)) {
@@ -285,14 +284,13 @@ export default function Details() {
 
   const toggleWatchlist = () => {
     if (!details || !user) {
-      // In a real app, this would show a toast or notification
-      alert("Please sign in to use the watchlist.");
-      navigate('/profile');
+      showToast("Please sign in to use the watchlist.", "error");
       return;
     }
     
     if (isInWatchlist(details.id)) {
       removeFromWatchlist(details.id);
+      showToast("Removed from My List", "info");
     } else {
       addToWatchlist({
         id: details.id,
@@ -302,6 +300,7 @@ export default function Details() {
         year: details.year,
         rating: details.rating
       });
+      showToast("Added to My List", "success");
     }
   };
 
@@ -383,72 +382,70 @@ export default function Details() {
 
       {/* Content Info Section - Exact match to screenshot */}
       <div className="max-w-[1400px] mx-auto px-5 py-8 space-y-8">
-        <div className="flex justify-between items-start">
-           <div className="space-y-4 flex-1 pr-6">
-              <h1 className="text-4xl md:text-7xl font-black uppercase tracking-tight text-white mb-2 leading-[0.9]">
-                 {details.title}
-              </h1>
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-                 <div className="flex items-center gap-1.5 bg-[#1A1A1A] px-2.5 py-1 rounded-md border border-white/5">
-                    <Star className="w-3.5 h-3.5 text-brand fill-brand" />
-                    <span className="text-white text-xs font-black">{details.rating || '6.7'}</span>
-                 </div>
-                 <span className="text-sm font-bold text-gray-500">{details.year || '2022'}</span>
-                 <span className="text-gray-700 font-black text-xs">•</span>
-                 <span className="text-sm font-bold text-gray-500">20:45</span>
-                 <span className="text-gray-700 font-black text-xs">•</span>
-                 <span className="text-sm font-bold text-gray-500">{details.type === 'Series' ? 'Short' : details.type}</span>
-                 {details.type === 'Series' && (
-                    <span className="px-2 py-0.5 bg-brand/10 border border-brand/30 text-brand text-[9px] font-black uppercase rounded-md tracking-[0.1em] ml-2">Series</span>
-                 )}
-              </div>
+        <div className="space-y-4">
+           <div className="flex items-center justify-between gap-4">
+             <h1 className="text-4xl sm:text-5xl md:text-8xl font-black uppercase tracking-tighter text-white leading-[0.8] flex-1">
+                {details.title}
+             </h1>
+             <button 
+                onClick={toggleWatchlist}
+                className={`p-4 rounded-xl transition-all flex-none h-fit ${isInWatchlist(details.id) ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
+             >
+                <div className="transform scale-110">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={isInWatchlist(details.id) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+                </div>
+             </button>
            </div>
            
+           <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center gap-4 text-sm font-bold text-gray-300">
+                <div className="flex items-center gap-2 bg-[#E50914] px-2 py-0.5 rounded text-white text-[10px] md:text-xs font-black">
+                  <Star className="w-3 h-3 fill-current" />
+                  <span>{details.imdbRatingValue || details.rating || '5.0'}</span>
+                </div>
+                
+                {details.year && <span className="hover:text-white transition-colors">{details.year}</span>}
+                <span className="text-gray-600 font-black">•</span>
+                {details.duration && <span className="">{details.duration}</span>}
+                <span className="text-gray-600 font-black">•</span>
+                <span className="uppercase tracking-widest text-[11px] md:text-xs">{details.type || 'Movie'}</span>
+              </div>
+           </div>
+        </div>
+
+        {/* Action Buttons Row - Screenshot Style */}
+        <div className="flex flex-wrap gap-2 md:gap-3 py-2">
            <button 
-             onClick={toggleWatchlist}
-             className={`w-14 h-14 md:w-16 md:h-16 flex items-center justify-center rounded-2xl border transition-all ${
-               isInWatchlist(details.id) 
-                 ? 'bg-brand border-brand text-white shadow-[0_0_20px_rgba(255,45,45,0.3)]' 
-                 : 'bg-[#121212] border-white/10 text-white/40 hover:text-white hover:border-white/30 hover:bg-[#181818]'
-             }`}
+              onClick={() => setShowDetails(true)}
+              className="flex items-center gap-3 px-5 md:px-6 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all border border-white/5 active:scale-95 group"
            >
-              <Bookmark className={`w-6 h-6 md:w-7 md:h-7 ${isInWatchlist(details.id) ? 'fill-current' : ''}`} />
+              <Info className="w-4 h-4 md:w-5 md:h-5 text-gray-400 group-hover:text-white transition-colors" />
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">Details</span>
+           </button>
+           <button 
+              onClick={() => setIsDownloadTrayOpen(true)}
+              className="flex items-center gap-3 px-5 md:px-6 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all border border-white/5 active:scale-95 group"
+           >
+              <Download className="w-4 h-4 md:w-5 md:h-5 text-gray-400 group-hover:text-white transition-colors" />
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">Download</span>
+           </button>
+           <button 
+              onClick={toggleWatchlist}
+              className="flex items-center gap-3 px-5 md:px-6 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all border border-white/5 active:scale-95 group"
+           >
+              <Plus className="w-4 h-4 md:w-5 md:h-5 text-gray-400 group-hover:text-white transition-colors" />
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-center">Add to Playlist</span>
+           </button>
+           <button 
+              onClick={handleShare}
+              className="flex items-center gap-3 px-5 md:px-6 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all border border-white/5 active:scale-95 group"
+           >
+              <Share2 className="w-4 h-4 md:w-5 md:h-5 text-gray-400 group-hover:text-white transition-colors" />
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">Share</span>
            </button>
         </div>
 
-        {/* Action Buttons Row */}
-        <div className="flex flex-wrap gap-3 overflow-x-auto no-scrollbar pb-2">
-           <button 
-             onClick={() => setShowDetails(true)}
-             className="flex items-center justify-center gap-2.5 px-6 py-3.5 bg-[#121212] border border-white/5 text-white rounded-xl font-black uppercase text-[10px] md:text-[11px] tracking-[0.2em] hover:bg-[#181818] hover:border-white/20 active:scale-95 transition-all group shrink-0"
-           >
-              <Info className="w-4 h-4 text-white/40 group-hover:text-brand transition-colors" />
-              <span>Details</span>
-           </button>
-           <button 
-             onClick={() => setIsDownloadTrayOpen(true)}
-             className="flex items-center justify-center gap-2.5 px-6 py-3.5 bg-[#121212] border border-white/5 text-white rounded-xl font-black uppercase text-[10px] md:text-[11px] tracking-[0.2em] hover:bg-[#181818] hover:border-white/20 active:scale-95 transition-all group shrink-0"
-           >
-              <Download className="w-4 h-4 text-white/40 group-hover:text-brand transition-colors" />
-              <span>Download</span>
-           </button>
-           <button 
-             onClick={toggleWatchlist}
-             className="flex items-center justify-center gap-2.5 px-6 py-3.5 bg-[#121212] border border-white/5 text-white rounded-xl font-black uppercase text-[10px] md:text-[11px] tracking-[0.2em] hover:bg-[#181818] hover:border-white/20 active:scale-95 transition-all group shrink-0"
-           >
-              <ListVideo className="w-4 h-4 text-white/40 group-hover:text-brand transition-colors" />
-              <span>Add to Playlist</span>
-           </button>
-           <button 
-             onClick={handleShare}
-             className="flex items-center justify-center gap-2.5 px-6 py-3.5 bg-[#121212] border border-white/5 text-white rounded-xl font-black uppercase text-[10px] md:text-[11px] tracking-[0.2em] hover:bg-[#181818] hover:border-white/20 active:scale-95 transition-all group shrink-0"
-           >
-              <Share2 className="w-4 h-4 text-white/40 group-hover:text-brand transition-colors" />
-              <span>Share</span>
-           </button>
-        </div>
-
-        {/* Episodes Section - Vertical mode matches redesigned component */}
+        {/* Episodes Section - vertical orientation */}
         {details.type === "Series" && (
           <div className="pt-10 border-t border-white/5">
             <EpisodeSelector 
@@ -459,48 +456,89 @@ export default function Details() {
               poster={details.poster}
               itemId={details.id}
               progressList={continueWatching}
+              episodeDetails={richDetails}
             />
           </div>
         )}
 
-        {/* More Like This - Enhanced as per image */}
-        <div className="pt-16 space-y-8">
+        {/* More Like This - Match screenshot posters style */}
+        <div className="pt-16 space-y-8 border-t border-white/5">
            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-black uppercase tracking-tight text-white italic">More Like This</h2>
+              <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-white italic">More Like This</h2>
            </div>
            
-           <div className="flex overflow-x-auto gap-5 pb-6 no-scrollbar snap-x snap-mandatory">
-              {recommendations.slice(0, 8).map((item) => (
-                <Link key={item.id} to={`/details/${item.id}`} className="flex-none w-44 md:w-52 snap-start group space-y-4">
-                   <div className="relative aspect-[2/3] rounded-2xl overflow-hidden bg-[#121212] border border-white/5 transition-all duration-500 group-hover:scale-[1.03] group-hover:border-brand/40 group-hover:shadow-[0_20px_40px_-15px_rgba(255,45,45,0.2)]">
+           <div className="flex overflow-x-auto gap-4 md:gap-6 pb-6 no-scrollbar snap-x snap-mandatory">
+              {recommendations.slice(0, 10).map((item, index) => (
+                <div 
+                  key={`${item.id}-${index}`} 
+                  onClick={() => {
+                    navigate(`/details/${item.id}`);
+                    window.scrollTo(0, 0);
+                  }}
+                  className="flex-none w-[140px] md:w-[220px] snap-start group space-y-4 cursor-pointer"
+                >
+                   <div className="aspect-[2/3] rounded-xl overflow-hidden bg-[#121212] relative shadow-2xl border border-white/5 transition-all duration-500 group-hover:scale-[1.03] group-hover:border-white/20 group-hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.4)]">
                       <MovieImage 
                         src={item.poster} 
                         alt={item.title} 
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
                       
-                      <div className="absolute bottom-3 left-3 flex flex-col gap-1">
-                         <div className="flex items-center gap-1.5">
-                            <Star className="w-3.5 h-3.5 text-brand fill-brand" />
-                            <span className="text-white font-black text-xs">{item.rating || '8.5'}</span>
-                         </div>
-                      </div>
-                      
-                      <div className="absolute bottom-3 right-3 px-1.5 py-0.5 bg-black/40 backdrop-blur-md rounded border border-white/5 text-gray-400 text-[8px] font-black uppercase tracking-tighter">
-                         {item.type === 'Series' ? 'Series' : 'Movie'}
+                      {/* Red Rating Badge on Poster bottom left as per screenshot */}
+                      <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-[#E50914] px-2 py-0.5 rounded text-white shadow-lg">
+                        <Star className="w-3 h-3 fill-current" />
+                        <span className="font-black text-[10px] md:text-xs">{item.rating || '5.0'}</span>
                       </div>
                    </div>
                    <div className="px-1">
-                      <h4 className="text-[14px] font-black uppercase text-white tracking-tight truncate group-hover:text-brand transition-colors mb-0.5">{item.title}</h4>
+                      <h4 className="text-[13px] md:text-[15px] font-black uppercase text-white tracking-tight truncate group-hover:text-white transition-colors mb-0.5">{item.title}</h4>
                       <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                         <span>{item.year || '2022'}</span>
-                         {item.type === 'Series' && <span className="text-brand/60">Series</span>}
+                         <span>{item.year || '2024'}</span>
+                         {item.type === 'Series' && <span className="text-[#E50914]">Series</span>}
                       </div>
                    </div>
-                </Link>
+                </div>
               ))}
            </div>
+        </div>
+
+        {/* Stills & Trailer Section - Simplified gallery */}
+        <div className="pt-16 space-y-8 border-t border-white/5">
+          <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-white italic">Stills & Trailer</h2>
+          <div className="flex gap-5 overflow-x-auto no-scrollbar pb-10">
+            {details.images && details.images.length > 0 && (
+              <div 
+                className="relative flex-none w-[320px] aspect-video rounded-xl overflow-hidden bg-[#121212] border border-white/5 shadow-2xl group cursor-pointer"
+                onClick={() => {
+                  openPreview(details.id);
+                }}
+              >
+                <MovieImage src={details.images[0]} alt="Trailer thumbnail" className="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center transform transition-transform group-hover:scale-110">
+                    <Play className="w-7 h-7 text-white fill-current ml-1" />
+                  </div>
+                </div>
+                <div className="absolute bottom-4 left-4 flex flex-col">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white/50">Trailer</span>
+                </div>
+              </div>
+            )}
+
+            {details.images?.slice(1, 8).map((img, i) => (
+              <div 
+                key={i} 
+                onClick={() => openPreview(details.id)}
+                className="flex-none w-[320px] aspect-video rounded-xl overflow-hidden bg-[#121212] border border-white/5 shadow-2xl relative group cursor-pointer"
+              >
+                <MovieImage src={img} alt={`Still ${i}`} className="w-full h-full object-cover transition-transform duration-700" />
+                <div className="absolute bottom-4 left-4 flex flex-col">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white/50">Still {i + 1}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -547,9 +585,9 @@ export default function Details() {
                 {Array.isArray(details.cast) && details.cast.slice(0, 6).map((actor, idx) => (
                   <div key={`${actor.id}-${idx}`} className="flex-shrink-0 w-24 text-center group">
                     <div className="w-24 h-24 rounded-full overflow-hidden mb-3 bg-white/5 border border-white/10 group-hover:border-brand transition-colors">
-                      {actor.avatar ? (
+                      {actor.avatarUrl || actor.avatar ? (
                         <MovieImage 
-                          src={actor.avatar} 
+                          src={actor.avatarUrl || actor.avatar || ""} 
                           alt={actor.name} 
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         />

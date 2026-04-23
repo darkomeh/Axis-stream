@@ -28,7 +28,7 @@ export default function Home() {
   const [popularSearches, setPopularSearches] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user, history, continueWatching } = useAuth();
+  const { user, history, continueWatching, watchlist } = useAuth();
 
   // Infinite scroll for "Discover More"
   const [discoverItems, setDiscoverItems] = useState<MediaItem[]>([]);
@@ -151,8 +151,12 @@ export default function Home() {
       <Carousel items={carouselItems} />
       
       <div className="relative z-10 -mt-10 md:-mt-20 space-y-12 md:space-y-20 pb-20">
+        {user && watchlist.length > 0 && (
+          <PosterGrid title="My Watchlist" items={watchlist} viewAllLink="/profile" />
+        )}
+
         {user && continueWatching.length > 0 && (
-          <ContinueWatchingGrid title="Continue Watching" items={continueWatching.slice(0, 10)} />
+          <ContinueWatchingGrid title="Continue Watching" items={continueWatching} />
         )}
 
         {trending.length > 0 && (
@@ -160,7 +164,7 @@ export default function Home() {
         )}
 
         {recommendations.length > 0 && (
-          <PosterGrid title="Because You Watched" items={recommendations.slice(0, 12)} />
+          <PosterGrid title="Because You Watched" items={recommendations} />
         )}
 
         {popularSearches.length > 0 && (
@@ -181,26 +185,26 @@ export default function Home() {
         )}
         
         {homepageData?.latestMovies && homepageData.latestMovies.length > 0 && (
-          <PosterGrid title="Latest Movies" items={homepageData.latestMovies.slice(0, 12)} viewAllLink="/browse?type=1" />
+          <PosterGrid title="Latest Movies" items={homepageData.latestMovies} viewAllLink="/browse?type=1" />
         )}
         
         {homepageData?.latestSeries && homepageData.latestSeries.length > 0 && (
-          <PosterGrid title="Latest Series" items={homepageData.latestSeries.slice(0, 12)} viewAllLink="/browse?type=2" />
+          <PosterGrid title="Latest Series" items={homepageData.latestSeries} viewAllLink="/browse?type=2" />
         )}
         
         {hotMovies.length > 0 && (
-          <PosterGrid title="Hot Movies" items={hotMovies.slice(0, 12)} />
+          <PosterGrid title="Hot Movies" items={hotMovies} />
         )}
         
         {hotSeries.length > 0 && (
-          <PosterGrid title="Hot Series" items={hotSeries.slice(0, 12)} />
+          <PosterGrid title="Hot Series" items={hotSeries} />
         )}
 
         {homepageData?.operatingList?.map((section: any, idx: number) => (
           <div key={`${section.name || section.title}-${idx}`}>
             <PosterGrid 
               title={section.name || section.title} 
-              items={section.subjects?.slice(0, 12) || []} 
+              items={section.subjects || []} 
             />
           </div>
         ))}

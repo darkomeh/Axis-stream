@@ -94,9 +94,9 @@ export default function ActorPage() {
             className="w-full md:w-80 flex-shrink-0"
           >
             <div className="aspect-[3/4] rounded-[2.5rem] overflow-hidden border-4 border-white/10 shadow-2xl relative group">
-              {actor.avatar ? (
+              {actor.avatarUrl || actor.avatar ? (
                 <MovieImage 
-                  src={actor.avatar} 
+                  src={actor.avatarUrl || actor.avatar || ""} 
                   alt={actor.name} 
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                 />

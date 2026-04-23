@@ -353,11 +353,32 @@ app.get("/api/captions", async (req, res) => {
 app.get("/api/staff/detail", async (req, res) => {
   try {
     const { staffId } = req.query;
-    const data = await externalMovieService.getActorDetails(String(staffId || ""));
+    if (!staffId) return res.status(400).json({ success: false, error: "staffId is required" });
+    
+    const data = await externalMovieService.getActorDetails(String(staffId));
     res.json(data);
   } catch (error: any) {
-    console.error("[API] Actor detail error:", error.message);
-    res.status(500).json({ success: false, error: error.message });
+    const status = error.response?.status || 500;
+    const isSkipRetry = error.message?.includes("skip retry");
+    const isDown = status === 502 || status === 503 || status === 504 || isSkipRetry;
+
+    if (isDown) {
+      if (!isSkipRetry) {
+        console.warn(`[API] Staff detail upstream down (${status}), returning skeleton. staffId: ${req.query.staffId}`);
+      }
+      // Return a skeleton actor instead of a 502 error to allow UI to continue
+      return res.json({
+        id: String(req.query.staffId),
+        name: "Biography Unavailable",
+        avatar: "",
+        description: "The biography details are currently unavailable from our data provider. Please try again later.",
+        biography: "The biography details are currently unavailable from our data provider. Please try again later.",
+        popularity: 0
+      });
+    }
+    
+    console.error(`[API] Actor detail unexpected error (${status}):`, error.message);
+    res.status(status).json({ success: false, error: error.message });
   }
 });
 
@@ -371,8 +392,12 @@ app.get("/api/staff/works", async (req, res) => {
     );
     res.json(data);
   } catch (error: any) {
+    const status = error.response?.status || 500;
+    if (status === 502 || status === 503 || status === 504 || error.message?.includes("skip retry")) {
+      return res.json([]); // Return empty list instead of error
+    }
     console.error("[API] Actor works error:", error.message);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(status).json({ success: false, error: error.message });
   }
 });
 
@@ -382,8 +407,12 @@ app.get("/api/staff/related", async (req, res) => {
     const data = await externalMovieService.getRelatedActors(String(staffId || ""));
     res.json(data);
   } catch (error: any) {
+    const status = error.response?.status || 500;
+    if (status === 502 || status === 503 || status === 504 || error.message?.includes("skip retry")) {
+      return res.json([]); // Return empty list instead of error
+    }
     console.error("[API] Related actors error:", error.message);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(status).json({ success: false, error: error.message });
   }
 });
 
@@ -420,16 +449,17 @@ app.get("/api/image-proxy", async (req, res) => {
       return res.status(400).send("Invalid URL");
     }
 
-    const response = await axios.get(imageUrl, {
-      responseType: 'arraybuffer',
-      timeout: 15000,
+    let response = await fetch(imageUrl, {
+      method: 'GET',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
         'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
         'Accept-Language': 'en-US,en;q=0.9',
-        'Referer': url.origin,
-        'Cache-Control': 'no-cache',
-        'sec-ch-ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+        'Connection': 'keep-alive',
+        'Referer': url.origin + '/',
+        'Origin': url.origin,
+        'sec-ch-ua': '"Google Chrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"',
         'sec-ch-ua-mobile': '?0',
         'sec-ch-ua-platform': '"Windows"',
         'sec-fetch-dest': 'image',
@@ -438,32 +468,42 @@ app.get("/api/image-proxy", async (req, res) => {
       }
     });
 
-    const contentType = response.headers['content-type'];
-    if (contentType) {
-      res.setHeader('Content-Type', contentType);
-    } else {
-      res.setHeader('Content-Type', 'image/jpeg');
+    if (!response.ok) {
+        let fallbackUrl: string | null = null;
+        if (imageUrl.endsWith('.jpeg')) {
+            fallbackUrl = imageUrl.replace('.jpeg', '.jpg');
+        } else if (imageUrl.endsWith('.jpg')) {
+            fallbackUrl = imageUrl.replace('.jpg', '.jpeg');
+        }
+
+        if (fallbackUrl) {
+            console.log(`[Image Proxy] ${imageUrl} failed (${response.status}), trying fallback: ${fallbackUrl}`);
+            const fallbackResponse = await fetch(fallbackUrl, {
+                method: 'GET',
+                headers: { 
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+                  'Referer': url.origin + '/'
+                }
+            });
+            if (fallbackResponse.ok) {
+                response = fallbackResponse;
+            } else {
+                throw new Error(`Failed to fetch image: ${response.statusText} (fallback also failed: ${fallbackResponse.statusText})`);
+            }
+        } else {
+            throw new Error(`Failed to fetch image: ${response.statusText}`);
+        }
     }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
     
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    res.send(response.data);
+    res.send(buffer);
   } catch (error: any) {
     console.error(`[Image Proxy] Error fetching ${imageUrl}:`, error.message);
-    
-    // Try one more time without Referer if it failed
-    try {
-      const response = await axios.get(imageUrl, {
-        responseType: 'arraybuffer',
-        timeout: 10000,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        }
-      });
-      res.setHeader('Content-Type', response.headers['content-type'] || 'image/jpeg');
-      res.send(response.data);
-    } catch (retryError: any) {
-      res.status(500).send("Failed to fetch image");
-    }
+    res.status(500).send("Failed to fetch image");
   }
 });
 

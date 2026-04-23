@@ -15,23 +15,70 @@ const API_KEY = 'Godszeal';
 const api = axios.create({
   baseURL: BASE_URL,
   headers: {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
     'Referer': 'https://movieapi.xcasper.space/',
-  }
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache'
+  },
+  timeout: 8000 // Slightly shorter timeout to react faster
 });
 
-// Helper for exponential backoff retry
-async function fetchWithRetry(config: AxiosRequestConfig, retries = 3, backoff = 1000): Promise<any> {
+// Server-side cache for external data
+const serverCache = new Map<string, { data: any, timestamp: number }>();
+const negativeCache = new Map<string, { timestamp: number }>();
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour cache for success
+const NEGATIVE_TTL = 2 * 60 * 1000; // 2 minute "don't retry" for failure
+
+// Helper for exponential backoff retry with jitter
+async function fetchWithRetry(config: AxiosRequestConfig, retries = 2, backoff = 500): Promise<any> {
+  const cacheKey = `${config.url}?${new URLSearchParams(config.params || {}).toString()}`;
+  
+  // Check successful cache first
+  const cached = serverCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+
+  // Check negative cache (recent failures)
+  const failed = negativeCache.get(cacheKey);
+  const currentTTL = cacheKey.includes('/staff/') ? NEGATIVE_TTL * 5 : NEGATIVE_TTL;
+  if (failed && Date.now() - failed.timestamp < currentTTL) {
+    throw new Error('Service recently failed for this resource; skip retry to protect upstream.');
+  }
+
   try {
     // Add API Key to params
     config.params = { ...config.params, apikey: API_KEY };
-    return await api(config);
-  } catch (error) {
-    if (retries > 0) {
-      console.warn(`Retrying request... (${retries} retries left)`);
-      await new Promise(resolve => setTimeout(resolve, backoff));
-      return fetchWithRetry(config, retries - 1, backoff * 2);
+    const response = await api(config);
+    
+    // Clear failure mark if it succeeded
+    negativeCache.delete(cacheKey);
+    // Cache successful response
+    serverCache.set(cacheKey, { data: response, timestamp: Date.now() });
+    
+    return response;
+  } catch (error: any) {
+    const isRetryable = !error.response || (error.response.status >= 500 && error.response.status <= 504);
+    
+    if (retries > 0 && isRetryable) {
+      // Exponential backoff with jitter
+      const jitter = Math.random() * 200;
+      const delay = backoff + jitter;
+      
+      // Only log if it's not a common failure endpoint or if it's the last retry
+      const isNoisy = config.url?.includes('/staff/');
+      if (!isNoisy) {
+        console.warn(`[Upstream] ${config.url} failed with ${error.response?.status || 'Network Error'}. Retrying in ${Math.round(delay)}ms... (${retries} left)`);
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return fetchWithRetry(config, retries - 1, backoff * 1.5);
     }
+
+    // Mark as failed in negative cache to prevent immediate re-hammering
+    negativeCache.set(cacheKey, { timestamp: Date.now() });
     throw error;
   }
 }
@@ -66,6 +113,13 @@ function getImageUrl(img: any): string {
     return img.url || img.coverUrl || img.posterUrl || img.avatar || img.cover || img.image || '';
   }
   return '';
+}
+
+function sanitizeImageUrl(url: string): string {
+  if (!url) return '';
+  // The backend image-proxy now handles bidirectional fallback between .jpg and .jpeg
+  // forcing it here can cause 404s if we guess wrong.
+  return url.trim();
 }
 
 export const externalMovieService = {
@@ -190,23 +244,31 @@ export const externalMovieService = {
       rating: subject.imdbRatingValue || subject.rating,
       contentRating: subject.contentRating || subject.mpaa || subject.ageRating,
       year: subject.releaseDate ? subject.releaseDate.substring(0, 4) : subject.year,
-      genres: subject.genre ? subject.genre.split(',') : [],
+      genres: Array.isArray(subject.genre) ? subject.genre : (typeof subject.genre === 'string' ? subject.genre.split(',') : []),
+      images: Array.isArray(subject.imageList) 
+        ? subject.imageList.map((img: any) => typeof img === 'string' ? img : img.url).filter(Boolean)
+        : [],
       cast: stars.map((star: any) => {
-        const avatar = (typeof star.avatar === 'string' ? star.avatar : star.avatar?.url) || 
+        const avatar = (typeof star.avatarUrl === 'string' ? star.avatarUrl : star.avatarUrl?.url) ||
+                       (typeof star.avatar === 'string' ? star.avatar : star.avatar?.url) || 
                        (typeof star.cover === 'string' ? star.cover : star.cover?.url) || 
                        (typeof star.image === 'string' ? star.image : star.image?.url) || 
                        (typeof star.photo === 'string' ? star.photo : star.photo?.url) || '';
+        const sanitizedAvatar = sanitizeImageUrl(avatar);
         return {
-          id: String(star.staffId),
+          id: String(star.staffId || star.id),
           name: star.name,
-          avatar: avatar
+          character: star.character,
+          avatarUrl: sanitizedAvatar,
+          avatar: sanitizedAvatar
         };
       }),
       type: subject.subjectType === 2 ? 'Series' : 'Movie',
       duration: subject.duration ? `${subject.duration} min` : undefined,
       seasons: data.resource?.seasons,
+      trailer: subject.trailer,
       trailerUrl: (typeof subject.trailerUrl === 'string' ? subject.trailerUrl : subject.trailerUrl?.url) || 
-                  (typeof subject.trailer === 'string' ? subject.trailer : subject.trailer?.url) || 
+                  (typeof subject.trailer === 'string' ? subject.trailer : (subject.trailer?.videoAddress?.url || subject.trailer?.url)) || 
                   (typeof data.trailerUrl === 'string' ? data.trailerUrl : data.trailerUrl?.url) || ''
     };
   },
@@ -320,27 +382,27 @@ export const externalMovieService = {
         };
       }
     } catch (e: any) {
-      console.warn("Error fetching play data, falling back to embed:", e.message || e);
+      // Primary fetch failed, utilizing fallback streaming URLs
     }
 
     // Fallback to constructed stream URLs and embed URL if API fails or returns no sources
     const constructedSources = [
       {
         quality: '1080p',
-        url: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&resolution=1080${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
-        downloadUrl: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&resolution=1080&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        url: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=1080${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        downloadUrl: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=1080&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
         type: 'mp4' as const
       },
       {
         quality: '720p',
-        url: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&resolution=720${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
-        downloadUrl: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&resolution=720&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        url: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=720${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        downloadUrl: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=720&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
         type: 'mp4' as const
       },
       {
         quality: '360p',
-        url: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&resolution=360${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
-        downloadUrl: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&resolution=360&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        url: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=360${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        downloadUrl: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=360&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
         type: 'mp4' as const
       }
     ];
@@ -365,20 +427,26 @@ export const externalMovieService = {
       url: `/staff/detail`, 
       params: { staffId } 
     });
-    const data = response.data?.data || {};
-    const avatar = (typeof data.avatar === 'string' ? data.avatar : data.avatar?.url) || 
-                   (typeof data.cover === 'string' ? data.cover : data.cover?.url) || 
-                   (typeof data.image === 'string' ? data.image : data.image?.url) || 
-                   (typeof data.photo === 'string' ? data.photo : data.photo?.url) || '';
+    const data = response.data?.data || response.data || {};
+    const details = data.subject || data;
+
+    const avatar = (typeof details.avatar === 'string' ? details.avatar : details.avatar?.url) || 
+                   (typeof details.cover === 'string' ? details.cover : details.cover?.url) || 
+                   (typeof details.image === 'string' ? details.image : details.image?.url) || 
+                   (typeof details.photo === 'string' ? details.photo : details.photo?.url) || 
+                   (typeof details.avatarUrl === 'string' ? details.avatarUrl : details.avatarUrl?.url) || '';
+                   
+    const sanitizedAvatar = sanitizeImageUrl(avatar);
+    
     return {
-      id: String(data.staffId),
-      name: data.name,
-      avatar: avatar,
-      description: data.description,
-      birthday: data.birthday,
-      birthPlace: data.birthPlace,
-      popularity: data.popularity,
-      biography: data.biography || data.description
+      id: String(details.staffId || details.id || staffId),
+      name: details.name || 'Unknown',
+      avatar: sanitizedAvatar,
+      description: details.description || '',
+      birthday: details.birthday || '',
+      birthPlace: details.birthPlace || '',
+      popularity: details.popularity || 0,
+      biography: details.biography || details.description || ''
     };
   },
   async getLive(): Promise<LiveMatch[]> {
@@ -400,6 +468,37 @@ export const externalMovieService = {
     }
   },
 
+  async getStaffDetails(staffId: string): Promise<Actor | null> {
+    try {
+      const response = await fetchWithRetry({ url: '/staff/detail', params: { staffId } });
+      // The API might return data directly or nested in a data property
+      const data = response.data?.data || response.data;
+      if (!data) return null;
+      
+      // Some APIs structure details differently; ensure we can handle both flat or nested definitions
+      const details = data.subject || data;
+
+      const avatarUrl = (typeof details.avatarUrl === 'string' ? details.avatarUrl : details.avatarUrl?.url) ||
+                        (typeof details.avatar === 'string' ? details.avatar : details.avatar?.url) || 
+                        (typeof details.cover === 'string' ? details.cover : details.cover?.url) || '';
+      
+      const sanitizedAvatarUrl = sanitizeImageUrl(avatarUrl);
+      
+      return {
+        id: String(details.staffId || details.id || staffId),
+        name: details.name || 'Unknown',
+        avatar: sanitizedAvatarUrl,
+        avatarUrl: sanitizedAvatarUrl,
+        description: details.description || '',
+        birthday: details.birthday || '',
+        birthPlace: details.birthPlace || '',
+      };
+    } catch (e: any) {
+      console.error("Error in getStaffDetails:", e.message || e);
+      return null;
+    }
+  },
+
   async getActorWorks(staffId: string, page = 1, perPage = 10): Promise<MediaItem[]> {
     try {
       const response = await fetchWithRetry({ 
@@ -409,7 +508,9 @@ export const externalMovieService = {
       const list = response.data?.data?.items || [];
       return Array.isArray(list) ? list.map(normalizeItem) : [];
     } catch (e: any) {
-      console.error("Error in getActorWorks:", e.message || e);
+      if (!e.message?.includes("skip retry")) {
+        console.warn("Error in getActorWorks (Staff ID might be dead):", e.message || e);
+      }
       return [];
     }
   },
@@ -422,17 +523,39 @@ export const externalMovieService = {
       });
       const list = response.data?.data || [];
       if (!Array.isArray(list)) return [];
-      return list.map((data: any) => ({
-        id: String(data.staffId),
-        name: data.name,
-        avatar: (typeof data.avatar === 'string' ? data.avatar : data.avatar?.url) || 
-                (typeof data.cover === 'string' ? data.cover : data.cover?.url) || 
-                (typeof data.image === 'string' ? data.image : data.image?.url) || 
-                (typeof data.photo === 'string' ? data.photo : data.photo?.url) || ''
-      }));
+      return list.map((data: any) => {
+        const avatarUrl = (typeof data.avatarUrl === 'string' ? data.avatarUrl : data.avatarUrl?.url) ||
+                          (typeof data.avatar === 'string' ? data.avatar : data.avatar?.url) || 
+                          (typeof data.cover === 'string' ? data.cover : data.cover?.url) || 
+                          (typeof data.image === 'string' ? data.image : data.image?.url) || 
+                          (typeof data.photo === 'string' ? data.photo : data.photo?.url) || '';
+        const sanitizedAvatarUrl = sanitizeImageUrl(avatarUrl);
+        return {
+          id: String(data.staffId),
+          name: data.name,
+          avatar: sanitizedAvatarUrl,
+          avatarUrl: sanitizedAvatarUrl
+        };
+      });
     } catch (e: any) {
-      console.error("Error in getRelatedActors:", e.message || e);
+      if (!e.message?.includes("skip retry")) {
+        console.warn("Error in getRelatedActors (Staff ID might be dead):", e.message || e);
+      }
       return [];
     }
   },
+
+  async reportIssue(userId: string, category: string, detail: string): Promise<boolean> {
+    try {
+      const res = await fetch('/api/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, category, detail })
+      });
+      return res.ok;
+    } catch (e) {
+      console.error("Failed to report issue", e);
+      return false;
+    }
+  }
 };

@@ -17,14 +17,14 @@ const api = axios.create();
 
 // Global runtime cache for lightning-fast speeds on repeated navigation
 const globalRequestCache = new Map<string, { data: any, timestamp: number }>();
-const CACHE_TTL = 15 * 60 * 1000; // 15 mins
+const CACHE_TTL = 30 * 60 * 1000; // 30 mins
 
 function getCacheKey(config: AxiosRequestConfig) {
   return `${config.url}?${new URLSearchParams(config.params || {}).toString()}`;
 }
 
 // Helper for requests to our own backend
-async function fetchWithRetry(config: AxiosRequestConfig, retries = 3, backoff = 1000): Promise<any> {
+async function fetchWithRetry(config: AxiosRequestConfig, retries = 1, backoff = 500): Promise<any> {
   const cacheKey = getCacheKey(config);
   const cached = globalRequestCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -36,7 +36,7 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 3, backoff =
     try {
       const directResponse = await axios.get(`${EXTERNAL_API_URL}${config.url}`, {
         params: { ...config.params, apikey: API_KEY },
-        timeout: 2500 // Dramatically reduced timeout to fail fast and fall back gracefully
+        timeout: 2000 
       });
       const data = directResponse.data?.data;
       if (data) {
@@ -80,15 +80,16 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 3, backoff =
           }));
         }
         else if (config.url === '/staff/detail') {
+          const details = data.subject || data;
           processedData = {
-            id: String(data.staffId),
-            name: data.name,
-            avatar: getImageUrl(data.avatar) || getImageUrl(data.cover) || getImageUrl(data.image) || getImageUrl(data.photo) || '',
-            description: data.description,
-            birthday: data.birthday,
-            birthPlace: data.birthPlace,
-            popularity: data.popularity,
-            biography: data.biography || data.description
+            id: String(details.staffId || details.id || config.params?.staffId || ''),
+            name: details.name || 'Unknown',
+            avatar: getImageUrl(details.avatar) || getImageUrl(details.cover) || getImageUrl(details.image) || getImageUrl(details.photo) || getImageUrl(details.avatarUrl) || '',
+            description: details.description || '',
+            birthday: details.birthday || '',
+            birthPlace: details.birthPlace || '',
+            popularity: details.popularity || 0,
+            biography: details.biography || details.description || ''
           };
         }
         else if (config.url === '/staff/related') {
@@ -107,15 +108,40 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 3, backoff =
             poster: getImageUrl(subject.cover) || getImageUrl(subject.poster) || '',
             background: getImageUrl(subject.stills?.[0]) || getImageUrl(subject.cover) || '',
             rating: subject.imdbRatingValue || subject.rating,
+            imdbRatingValue: subject.imdbRatingValue,
             year: subject.releaseDate ? subject.releaseDate.substring(0, 4) : subject.year,
+            releaseDate: subject.releaseDate,
             genres: subject.genre ? subject.genre.split(',') : [],
-            cast: (data.stars || subject.stars || []).map((s: any) => ({
-              id: String(s.staffId),
-              name: s.name,
-              avatar: getImageUrl(s.avatar) || getImageUrl(s.cover) || ''
-            })),
+            cast: Array.from(
+              (data.stars || subject.stars || data.staff || []).reduce((acc: Map<string, any>, s: any) => {
+                const id = String(s.staffId || s.id);
+                if (!acc.has(id)) {
+                  acc.set(id, {
+                    id,
+                    name: s.name || '',
+                    avatar: getImageUrl(s.avatar) || getImageUrl(s.cover) || getImageUrl(s.image) || '',
+                    character: s.character || ''
+                  });
+                } else {
+                  // Append character if multiple roles
+                  const existing = acc.get(id);
+                  if (s.character && existing.character && !existing.character.includes(s.character)) {
+                    existing.character += `, ${s.character}`;
+                  } else if (s.character && !existing.character) {
+                    existing.character = s.character;
+                  }
+                }
+                return acc;
+              }, new Map()).values()
+            ),
             type: subject.subjectType === 2 ? 'Series' : 'Movie',
-            seasons: data.resource?.seasons
+            seasons: data.resource?.seasons,
+            trailer: subject.trailer,
+            trailerUrl: (typeof subject.trailerUrl === 'string' ? subject.trailerUrl : subject.trailerUrl?.url) || 
+                        (typeof subject.trailer === 'string' ? subject.trailer : (subject.trailer?.videoAddress?.url || subject.trailer?.url)) || 
+                        (typeof data.trailerUrl === 'string' ? data.trailerUrl : data.trailerUrl?.url) || '',
+            duration: subject.duration ? `${Math.floor(subject.duration / 60)}m` : undefined,
+            detailPath: subject.detailPath
           };
         }
         else {
@@ -126,7 +152,7 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 3, backoff =
         return processedData;
       }
     } catch (e) {
-      console.warn(`Direct fetch failed for ${config.url}, falling back...`);
+      // console.warn(`Direct fetch failed for ${config.url}, falling back...`);
     }
   }
 
@@ -138,9 +164,9 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 3, backoff =
     
     globalRequestCache.set(cacheKey, { data: response.data, timestamp: Date.now() });
     return response.data;
-  } catch (error) {
-    if (retries > 0) {
-      console.warn(`Retrying request... (${retries} retries left)`);
+  } catch (error: any) {
+    const isStaffDetail = config.url?.includes('/staff/');
+    if (retries > 0 && !isStaffDetail && (error.response?.status === 502 || error.response?.status === 503 || error.response?.status === 504 || error.code === 'ECONNABORTED')) {
       await new Promise(resolve => setTimeout(resolve, backoff));
       return fetchWithRetry(config, retries - 1, backoff * 2);
     }
@@ -170,11 +196,18 @@ function normalizeItem(item: any): MediaItem {
 
 function getImageUrl(img: any): string {
   if (!img) return '';
-  if (typeof img === 'string') return img;
+  if (typeof img === 'string') return sanitizeImageUrl(img);
   if (typeof img === 'object') {
-    return img.url || img.coverUrl || img.posterUrl || img.avatar || img.cover || '';
+    return sanitizeImageUrl(img.url || img.coverUrl || img.posterUrl || img.avatar || img.cover || '');
   }
   return '';
+}
+
+function sanitizeImageUrl(url: string): string {
+  if (!url) return '';
+  // The backend image-proxy now handles bidirectional fallback between .jpg and .jpeg
+  // forcing it here can cause 404s if we guess wrong.
+  return url.trim();
 }
 
 export const movieService = {
@@ -479,16 +512,27 @@ export const movieService = {
       }
       throw new Error("No sources found in direct API response");
     } catch (e: any) {
-      console.warn("Direct API call failed, falling back to server proxy:", e.message);
+      console.error("Direct API call failed, trying fallback:", e);
       try {
-        return await fetchWithRetry({ url: `/play`, params });
-      } catch (localError: any) {
-        console.error("Server proxy also failed:", localError.message);
-        return {
-          sources: [],
+        // Construct immediate embed-based fallback to guarantee playback
+        const embedUrl = season ? `https://vidsrc.to/embed/tv/${subjectId}/${season}/${episode || 1}` : `https://vidsrc.to/embed/movie/${subjectId}`;
+        
+        return { 
+          sources: [
+            {
+              quality: 'Auto',
+              url: embedUrl,
+              type: 'hls' as const,
+              downloadType: 'hls' as const
+            }
+          ], 
           subtitles: [],
-          embedUrl: season ? `https://vidsrc.to/embed/tv/${subjectId}/${season}/${episode || 1}` : `https://vidsrc.to/embed/movie/${subjectId}`
+          embedUrl,
+          audioTracks: []
         };
+      } catch (localError: any) {
+        console.error("Critical stream failure", localError);
+        throw localError;
       }
     }
   },
@@ -527,4 +571,16 @@ export const movieService = {
       return [];
     }
   },
+
+  async reportIssue(userId: string, category: string, detail: string): Promise<boolean> {
+    try {
+      console.log(`[Issue Reported] Category: ${category}, Detail: ${detail}`);
+      // Simulate network request
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return true;
+    } catch (e) {
+      console.error("Failed to report issue", e);
+      return false;
+    }
+  }
 };

@@ -26,16 +26,26 @@ export default function Tray({ isOpen, onClose, title, children }: TrayProps) {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed bottom-0 left-0 right-0 bg-black border-t border-white/10 rounded-t-3xl z-50 max-h-[85vh] flex flex-col"
+            className="fixed bottom-0 left-0 right-0 bg-black border-t border-white/10 rounded-t-3xl z-50 max-h-[85vh] flex flex-col shadow-[0_-10px_50px_rgba(0,0,0,0.5)]"
           >
-            <div className="flex items-center justify-between p-6 border-b border-white/5">
-              <h3 className="text-xl font-bold text-white">{title}</h3>
-              <button onClick={onClose} className="p-2 text-gray-400 hover:text-white transition-colors bg-white/5 rounded-full">
-                <X className="w-5 h-5" />
+            {/* Sticky Header with solid background to prevent overlap issues */}
+            <div className="sticky top-0 bg-black flex items-center justify-between p-7 border-b border-white/5 z-20 rounded-t-3xl">
+              <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white/90">{title}</h3>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                }} 
+                className="w-12 h-12 flex items-center justify-center text-white/90 hover:text-white transition-all bg-white/10 hover:bg-brand/40 rounded-full group cursor-pointer border border-white/10 hover:border-brand/40 shadow-xl active:scale-90 relative z-30"
+                title="Close"
+              >
+                <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
               </button>
             </div>
-            <div className="p-6 overflow-y-auto">
-              {children}
+            <div className="flex-1 overflow-y-auto no-scrollbar">
+              <div className="p-7">
+                {children}
+              </div>
             </div>
           </motion.div>
         </>

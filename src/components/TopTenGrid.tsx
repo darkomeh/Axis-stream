@@ -1,9 +1,12 @@
+import React from "react";
 import { Link } from "react-router-dom";
 import { MediaItem } from "../types";
 import { Play, Star } from "lucide-react";
 import { motion } from "motion/react";
 import { CardSkeleton } from "./Skeleton";
 import { MovieImage } from "./MovieImage";
+
+import { useMediaPreview } from "../contexts/MediaPreviewContext";
 
 interface TopTenGridProps {
   title?: string;
@@ -12,7 +15,9 @@ interface TopTenGridProps {
   showNumbers?: boolean;
 }
 
-export default function TopTenGrid({ title, items, loading, showNumbers = true }: TopTenGridProps) {
+function TopTenGrid({ title, items, loading, showNumbers = true }: TopTenGridProps) {
+  const { openPreview } = useMediaPreview();
+
   if (loading) {
     return (
       <section className="py-6 md:py-10">
@@ -61,7 +66,11 @@ export default function TopTenGrid({ title, items, loading, showNumbers = true }
               transition={{ duration: 0.6, delay: index * 0.1 }}
               className="flex-none w-[170px] sm:w-[200px] md:w-[240px] snap-start relative group"
             >
-              <Link to={`/details/${item.id}`} className="block relative h-full">
+              <div 
+                role="button"
+                onClick={() => openPreview(item.id)}
+                className="block relative h-full cursor-pointer"
+              >
                 {/* Huge Number behind card */}
                 {showNumbers && (
                   <div className="absolute -left-12 lg:-left-16 bottom-[-5px] z-0 font-black text-[180px] md:text-[220px] lg:text-[240px] leading-none tracking-tighter text-transparent select-none transition-all duration-700 pointer-events-none group-hover:scale-105" style={{ WebkitTextStroke: '2.5px rgba(255,255,255,0.12)', fontFamily: 'Inter' }}>
@@ -94,14 +103,14 @@ export default function TopTenGrid({ title, items, loading, showNumbers = true }
                     </div>
 
                     {/* Poster Bottom Info */}
-                    <div className="absolute inset-x-0 bottom-0 p-4 pb-8 text-center bg-gradient-to-t from-black/90 to-transparent">
-                        <h3 className="text-white font-black text-[13px] md:text-[15px] tracking-tight uppercase line-clamp-2 drop-shadow-2xl mb-1 leading-tight">
+                    <div className="absolute inset-x-0 bottom-0 p-4 pb-8 text-center bg-gradient-to-t from-black/98 via-black/80 to-transparent">
+                        <h3 className="text-white font-black text-[13px] md:text-[14px] tracking-tight uppercase drop-shadow-2xl mb-1 leading-tight whitespace-normal break-words">
                            {item.title}
                         </h3>
                     </div>
                   </div>
                 </div>
-              </Link>
+              </div>
             </motion.div>
           ))}
         </div>
@@ -109,3 +118,5 @@ export default function TopTenGrid({ title, items, loading, showNumbers = true }
     </section>
   );
 }
+
+export default React.memo(TopTenGrid);

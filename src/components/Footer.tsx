@@ -1,3 +1,4 @@
+import React from "react";
 import { Link } from "react-router-dom";
 import { 
   Play, MessageCircle, Headphones, ArrowRight, Home, 
@@ -5,8 +6,10 @@ import {
   HelpCircle, ChevronRight, Crown
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { useToast } from "../contexts/ToastContext";
 
-export default function Footer() {
+function Footer() {
+  const { showToast } = useToast();
   const WHATSAPP_CHANNEL = "https://whatsapp.com/channel/0029VbC0knY72WU0QUNAid3B";
   const WHATSAPP_CONTACT = "https://wa.me/2348087253512?text=I%20saw%20Axis%20TV%20and%20I'm%20interested%20in...";
 
@@ -123,36 +126,36 @@ export default function Footer() {
             </h3>
             <ul className="space-y-4">
               <li>
-                <a href="#" className="flex items-center gap-3 text-gray-500 hover:text-white transition-colors group">
+                <Link to="/legal/terms" className="flex items-center gap-3 text-gray-500 hover:text-white transition-colors group w-full text-left">
                   <div className="w-8 h-8 rounded-lg bg-white/2 flex items-center justify-center group-hover:bg-brand/10 transition-colors">
                     <Shield className="w-4 h-4" />
                   </div>
                   <span className="text-sm font-bold uppercase tracking-widest">Terms of Service</span>
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="flex items-center gap-3 text-gray-500 hover:text-white transition-colors group">
+                <Link to="/legal/privacy" className="flex items-center gap-3 text-gray-500 hover:text-white transition-colors group w-full text-left">
                   <div className="w-8 h-8 rounded-lg bg-white/2 flex items-center justify-center group-hover:bg-brand/10 transition-colors">
                     <Lock className="w-4 h-4" />
                   </div>
                   <span className="text-sm font-bold uppercase tracking-widest">Privacy Policy</span>
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="flex items-center gap-3 text-gray-500 hover:text-white transition-colors group">
+                <Link to="/legal/cookies" className="flex items-center gap-3 text-gray-500 hover:text-white transition-colors group w-full text-left">
                   <div className="w-8 h-8 rounded-lg bg-white/2 flex items-center justify-center group-hover:bg-brand/10 transition-colors">
                     <HelpCircle className="w-4 h-4" />
                   </div>
                   <span className="text-sm font-bold uppercase tracking-widest">Cookie Policy</span>
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="flex items-center gap-3 text-gray-500 hover:text-white transition-colors group">
+                <Link to="/legal/dmca" className="flex items-center gap-3 text-gray-500 hover:text-white transition-colors group w-full text-left">
                   <div className="w-8 h-8 rounded-lg bg-white/2 flex items-center justify-center group-hover:bg-brand/10 transition-colors">
                     <FileText className="w-4 h-4" />
                   </div>
                   <span className="text-sm font-bold uppercase tracking-widest">DMCA</span>
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -217,4 +220,6 @@ export default function Footer() {
     </footer>
   );
 }
+
+export default React.memo(Footer);
 

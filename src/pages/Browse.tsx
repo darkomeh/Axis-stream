@@ -167,6 +167,7 @@ export default function Browse() {
           src="https://picsum.photos/seed/movie-collage/1920/1080?blur=10" 
           alt="background" 
           className="w-full h-full object-cover"
+          loading="lazy"
           referrerPolicy="no-referrer"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
@@ -193,7 +194,7 @@ export default function Browse() {
             <h1 className="text-5xl md:text-7xl font-black mb-4 tracking-tighter uppercase leading-none italic" style={{ WebkitTextStroke: '1px rgba(255,255,255,0.1)' }}>
               Browse <span className="text-brand">Movies</span>
             </h1>
-            <p className="text-gray-500 font-bold uppercase tracking-[0.2em] text-xs">Discover the ultimate cinematic journey</p>
+            <p className="text-gray-500 font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs">Curated Excellence • Global Cinema • Unlimited Access</p>
           </motion.div>
 
           <div className="flex flex-col gap-4">

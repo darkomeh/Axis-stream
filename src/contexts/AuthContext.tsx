@@ -18,6 +18,7 @@ export interface SubtitlePreferences {
 export interface UserPreferences {
   autoPlayNext: boolean;
   autoPlay: boolean;
+  showTrailers: boolean;
   defaultQuality: string;
   skipIntro: boolean;
   playbackSpeed: number;
@@ -42,6 +43,13 @@ export interface UserStats {
   badges: string[];
 }
 
+export interface Playlist {
+  id: string;
+  name: string;
+  items: MediaItem[];
+  createdAt: number;
+}
+
 interface AuthContextType {
   user: User | null;
   login: (username: string, email: string, avatar?: string) => void;
@@ -52,12 +60,18 @@ interface AuthContextType {
   isInWatchlist: (id: string) => boolean;
   history: MediaItem[];
   addToHistory: (item: MediaItem) => void;
+  removeFromHistory: (id: string) => void;
   clearHistory: () => void;
   
   // New Features
   preferences: UserPreferences;
   updatePreferences: (prefs: Partial<UserPreferences>) => void;
   stats: UserStats;
+  playlists: Playlist[];
+  createPlaylist: (name: string) => void;
+  deletePlaylist: (id: string) => void;
+  addToPlaylist: (playlistId: string, item: MediaItem) => void;
+  removeFromPlaylist: (playlistId: string, itemId: string) => void;
   isAdmin: boolean;
   systemMessage: string | null;
   isMaintenance: boolean;
@@ -88,6 +102,7 @@ const initialStats: UserStats = {
 const defaultPreferences: UserPreferences = {
   autoPlayNext: true,
   autoPlay: true,
+  showTrailers: true,
   defaultQuality: 'auto',
   skipIntro: false,
   playbackSpeed: 1,
@@ -109,6 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // New State
   const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
   const [stats, setStats] = useState<UserStats>(initialStats);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [following, setFollowing] = useState<string[]>([]);
   const [continueWatching, setContinueWatching] = useState<ContinueWatchingItem[]>([]);
   const [systemMessage, setSystemMessage] = useState<string | null>(null);
@@ -176,6 +192,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setStats(initialStats);
       }
 
+      const storedPlaylists = localStorage.getItem(`axis_playlists_${user.id}`);
+      if (storedPlaylists) setPlaylists(JSON.parse(storedPlaylists));
+
       const storedFollowing = localStorage.getItem(`axis_following_${user.id}`);
       if (storedFollowing) setFollowing(JSON.parse(storedFollowing));
 
@@ -186,6 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setHistory([]);
       setPreferences(defaultPreferences);
       setStats(initialStats);
+      setPlaylists([]);
       setFollowing([]);
       setContinueWatching([]);
     }
@@ -273,6 +293,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setHistory(prev => {
       const updated = [item, ...prev.filter(i => i.id !== item.id)].slice(0, 50);
       setLastActionType(`WATCH_START: ${item.title}`);
+      localStorage.setItem(`axis_history_${user.id}`, JSON.stringify(updated));
+      return updated;
+    });
+  }, [user]);
+
+  const removeFromHistory = useCallback((id: string) => {
+    if (!user) return;
+    setHistory(prev => {
+      const updated = prev.filter(item => item.id !== id);
+      setLastActionType(`HISTORY_REMOVE: ${id}`);
       localStorage.setItem(`axis_history_${user.id}`, JSON.stringify(updated));
       return updated;
     });
@@ -381,14 +411,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, [user]);
 
+  const createPlaylist = useCallback((name: string) => {
+    if (!user) return;
+    setPlaylists(prev => {
+      const updated = [...prev, { id: Date.now().toString(), name, items: [], createdAt: Date.now() }];
+      localStorage.setItem(`axis_playlists_${user.id}`, JSON.stringify(updated));
+      setLastActionType(`PLAYLIST_CREATE: ${name}`);
+      return updated;
+    });
+  }, [user]);
+
+  const deletePlaylist = useCallback((id: string) => {
+    if (!user) return;
+    setPlaylists(prev => {
+      const updated = prev.filter(p => p.id !== id);
+      localStorage.setItem(`axis_playlists_${user.id}`, JSON.stringify(updated));
+      setLastActionType(`PLAYLIST_DELETE: ${id}`);
+      return updated;
+    });
+  }, [user]);
+
+  const addToPlaylist = useCallback((playlistId: string, item: MediaItem) => {
+    if (!user) return;
+    setPlaylists(prev => {
+      const updated = prev.map(p => {
+        if (p.id === playlistId && !p.items.some(i => i.id === item.id)) {
+          return { ...p, items: [...p.items, item] };
+        }
+        return p;
+      });
+      localStorage.setItem(`axis_playlists_${user.id}`, JSON.stringify(updated));
+      setLastActionType(`PLAYLIST_ADD: ${item.title}`);
+      return updated;
+    });
+  }, [user]);
+
+  const removeFromPlaylist = useCallback((playlistId: string, itemId: string) => {
+    if (!user) return;
+    setPlaylists(prev => {
+      const updated = prev.map(p => {
+        if (p.id === playlistId) {
+          return { ...p, items: p.items.filter(i => i.id !== itemId) };
+        }
+        return p;
+      });
+      localStorage.setItem(`axis_playlists_${user.id}`, JSON.stringify(updated));
+      return updated;
+    });
+  }, [user]);
+
   const value = useMemo(() => ({
     user, login, logout, isAdmin, 
     systemMessage, isMaintenance, isBanned,
     broadcastLevel, siteConfig,
     watchlist, addToWatchlist, removeFromWatchlist, isInWatchlist,
-    history, addToHistory, clearHistory,
+    history, addToHistory, removeFromHistory, clearHistory,
     preferences, updatePreferences,
     stats, addWatchTime, trackWatchActivity,
+    playlists, createPlaylist, deletePlaylist, addToPlaylist, removeFromPlaylist,
     following, toggleFollow, isFollowing,
     continueWatching, updateContinueWatching, removeFromContinueWatching,
     setLastActionType
@@ -397,9 +477,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     systemMessage, isMaintenance, isBanned,
     broadcastLevel, siteConfig,
     watchlist, addToWatchlist, removeFromWatchlist, isInWatchlist,
-    history, addToHistory, clearHistory,
+    history, addToHistory, removeFromHistory, clearHistory,
     preferences, updatePreferences,
     stats, addWatchTime, trackWatchActivity,
+    playlists, createPlaylist, deletePlaylist, addToPlaylist, removeFromPlaylist,
     following, toggleFollow, isFollowing,
     continueWatching, updateContinueWatching, removeFromContinueWatching,
     setLastActionType

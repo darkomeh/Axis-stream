@@ -6,11 +6,13 @@ import {
   Download, Settings, Check, ChevronDown, MonitorPlay, Gauge, Maximize, 
   Cast, Play, Pause, Volume2, VolumeX, Info, X, ArrowLeft, Sun, Lock, 
   Unlock, FastForward, Keyboard, Clock, Repeat, Globe, Languages, Type,
-  RotateCcw, RotateCw, SkipForward, SkipBack, Sliders, Minus, Plus, Maximize2, HelpCircle, Share2
+  RotateCcw, RotateCw, SkipForward, SkipBack, Sliders, Minus, Plus, Maximize2, HelpCircle, Share2, Flag, Film
 } from "lucide-react";
 import { useDownloadManager } from "../services/downloadService";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../contexts/AuthContext";
+import { useToast } from "../contexts/ToastContext";
+import { movieService } from "../services/movieService";
 import { parseSRT, SubtitleItem } from "../lib/subtitleParser";
 
 // Dynamically import Hls to reduce bundle size
@@ -55,8 +57,10 @@ export default function VideoPlayer({
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const { preferences, addWatchTime, user, updateContinueWatching, updatePreferences } = useAuth();
+  const { showToast } = useToast();
   
   // Track if we need to fall back to an iframe instead of direct video play
   const useIframeFallback = isTrailer || (mediaData.sources.length === 0 && !!mediaData.embedUrl);
@@ -69,6 +73,7 @@ export default function VideoPlayer({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
+  const [showHelp, setShowHelp] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   
   // Quality
@@ -99,7 +104,7 @@ export default function VideoPlayer({
   };
 
   // Gestures & UI State
-  const [activeMenu, setActiveMenu] = useState<'settings' | 'quality' | 'subtitles' | 'audio' | 'speed' | 'caption-settings' | null>(null);
+  const [activeMenu, setActiveMenu] = useState<'settings' | 'quality' | 'subtitles' | 'audio' | 'speed' | 'caption-settings' | 'report' | null>(null);
   const [brightness, setBrightness] = useState(1);
   const [zoom, setZoom] = useState<'contain' | 'cover' | 'fill'>('contain');
   const [playbackSpeed, setPlaybackSpeed] = useState(preferences?.playbackSpeed || 1);
@@ -187,15 +192,38 @@ export default function VideoPlayer({
     setSortedSubtitles(finalSubs);
   }, [subtitleTracks, mediaData.subtitles]);
 
+  const [hasAutoSelectedSubs, setHasAutoSelectedSubs] = useState(false);
+
   // Auto-select English subtitles
   useEffect(() => {
-    if (currentSubtitleTrack === -1 && sortedSubtitles.length > 0) {
+    if (!hasAutoSelectedSubs && currentSubtitleTrack === -1 && sortedSubtitles.length > 0) {
       const enIdx = sortedSubtitles.findIndex(isLanguageEnglish);
       if (enIdx >= 0) {
         setCurrentSubtitleTrack(enIdx);
       }
+      setHasAutoSelectedSubs(true);
     }
-  }, [sortedSubtitles, currentSubtitleTrack]);
+  }, [sortedSubtitles, hasAutoSelectedSubs, currentSubtitleTrack]);
+
+  // Ambient backlighting canvas loop
+  useEffect(() => {
+    let animationFrameId: number;
+    const renderFrame = () => {
+      if (videoRef.current && canvasRef.current && !videoRef.current.paused) {
+        const ctx = canvasRef.current.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
+        }
+      }
+      animationFrameId = requestAnimationFrame(renderFrame);
+    };
+    
+    if (!useIframeFallback) {
+      renderFrame();
+    }
+    
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [useIframeFallback, isPlaying]);
 
   useEffect(() => {
     if (currentSubtitleTrack >= 0 && sortedSubtitles[currentSubtitleTrack]?.url) {
@@ -549,7 +577,52 @@ export default function VideoPlayer({
       video.removeEventListener('waiting', onWaiting);
       video.removeEventListener('playing', onPlaying);
     };
-  }, []);
+  }, [id, title, poster, description, seasons, selectedSeason, selectedEpisode, updateContinueWatching]);
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input (e.g., bug report input)
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+      if (!videoRef.current) return;
+
+      switch (e.key.toLowerCase()) {
+        case ' ':
+        case 'k':
+          e.preventDefault();
+          if (videoRef.current.paused) videoRef.current.play();
+          else videoRef.current.pause();
+          showControlsTemporarily();
+          break;
+        case 'arrowright':
+          e.preventDefault();
+          videoRef.current.currentTime = Math.min(videoRef.current.currentTime + 10, duration);
+          showControlsTemporarily();
+          break;
+        case 'arrowleft':
+          e.preventDefault();
+          videoRef.current.currentTime = Math.max(videoRef.current.currentTime - 10, 0);
+          showControlsTemporarily();
+          break;
+        case 'f':
+          e.preventDefault();
+          if (!document.fullscreenElement) {
+            containerRef.current?.requestFullscreen().catch(() => {});
+          } else {
+            document.exitFullscreen().catch(() => {});
+          }
+          break;
+        case 'm':
+          e.preventDefault();
+          videoRef.current.muted = !videoRef.current.muted;
+          showControlsTemporarily();
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [duration, showControlsTemporarily]);
 
   const isLanguageEnglish = (t: any) => {
     const label = (t.language || t.displayName || t.name || t.languageCode || '').toLowerCase();
@@ -585,7 +658,7 @@ export default function VideoPlayer({
   return (
     <div 
       ref={containerRef}
-      className="relative w-full h-full bg-black overflow-hidden select-none touch-none group rounded-2xl ring-1 ring-white/10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)]"
+      className="relative w-full h-full bg-black overflow-hidden select-none touch-none group"
       style={{ filter: `brightness(${brightness})` }}
       onMouseMove={showControlsTemporarily}
       onTouchStart={handleTouchStart}
@@ -593,8 +666,6 @@ export default function VideoPlayer({
       onTouchEnd={handleTouchEnd}
       onClick={handlePlayerTap}
     >
-      {/* Background Soft Red Glow under player */}
-      <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-[80%] h-40 bg-brand/30 blur-[120px] rounded-full -z-10 animate-pulse" />
       {/* Video Element */}
       {useIframeFallback ? (
         <iframe
@@ -606,16 +677,62 @@ export default function VideoPlayer({
           onLoad={() => setLoading(false)}
         />
       ) : (
-        <video
-          ref={videoRef}
-          className={`w-full h-full transition-all duration-300 relative z-10 ${
-            zoom === 'cover' ? 'object-cover' : zoom === 'fill' ? 'object-fill' : 'object-contain'
-          }`}
-          playsInline
-          autoPlay
-          crossOrigin="anonymous"
-        />
+        <>
+          <canvas 
+            ref={canvasRef} 
+            className="absolute inset-0 w-full h-full object-cover blur-[100px] opacity-60 scale-110 z-0 saturate-200 pointer-events-none mix-blend-screen"
+            aria-hidden="true"
+            width={64}
+            height={36}
+          />
+          <video
+            ref={videoRef}
+            className={`w-full h-full transition-all duration-300 relative z-10 ${
+              zoom === 'cover' ? 'object-cover' : zoom === 'fill' ? 'object-fill' : 'object-contain'
+            }`}
+            playsInline
+            autoPlay
+            crossOrigin="anonymous"
+          />
+        </>
       )}
+
+      {/* Skip Features (Intro / Next) */}
+      <AnimatePresence>
+        {!useIframeFallback && showControls && isPlaying && currentTime > 15 && currentTime < 120 && (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="absolute bottom-28 left-6 md:left-10 z-50 pointer-events-auto"
+          >
+            <button
+               onClick={() => seekTo(120)}
+               className="flex items-center gap-2 bg-black/60 hover:bg-white text-white hover:text-black border border-white/20 backdrop-blur-md px-5 py-2.5 rounded-full font-bold uppercase tracking-wider text-xs transition-all shadow-[0_0_20px_rgba(0,0,0,0.5)]"
+            >
+              Skip Intro <SkipForward className="w-4 h-4 ml-1" />
+            </button>
+          </motion.div>
+        )}
+        
+        {!useIframeFallback && duration > 0 && currentTime > duration - 60 && seasons && onEpisodeChange && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="absolute bottom-28 right-6 md:right-10 z-50 pointer-events-auto"
+          >
+            <button
+               onClick={() => {
+                 onEpisodeChange(selectedSeason || 1, (selectedEpisode || 1) + 1);
+               }}
+               className="flex items-center gap-2 bg-brand hover:bg-white text-white hover:text-black hover:border-white border border-brand backdrop-blur-md px-6 py-3 rounded-full font-black uppercase tracking-wider text-sm transition-all shadow-[0_0_30px_rgba(229,9,20,0.6)]"
+            >
+              Play Next <FastForward className="w-5 h-5 ml-1" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Loading Spinner */}
       <AnimatePresence>
@@ -702,14 +819,14 @@ export default function VideoPlayer({
             exit={{ opacity: 0 }}
             className={`absolute inset-0 z-40 flex flex-col justify-between pointer-events-none ${useIframeFallback ? 'bg-transparent' : 'bg-gradient-to-t from-black/80 via-transparent to-black/60'}`}
           >
-            {/* Top Bar - Matching screenshot */}
-            <div className="flex items-center justify-between p-4 md:p-6 lg:p-10 pointer-events-auto">
-              <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-all text-white">
-                <ArrowLeft className="w-8 h-8 drop-shadow-[0_0_10px_rgba(0,0,0,0.5)]" />
+            {/* Top Bar */}
+            <div className="flex items-center justify-between p-4 md:p-6 pointer-events-auto">
+              <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-all text-white">
+                <ArrowLeft className="w-6 h-6 drop-shadow-md" />
               </button>
               
               {!useIframeFallback && (
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4">
                   <button 
                     onClick={() => {
                       if (navigator.share) {
@@ -720,20 +837,49 @@ export default function VideoPlayer({
                         }).catch(() => {});
                       } else {
                         navigator.clipboard.writeText(window.location.href);
-                        alert("Link copied!");
+                        showToast("Link copied!", "success");
                       }
                     }}
-                    className="p-2 hover:bg-white/20 rounded-full transition-all text-white"
+                    className="p-2 hover:bg-white/10 rounded-full transition-all text-white"
                   >
-                    <Share2 className="w-7 h-7 drop-shadow-md" />
+                    <Share2 className="w-6 h-6 drop-shadow-md" />
                   </button>
-                  <button className="flex flex-col items-center p-2 text-white hover:text-gray-300 transition-colors cursor-help">
-                    <HelpCircle className="w-8 h-8 drop-shadow-md mb-0.5" />
-                    <span className="text-[10px] font-black uppercase tracking-tighter">Help</span>
+                  <button onClick={() => setShowHelp(true)} className="flex flex-col items-center p-2 text-white hover:text-gray-300 transition-colors cursor-pointer">
+                    <Keyboard className="w-6 h-6 drop-shadow-md mb-0.5" />
+                    <span className="text-[8px] font-black uppercase tracking-tighter">Shortcuts</span>
                   </button>
                 </div>
               )}
             </div>
+
+            {/* Keyboard Shortcuts Modal */}
+            <AnimatePresence>
+              {showHelp && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="absolute inset-0 z-50 flex items-center justify-center pointer-events-auto bg-black/60 backdrop-blur-sm"
+                  onClick={() => setShowHelp(false)}
+                >
+                  <div className="bg-zinc-900 border border-white/10 rounded-2xl p-8 max-w-lg w-full text-white shadow-2xl relative" onClick={e => e.stopPropagation()}>
+                    <button onClick={() => setShowHelp(false)} className="absolute top-4 right-4 text-white/50 hover:text-white">
+                       <X className="w-6 h-6" />
+                    </button>
+                    <h2 className="text-2xl font-black uppercase tracking-tight mb-6">Keyboard Shortcuts</h2>
+                    <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-sm">
+                      <div className="flex justify-between items-center bg-white/5 p-3 rounded-lg"><span className="font-bold text-gray-400">Play / Pause</span> <span className="bg-white/10 px-2 flex items-center h-6 rounded font-mono text-xs">Space</span></div>
+                      <div className="flex justify-between items-center bg-white/5 p-3 rounded-lg"><span className="font-bold text-gray-400">Fullscreen</span> <span className="bg-white/10 px-2 flex items-center h-6 rounded font-mono text-xs">F</span></div>
+                      <div className="flex justify-between items-center bg-white/5 p-3 rounded-lg"><span className="font-bold text-gray-400">Mute / Unmute</span> <span className="bg-white/10 px-2 flex items-center h-6 rounded font-mono text-xs">M</span></div>
+                      <div className="flex justify-between items-center bg-white/5 p-3 rounded-lg"><span className="font-bold text-gray-400">Skip <span className="text-brand">+10s</span></span> <span className="bg-white/10 px-2 flex items-center h-6 rounded font-mono text-xs">→</span></div>
+                      <div className="flex justify-between items-center bg-white/5 p-3 rounded-lg"><span className="font-bold text-gray-400">Back <span className="text-brand">-10s</span></span> <span className="bg-white/10 px-2 flex items-center h-6 rounded font-mono text-xs">←</span></div>
+                      <div className="flex justify-between items-center bg-white/5 p-3 rounded-lg"><span className="font-bold text-gray-400">Volume Up</span> <span className="bg-white/10 px-2 flex items-center h-6 rounded font-mono text-xs">↑</span></div>
+                      <div className="flex justify-between items-center bg-white/5 p-3 rounded-lg"><span className="font-bold text-gray-400">Volume Down</span> <span className="bg-white/10 px-2 flex items-center h-6 rounded font-mono text-xs">↓</span></div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Middle and Bottom Controls - HIDDEN FOR IFRAME */}
             {!useIframeFallback && (
@@ -742,41 +888,38 @@ export default function VideoPlayer({
             <div className="flex items-center justify-center gap-12 md:gap-24 lg:gap-32 pointer-events-auto">
               <button 
                 onClick={() => seek(-10)} 
-                className="group transition-all transform active:scale-90"
+                className="group transition-all transform active:scale-95"
               >
-                <div className="relative flex items-center justify-center">
-                   <RotateCcw className="w-14 h-14 md:w-16 md:h-16 text-white/50 group-hover:text-white transition-colors" strokeWidth={1} />
-                   <span className="absolute text-[10px] md:text-xs font-black text-white mt-1 drop-shadow-md">10</span>
+                <div className="relative flex items-center justify-center w-14 h-14 rounded-full border border-white/20 bg-black/20 backdrop-blur-sm group-hover:bg-white/10">
+                   <RotateCcw className="w-8 h-8 text-white stroke-[1.5]" />
+                   <span className="absolute text-[10px] font-black text-white mt-0.5">10</span>
                 </div>
               </button>
               
               <button 
                 onClick={togglePlay} 
-                className="w-24 h-24 md:w-28 md:h-28 flex items-center justify-center bg-brand/90 backdrop-blur-xl rounded-full border border-white/20 text-white hover:scale-105 active:scale-95 transition-all shadow-[0_0_60px_rgba(255,45,45,0.4)] relative group"
+                className="w-24 h-24 md:w-28 md:h-28 flex items-center justify-center bg-[#E50914] rounded-full text-white hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_rgba(229,9,20,0.4)] relative group"
               >
-                {/* Pulse Glow Effect */}
-                <div className="absolute inset-0 rounded-full bg-brand/20 animate-ping opacity-75" />
-                
                 {isPlaying ? (
-                  <Pause className="w-10 h-10 md:w-12 md:h-12 fill-white drop-shadow-2xl" strokeWidth={0} />
+                  <Pause className="w-10 h-10 md:w-12 md:h-12 fill-white" strokeWidth={0} />
                 ) : (
-                  <Play className="w-10 h-10 md:w-12 md:h-12 fill-white ml-2 drop-shadow-2xl" strokeWidth={0} />
+                  <Play className="w-10 h-10 md:w-12 md:h-12 fill-white ml-2" strokeWidth={0} />
                 )}
               </button>
 
               <button 
                 onClick={() => seek(10)} 
-                className="group transition-all transform active:scale-90"
+                className="group transition-all transform active:scale-95"
               >
-                <div className="relative flex items-center justify-center">
-                  <RotateCw className="w-14 h-14 md:w-16 md:h-16 text-white/50 group-hover:text-white transition-colors" strokeWidth={1} />
-                  <span className="absolute text-[10px] md:text-xs font-black text-white mt-1 drop-shadow-md">10</span>
+                <div className="relative flex items-center justify-center w-14 h-14 rounded-full border border-white/20 bg-black/20 backdrop-blur-sm group-hover:bg-white/10">
+                  <RotateCw className="w-8 h-8 text-white stroke-[1.5]" />
+                  <span className="absolute text-[10px] font-black text-white mt-0.5">10</span>
                 </div>
               </button>
             </div>
 
             {/* Bottom Controls */}
-            <div className="pointer-events-auto p-4 md:p-8 lg:p-12 mb-2 w-full">
+            <div className="pointer-events-auto p-4 md:p-6 mb-2 w-full">
               <div className="flex flex-col gap-4">
                 
                 {/* Progress Slider */}
@@ -788,10 +931,10 @@ export default function VideoPlayer({
                   <div className="group/progress relative flex-1 h-8 flex items-center cursor-pointer no-click-toggle">
                     <div className="w-full h-[3px] md:h-[4px] bg-white/20 rounded-full relative">
                        <div 
-                        className="absolute inset-y-0 left-0 bg-brand rounded-full shadow-[0_0_10px_rgba(255,45,45,0.8)]"
+                        className="absolute inset-y-0 left-0 bg-[#E50914] rounded-full"
                         style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
                       >
-                         <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_10px_rgba(255,45,45,0.8)] border border-brand scale-0 group-hover/progress:scale-100 transition-transform" />
+                         <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full border border-[#E50914] scale-0 group-hover/progress:scale-100 transition-transform shadow-lg" />
                       </div>
                     </div>
                     <input 
@@ -817,8 +960,24 @@ export default function VideoPlayer({
                     <button onClick={() => setActiveMenu('settings')} className="text-white/60 hover:text-white transition-colors">
                        <Settings className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
+                    <button onClick={() => setActiveMenu('report')} className="text-white/60 hover:text-white transition-colors" title="Report Issue">
+                       <Flag className="w-5 h-5 md:w-6 md:h-6" />
+                    </button>
                     <button onClick={() => setActiveMenu('audio')} className="text-white/60 hover:text-white transition-colors">
                        <MonitorPlay className="w-5 h-5 md:w-6 md:h-6" />
+                    </button>
+                    <button 
+                      onClick={async () => {
+                        if (document.pictureInPictureElement) {
+                          await document.exitPictureInPicture().catch(console.error);
+                        } else if (videoRef.current && document.pictureInPictureEnabled) {
+                          await videoRef.current.requestPictureInPicture().catch(console.error);
+                        }
+                      }}
+                      className="text-white/60 hover:text-white transition-colors"
+                      title="Picture in Picture"
+                    >
+                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 md:w-6 md:h-6"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><rect x="12" y="14" width="7" height="4" rx="1" ry="1"></rect></svg>
                     </button>
                     <button 
                       onClick={() => {
@@ -861,12 +1020,12 @@ export default function VideoPlayer({
         {activeMenu && (
           <div className="absolute inset-0 z-50" onClick={() => setActiveMenu(null)}>
             <motion.div 
-              initial={{ opacity: 0, y: 10, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
               transition={{ duration: 0.15 }}
               onClick={(e) => e.stopPropagation()}
-              className="absolute bottom-20 right-4 md:right-8 w-60 max-w-[calc(100vw-2rem)] bg-[#e6e6e6] dark:bg-[#1c1c1c] rounded-md shadow-2xl overflow-hidden pointer-events-auto text-[#333] dark:text-[#eee]"
+              className="absolute bottom-16 right-4 md:right-8 w-64 max-w-[calc(100vw-2rem)] bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden pointer-events-auto text-white"
             >
               {activeMenu !== 'settings' && (
                 <div className="flex items-center p-3 border-b border-black/5 dark:border-white/5 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors" onClick={() => setActiveMenu('settings')}>
@@ -875,7 +1034,7 @@ export default function VideoPlayer({
                 </div>
               )}
 
-              <div className="max-h-[60vh] overflow-y-auto no-scrollbar py-2">
+              <div className="max-h-[min(60vh,400px)] overflow-y-auto no-scrollbar py-2">
                   {activeMenu === 'settings' && (
                     <div className="flex flex-col">
                       <button 
@@ -1164,6 +1323,40 @@ export default function VideoPlayer({
                           {selectedSourceIdx === idx && <Check className="w-4 h-4" />}
                         </button>
                       ))}
+                    </div>
+                  )}
+
+                  {activeMenu === 'report' && (
+                    <div className="flex flex-col">
+                      <div className="p-4 border-b border-black/5 dark:border-white/5">
+                        <span className="text-[12px] font-black uppercase tracking-widest text-[#333] dark:text-white/40">Report Issue</span>
+                      </div>
+                      <div className="py-2">
+                        {[
+                          { id: 'video', label: 'Video Issue (Lag/quality)', icon: Film },
+                          { id: 'audio', label: 'Audio Issue (Sync/missing)', icon: MonitorPlay },
+                          { id: 'subtitle', label: 'Subtitle Issue', icon: Type },
+                          { id: 'loading', label: 'Slow Loading', icon: Clock },
+                          { id: 'other', label: 'Other Fix', icon: HelpCircle }
+                        ].map((cat) => (
+                          <button
+                            key={cat.id}
+                            onClick={async () => {
+                              const ok = await movieService.reportIssue(user?.id || 'guest', cat.id, `Issue on ${title} (${id})`);
+                              if (ok) {
+                                showToast("Report submitted. Thanks!", "success");
+                              } else {
+                                showToast("Failed to send report", "error");
+                              }
+                              setActiveMenu(null);
+                            }}
+                            className="w-full flex items-center gap-3 px-5 py-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-left"
+                          >
+                            <cat.icon className="w-4 h-4 opacity-70" />
+                            <span className="text-[14px] font-medium">{cat.label}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
 

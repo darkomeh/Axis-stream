@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import { MovieImage } from '../components/MovieImage';
+import { useToast } from '../contexts/ToastContext';
 
 const AVATARS = [
   { id: 'f1', url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Aria', gender: 'female' },
@@ -28,13 +30,35 @@ const BG_POSTERS = [
 ];
 
 export default function Profile() {
-  const { user, login, logout, watchlist, history, clearHistory, stats, preferences, updatePreferences } = useAuth();
+  const { user, login, logout, watchlist, history, clearHistory, stats, preferences, updatePreferences, playlists, createPlaylist, deletePlaylist, removeFromHistory } = useAuth();
+  const { showToast } = useToast();
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0].url);
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
   const navigate = useNavigate();
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [editUsername, setEditUsername] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editAvatar, setEditAvatar] = useState('');
+
+  const openEditProfile = () => {
+    if (user) {
+      setEditUsername(user.username);
+      setEditEmail(user.email);
+      setEditAvatar(user.avatar || '');
+      setIsEditProfileOpen(true);
+    }
+  };
+
+  const handleSaveProfile = () => {
+    if (editUsername && editEmail) {
+      login(editUsername, editEmail, editAvatar);
+      setIsEditProfileOpen(false);
+      showToast("Profile updated successfully!");
+    }
+  };
 
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +74,14 @@ export default function Profile() {
     }
   };
 
+  const handleCreatePlaylist = () => {
+    const name = window.prompt("Enter Playlist Name:");
+    if (name && name.trim().length > 0) {
+      createPlaylist(name.trim());
+      showToast("Playlist created successfully!", "success");
+    }
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col relative overflow-hidden">
@@ -57,7 +89,7 @@ export default function Profile() {
         <div className="absolute inset-0 z-0 opacity-20 filter blur-[2px]">
           <div className="grid grid-cols-4 gap-2 rotate-12 scale-125 -translate-y-20">
             {BG_POSTERS.concat(BG_POSTERS).map((url, i) => (
-              <img key={i} src={url} alt="" className="w-full aspect-[2/3] object-cover rounded-lg" referrerPolicy="no-referrer" />
+              <img key={i} src={url} alt="" className="w-full aspect-[2/3] object-cover rounded-lg" loading="lazy" referrerPolicy="no-referrer" />
             ))}
           </div>
           <div className="absolute inset-0 bg-gradient-to-b from-black via-black/80 to-black" />
@@ -90,7 +122,7 @@ export default function Profile() {
                     onClick={() => setSelectedAvatar(av.url)}
                     className={`relative w-14 h-14 rounded-full overflow-hidden transition-all duration-300 ring-2 ${selectedAvatar === av.url ? 'ring-brand scale-110 shadow-[0_0_15px_rgba(255,45,45,0.4)]' : 'ring-white/10 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 hover:ring-white/30'}`}
                   >
-                    <img src={av.url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    <img src={av.url} alt="" className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
                   </button>
                 ))}
               </div>
@@ -148,7 +180,7 @@ export default function Profile() {
       <div className="fixed inset-0 z-0 opacity-10 filter blur-[1px]">
         <div className="grid grid-cols-4 gap-4 rotate-6 scale-110">
           {[...Array(12)].map((_, i) => (
-            <img key={i} src={BG_POSTERS[i % BG_POSTERS.length]} alt="" className="w-full aspect-[2/3] object-cover rounded-xl" />
+            <img key={i} src={BG_POSTERS[i % BG_POSTERS.length]} alt="" className="w-full aspect-[2/3] object-cover rounded-xl" loading="lazy" />
           ))}
         </div>
         <div className="absolute inset-0 bg-gradient-to-b from-black via-black/90 to-black" />
@@ -165,7 +197,7 @@ export default function Profile() {
             <Search className="w-5 h-5" />
           </button>
           <div className="relative w-10 h-10 rounded-full overflow-hidden border border-white/20 p-0.5">
-            <img src={user.avatar} alt="" className="w-full h-full object-cover rounded-full" />
+            <img src={user.avatar || undefined} alt="" className="w-full h-full object-cover rounded-full" loading="lazy" />
             <div className="absolute top-0 right-0 w-3 h-3 bg-brand border-2 border-black rounded-full" />
           </div>
           <button className="w-10 h-10 flex items-center justify-center text-white bg-white/5 rounded-full backdrop-blur-md border border-white/10 hover:bg-white/10 transition-all">
@@ -186,7 +218,7 @@ export default function Profile() {
           <div className="absolute inset-x-0 bottom-0 top-0 z-0 opacity-20 pointer-events-none overflow-hidden">
              <div className="grid grid-cols-4 gap-2 -rotate-3 scale-110 opacity-40">
                 {BG_POSTERS.slice(0, 4).map((url, i) => (
-                  <img key={i} src={url} alt="" className="w-full aspect-[2/3] object-cover rounded-lg blur-[1px]" />
+                  <img key={i} src={url} alt="" className="w-full aspect-[2/3] object-cover rounded-lg blur-[1px]" loading="lazy" />
                 ))}
              </div>
              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
@@ -197,10 +229,10 @@ export default function Profile() {
             <div className="relative">
               <div className="w-32 h-32 rounded-full p-1 bg-gradient-to-tr from-brand via-brand/40 to-transparent animate-pulse shadow-[0_0_30px_rgba(255,45,45,0.5)]">
                 <div className="w-full h-full rounded-full bg-black overflow-hidden border-[2px] border-black">
-                  <img src={user.avatar} alt="" className="w-full h-full object-cover" />
+                  <img src={user.avatar || undefined} alt="" className="w-full h-full object-cover" loading="lazy" />
                 </div>
               </div>
-              <button className="absolute bottom-1 right-1 w-9 h-9 bg-brand text-white rounded-full flex items-center justify-center border-2 border-black shadow-lg hover:scale-110 active:scale-95 transition-all">
+              <button onClick={openEditProfile} className="absolute bottom-1 right-1 w-9 h-9 bg-brand text-white rounded-full flex items-center justify-center border-2 border-black shadow-lg hover:scale-110 active:scale-95 transition-all">
                 <Edit2 className="w-4 h-4 fill-white" />
               </button>
             </div>
@@ -223,7 +255,7 @@ export default function Profile() {
                 >
                   <LogOut className="w-4 h-4" /> Sign Out
                 </button>
-                <button className="flex items-center gap-2 px-8 py-3.5 bg-white/5 hover:bg-white/10 text-white border border-white/20 rounded-full transition-all text-xs font-black uppercase tracking-widest active:scale-95">
+                <button onClick={openEditProfile} className="flex items-center gap-2 px-8 py-3.5 bg-white/5 hover:bg-white/10 text-white border border-white/20 rounded-full transition-all text-xs font-black uppercase tracking-widest active:scale-95">
                   <Settings className="w-4 h-4" /> Edit Profile
                 </button>
               </div>
@@ -312,7 +344,8 @@ export default function Profile() {
           <div className="space-y-6 px-2">
             {[
               { label: 'Auto-Play Next Episode', key: 'autoPlayNext' },
-              { label: 'Auto-Skip Intro', key: 'skipIntro' }
+              { label: 'Auto-Skip Intro', key: 'skipIntro' },
+              { label: 'Enable Trailers', key: 'showTrailers' }
             ].map((pref) => (
               <div key={pref.key} className="flex items-center justify-between">
                 <span className="text-[11px] font-black text-gray-200 uppercase tracking-widest">{pref.label}</span>
@@ -337,8 +370,24 @@ export default function Profile() {
           </button>
           
           <div className="bg-black/20 border border-white/5 rounded-3xl p-10 text-center space-y-6 border-dashed">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">No custom playlists created yet.</p>
-            <button className="inline-flex items-center gap-2 px-8 py-3.5 border border-white/20 hover:border-brand/50 hover:bg-brand/5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all group active:scale-95 shadow-lg hover:shadow-brand/10">
+            {playlists && playlists.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                {playlists.map(p => (
+                  <div key={p.id} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
+                    <div>
+                      <h4 className="font-bold text-white tracking-wide">{p.name}</h4>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-widest">{p.items.length} Items</p>
+                    </div>
+                    <button onClick={() => deletePlaylist(p.id)} className="p-2 text-gray-500 hover:text-brand transition-colors">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">No custom playlists created yet.</p>
+            )}
+            <button onClick={handleCreatePlaylist} className="inline-flex items-center gap-2 px-8 py-3.5 border border-white/20 hover:border-brand/50 hover:bg-brand/5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all group active:scale-95 shadow-lg hover:shadow-brand/10">
               <Plus className="w-4 h-4 text-white group-hover:text-brand transition-colors" /> Create Playlist
             </button>
           </div>
@@ -348,19 +397,37 @@ export default function Profile() {
         <div className="bg-white/5 border border-white/10 rounded-[32px] p-6 backdrop-blur-2xl">
           <button className="w-full flex items-center justify-between mb-8 px-2 group">
             <h3 className="text-sm font-black uppercase tracking-[0.2em] flex items-center gap-3">
-              <Bookmark className="w-5 h-5 text-brand" /> My Watchlist
+              <Bookmark className="w-5 h-5 text-brand" /> My Watchlist ({watchlist?.length || 0})
             </h3>
             <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-brand transition-colors" />
           </button>
           
-          <div className="bg-black/20 border border-white/5 rounded-3xl p-12 text-center space-y-4">
-             <div className="relative w-16 h-16 mx-auto mb-4">
-                <Bookmark className="w-full h-full text-white/5 stroke-[0.5]" />
-                <Bookmark className="absolute inset-0 w-full h-full text-gray-800 animate-pulse" />
-             </div>
-             <p className="text-xs font-bold text-gray-200 uppercase tracking-widest">Nothing in your watchlist yet.</p>
-             <p className="text-[10px] text-gray-500 font-medium uppercase tracking-tight">Add movies and series to watch later.</p>
-          </div>
+          {watchlist && watchlist.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {watchlist.map((item, index) => (
+                <motion.div 
+                  key={`${item.id}-${index}`}
+                  whileHover={{ y: -5 }}
+                  className="group relative rounded-2xl overflow-hidden cursor-pointer"
+                  onClick={() => navigate(`/details?subjectId=${item.id}`)}
+                >
+                  <MovieImage src={item.poster} alt={item.title} className="aspect-[2/3] w-full" />
+                  <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/90 to-transparent">
+                      <p className="text-white text-[10px] font-black truncate">{item.title}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-black/20 border border-white/5 rounded-3xl p-12 text-center space-y-4">
+              <div className="relative w-16 h-16 mx-auto mb-4">
+                  <Bookmark className="w-full h-full text-white/5 stroke-[0.5]" />
+                  <Bookmark className="absolute inset-0 w-full h-full text-gray-800 animate-pulse" />
+              </div>
+              <p className="text-xs font-bold text-gray-200 uppercase tracking-widest">Nothing in your watchlist yet.</p>
+              <p className="text-[10px] text-gray-500 font-medium uppercase tracking-tight">Add movies and series to watch later.</p>
+            </div>
+          )}
         </div>
 
         {/* WATCH HISTORY SECTION */}
@@ -376,14 +443,15 @@ export default function Profile() {
           
           {history?.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {history.slice(0, 4).map((item) => (
+              {history.slice(0, 4).map((item, index) => (
                 <motion.div 
-                  key={item.id}
+                  key={`${item.id}-${index}`}
                   whileHover={{ y: -5, scale: 1.02 }}
                   className="bg-white/5 border border-white/10 rounded-[28px] overflow-hidden flex items-center group relative cursor-pointer"
+                  onClick={() => navigate(`/details?subjectId=${item.id}`)}
                 >
                   <div className="w-28 aspect-[3/4] overflow-hidden">
-                    <img src={item.poster} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                    <MovieImage src={item.poster} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                   </div>
                   <div className="flex-1 p-5 pr-12 relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-r from-brand/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -395,8 +463,8 @@ export default function Profile() {
                       <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{item.year}</span>
                     </div>
                   </div>
-                  <button className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white transition-colors">
-                    <MoreVertical className="w-4 h-4" />
+                  <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeFromHistory(item.id); showToast("Removed from history", "success"); }} className="absolute top-4 right-4 p-2 text-gray-500 hover:text-brand transition-colors z-20">
+                    <X className="w-4 h-4" />
                   </button>
                 </motion.div>
               ))}
@@ -409,6 +477,78 @@ export default function Profile() {
           )}
         </div>
       </div>
+
+      <AnimatePresence>
+        {isEditProfileOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-[#121212] border border-white/10 rounded-[32px] p-8 max-w-md w-full relative"
+            >
+              <button 
+                onClick={() => setIsEditProfileOpen(false)}
+                className="absolute top-6 right-6 p-2 bg-white/5 rounded-full text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              <h2 className="text-2xl font-black uppercase italic tracking-tight mb-6">Edit Profile</h2>
+              
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-2 mb-2">Avatar</label>
+                  <div className="flex gap-4">
+                    {AVATARS.map((av) => (
+                      <button 
+                        key={av.id}
+                        onClick={() => setEditAvatar(av.url)}
+                        className={`relative w-12 h-12 rounded-full overflow-hidden transition-all duration-300 ring-2 ${editAvatar === av.url ? 'ring-brand scale-110 shadow-[0_0_15px_rgba(255,45,45,0.4)]' : 'ring-white/10 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 hover:ring-white/30'}`}
+                      >
+                        <img src={av.url} alt="" className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Username</label>
+                  <input 
+                    type="text" 
+                    value={editUsername}
+                    onChange={e => setEditUsername(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:ring-1 focus:ring-brand transition-all text-sm font-medium"
+                    placeholder="Username"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Email (Changing this resets history)</label>
+                  <input 
+                    type="email" 
+                    value={editEmail}
+                    onChange={e => setEditEmail(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:ring-1 focus:ring-brand transition-all text-sm font-medium"
+                    placeholder="Email"
+                  />
+                </div>
+                
+                <button 
+                  onClick={handleSaveProfile}
+                  className="w-full bg-brand hover:bg-brand/90 text-white font-black py-4 rounded-2xl transition-all shadow-[0_10px_20px_rgba(255,45,45,0.3)] uppercase tracking-widest text-sm"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

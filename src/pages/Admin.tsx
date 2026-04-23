@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import Navbar from '../components/Navbar';
 import PopcornLoader from '../components/PopcornLoader';
 import { 
@@ -63,6 +64,7 @@ interface AdminState {
 
 export default function Admin() {
   const { user, isAdmin } = useAuth();
+  const { showToast } = useToast();
   const [data, setData] = useState<AdminState | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'system' | 'logs' | 'content' | 'branding' | 'reports'>('overview');
@@ -431,11 +433,11 @@ export default function Admin() {
                       </thead>
                       <tbody className="divide-y divide-white/5">
                         {data.mostActive.map((user, idx) => (
-                          <tr key={user.id} className="hover:bg-white/2 transition-colors group">
+                          <tr key={`${user.id}-${idx}`} className="hover:bg-white/2 transition-colors group">
                             <td className="px-8 py-6 font-black text-brand italic">#{idx + 1}</td>
                             <td className="px-8 py-6">
                               <div className="flex items-center gap-4">
-                                <img src={user.avatar} className="w-10 h-10 rounded-2xl bg-black border border-white/10" alt="" />
+                                <img src={user.avatar || undefined} className="w-10 h-10 rounded-2xl bg-black border border-white/10" alt="" loading="lazy" />
                                 <div>
                                   <p className="font-bold">{user.username}</p>
                                   <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">{user.email}</p>
@@ -548,9 +550,9 @@ export default function Admin() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {data.allUsers.map(user => (
+                  {data.allUsers.map((user, idx) => (
                     <motion.div 
-                      key={user.id} 
+                      key={`${user.id}-${idx}`} 
                       className="bg-white/5 border border-white/5 rounded-3xl p-6 hover:border-brand/30 transition-all group relative overflow-hidden"
                     >
                       {data.bannedEmails.includes(user.email.toLowerCase()) && (
@@ -561,7 +563,7 @@ export default function Admin() {
                       
                       <div className="flex items-start justify-between mb-6">
                         <div className="flex items-center gap-4">
-                          <img src={user.avatar} className="w-14 h-14 rounded-2xl bg-black border border-white/10 shadow-xl" alt="" />
+                          <img src={user.avatar || undefined} className="w-14 h-14 rounded-2xl bg-black border border-white/10 shadow-xl" alt="" loading="lazy" />
                           <div>
                             <h4 className="font-bold text-lg leading-tight uppercase tracking-tighter">{user.username}</h4>
                             <p className="text-[10px] text-gray-600 font-black uppercase tracking-widest mt-1 italic">{user.email}</p>
@@ -760,7 +762,10 @@ export default function Admin() {
                       onClick={async () => {
                         const oldPin = (document.getElementById('old-pin') as HTMLInputElement).value;
                         const newPin = (document.getElementById('new-pin') as HTMLInputElement).value;
-                        if (!oldPin || !newPin) return alert('Both PINs required');
+                        if (!oldPin || !newPin) {
+                          showToast('Both PINs required', 'error');
+                          return;
+                        }
                         setIsUpdating(true);
                         try {
                           const res = await fetch('/api/admin/update-pin', {
@@ -770,12 +775,12 @@ export default function Admin() {
                           });
                           const result = await res.json();
                           if (res.ok) {
-                            alert('PIN rotated successfully');
+                            showToast('PIN rotated successfully', 'success');
                             (document.getElementById('old-pin') as HTMLInputElement).value = '';
                             (document.getElementById('new-pin') as HTMLInputElement).value = '';
                             fetchData();
                           } else {
-                            alert(result.error || 'Update failed');
+                            showToast(result.error || 'Update failed', 'error');
                           }
                         } finally {
                           setIsUpdating(false);
@@ -803,8 +808,8 @@ export default function Admin() {
                 </div>
 
                 <div className="space-y-3 max-h-[600px] overflow-y-auto no-scrollbar pr-2">
-                  {data.auditLogs?.map(log => (
-                    <div key={log.id} className="flex gap-4 p-5 bg-white/2 border border-white/5 rounded-2xl hover:bg-white/5 transition-colors group">
+                  {data.auditLogs?.map((log, idx) => (
+                    <div key={`${log.id}-${idx}`} className="flex gap-4 p-5 bg-white/2 border border-white/5 rounded-2xl hover:bg-white/5 transition-colors group">
                       <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${
                         log.type === 'BAN' ? 'bg-red-500' : 
                         log.type === 'MAINTENANCE' ? 'bg-yellow-500' : 

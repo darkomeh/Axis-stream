@@ -1,15 +1,20 @@
+import React from "react";
 import { Link } from "react-router-dom";
 import { MediaItem } from "../types";
 import { Play } from "lucide-react";
 import { motion } from "motion/react";
 import { MovieImage } from "./MovieImage";
 
+import { useMediaPreview } from "../contexts/MediaPreviewContext";
+
 interface ContinueWatchingGridProps {
   title?: string;
   items: any[];
 }
 
-export default function ContinueWatchingGrid({ title, items }: ContinueWatchingGridProps) {
+function ContinueWatchingGrid({ title, items }: ContinueWatchingGridProps) {
+  const { openPreview } = useMediaPreview();
+
   if (!items || items.length === 0) return null;
 
   return (
@@ -40,9 +45,10 @@ export default function ContinueWatchingGrid({ title, items }: ContinueWatchingG
                 transition={{ duration: 0.5, delay: index * 0.05 }}
                 className="flex-none w-[280px] sm:w-[320px] md:w-[400px] snap-start"
               >
-                <Link 
-                  to={`/details/${item.id}`} 
-                  className="relative block aspect-video rounded-2xl overflow-hidden bg-white/5 transition-all duration-500 hover:scale-[1.02] border border-white/10 active:scale-95 group shadow-2xl"
+                <div 
+                  role="button"
+                  onClick={() => openPreview(item.id, 'continue-watching')}
+                  className="relative block aspect-video rounded-2xl overflow-hidden bg-white/5 transition-all duration-500 hover:scale-[1.02] border border-white/10 active:scale-95 group shadow-2xl cursor-pointer"
                 >
                   {/* Background Image */}
                   <div className="absolute inset-0 z-0">
@@ -95,7 +101,7 @@ export default function ContinueWatchingGrid({ title, items }: ContinueWatchingG
                       </span>
                     </div>
                   </div>
-                </Link>
+                </div>
               </motion.div>
             );
           })}
@@ -104,3 +110,5 @@ export default function ContinueWatchingGrid({ title, items }: ContinueWatchingG
     </section>
   );
 }
+
+export default React.memo(ContinueWatchingGrid);

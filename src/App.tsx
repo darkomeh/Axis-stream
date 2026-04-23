@@ -6,7 +6,10 @@
 import React, { Suspense, lazy, useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
+import { ToastProvider } from "./contexts/ToastContext";
+import { MediaPreviewProvider } from "./contexts/MediaPreviewContext";
 import BottomNav from "./components/BottomNav";
+import MediaPreviewTray from "./components/MediaPreviewTray";
 import PopcornLoader from "./components/PopcornLoader";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AnimatePresence, motion } from "motion/react";
@@ -47,6 +50,7 @@ const OfflinePlayer = lazyWithRetry(() => import("./pages/OfflinePlayer"));
 const Ranking = lazyWithRetry(() => import("./pages/Ranking"));
 const Live = lazyWithRetry(() => import("./pages/Live"));
 const Admin = lazyWithRetry(() => import("./pages/Admin"));
+const Legal = lazyWithRetry(() => import("./pages/Legal"));
 
 import { useAuth } from "./contexts/AuthContext";
 
@@ -81,8 +85,8 @@ function AppContent() {
   const shouldShowNav = showNavRoutes.includes(location.pathname);
 
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-brand/30 selection:text-white font-sans antialiased pb-20 lg:pl-64">
-
+    <div className="min-h-screen bg-black text-white selection:bg-brand/30 selection:text-white font-sans antialiased pb-20">
+      <MediaPreviewTray />
       <main>
         <Suspense fallback={
           <div className="min-h-screen flex items-center justify-center bg-black">
@@ -103,6 +107,7 @@ function AppContent() {
                 <Route path="/ranking" element={<PageWrapper><Ranking /></PageWrapper>} />
                 <Route path="/live" element={<PageWrapper><Live /></PageWrapper>} />
                 <Route path="/admin" element={<PageWrapper><Admin /></PageWrapper>} />
+                <Route path="/legal/:type" element={<PageWrapper><Legal /></PageWrapper>} />
                 {/* Fallback routes for movies/series/trending to browse for now */}
                 <Route path="/movies" element={<PageWrapper><Browse /></PageWrapper>} />
                 <Route path="/series" element={<PageWrapper><Browse /></PageWrapper>} />
@@ -121,9 +126,13 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <Router>
-          <AppContent />
-        </Router>
+        <ToastProvider>
+          <MediaPreviewProvider>
+            <Router>
+              <AppContent />
+            </Router>
+          </MediaPreviewProvider>
+        </ToastProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

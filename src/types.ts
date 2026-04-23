@@ -36,10 +36,25 @@ export interface ItemDetails {
   contentRating?: string;
   year?: string;
   genres?: string[];
-  cast?: { id: string; name: string; avatar?: string }[];
+  cast?: { id: string; name: string; character?: string; avatar?: string; avatarUrl?: string }[];
   type?: string | number;
   duration?: string;
   detailPath?: string;
+  imdbRatingValue?: string;
+  releaseDate?: string;
+  subtitles?: string;
+  images?: string[];
+  trailer?: {
+    videoAddress: {
+      url: string;
+      duration?: number;
+      width?: number;
+      height?: number;
+    };
+    cover: {
+      url: string;
+    };
+  };
   seasons?: {
     se: number;
     maxEp: number;
@@ -68,6 +83,7 @@ export interface Actor {
   id: string;
   name: string;
   avatar: string;
+  avatarUrl?: string;
   description?: string;
   birthday?: string;
   birthPlace?: string;

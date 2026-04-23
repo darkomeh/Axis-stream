@@ -15,7 +15,7 @@ export const MovieImage: React.FC<MovieImageProps> = ({ src, alt, fallback, clas
   React.useEffect(() => {
     setError(false);
     setRetryCount(0);
-    setUseProxy(false);
+    setUseProxy(src.includes('pbcdnw.aoneroom.com'));
     setIsLoaded(false);
   }, [src]);
 
@@ -76,7 +76,6 @@ export const MovieImage: React.FC<MovieImageProps> = ({ src, alt, fallback, clas
         onError={handleError}
         onLoad={() => setIsLoaded(true)}
         className={`w-full h-full object-cover transition-opacity duration-700 ease-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-        referrerPolicy="no-referrer"
         loading="lazy"
         {...props}
       />

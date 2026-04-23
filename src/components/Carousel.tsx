@@ -5,6 +5,8 @@ import { Play, ChevronLeft, ChevronRight, Star, Plus, Check } from "lucide-react
 import { motion, AnimatePresence } from "motion/react";
 import { MovieImage } from "./MovieImage";
 import { useAuth } from "../contexts/AuthContext";
+import { useToast } from "../contexts/ToastContext";
+import { useMediaPreview } from "../contexts/MediaPreviewContext";
 
 interface CarouselProps {
   items: MediaItem[];
@@ -14,6 +16,8 @@ export default function Carousel({ items }: CarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const { user, isInWatchlist, addToWatchlist, removeFromWatchlist } = useAuth();
+  const { showToast } = useToast();
+  const { openPreview } = useMediaPreview();
 
   useEffect(() => {
     if (items.length === 0 || isHovered) return;
@@ -27,8 +31,10 @@ export default function Carousel({ items }: CarouselProps) {
 
   const currentItem = items[currentIndex];
 
-  const nextSlide = () => setCurrentIndex((prev) => (prev + 1) % items.length);
-  const prevSlide = () => setCurrentIndex((prev) => (prev - 1 + items.length) % items.length);
+  const getBadges = (item: MediaItem) => {
+    const isModern = item.year && parseInt(item.year) >= 2023;
+    return isModern ? "GLOBAL PREMIERE" : "STREAMING NOW";
+  };
 
   return (
     <div 
@@ -46,7 +52,10 @@ export default function Carousel({ items }: CarouselProps) {
           className="absolute inset-0"
         >
           {currentItem.poster ? (
-            <div className="relative w-full h-full">
+            <div 
+              className="relative w-full h-full cursor-pointer"
+              onClick={() => openPreview(currentItem.id)}
+            >
                <MovieImage
                 src={currentItem.poster}
                 alt={currentItem.title}
@@ -72,9 +81,10 @@ export default function Carousel({ items }: CarouselProps) {
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="max-w-2xl lg:max-w-3xl animate-fade-in"
           >
-            <div className="mb-2 md:mb-4">
-              <span className="text-brand font-black text-[10px] md:text-sm tracking-[0.3em] uppercase italic">
-                NEW RELEASE
+            <div className="mb-2 md:mb-4 flex items-center gap-3">
+              <div className="w-8 h-[2px] bg-brand shadow-[0_0_10px_rgba(255,45,45,0.8)]" />
+              <span className="text-brand font-black text-[10px] md:text-sm tracking-[0.4em] uppercase italic">
+                {getBadges(currentItem)}
               </span>
             </div>
 
@@ -91,22 +101,20 @@ export default function Carousel({ items }: CarouselProps) {
               </span>
               <span className="text-white/20">•</span>
 
-              <span className="text-white/80 uppercase">{currentItem.category || (currentItem.type == 1 || currentItem.type === 'Movie' ? 'Sci-Fi' : 'Thriller')}</span>
+              <span className="text-white/80 uppercase tracking-widest">{currentItem.category || (currentItem.type == 1 || currentItem.type === 'Movie' ? 'Movie' : 'Series')}</span>
               
               {currentItem.rating && (
                 <>
                   <span className="text-white/20">•</span>
-                  <span className="flex items-center gap-1.5 px-2 py-0.5 bg-[#f5c518] text-black font-black text-[9px] md:text-[10px] rounded-sm tracking-tighter">
+                  <span className="flex items-center gap-1.5 px-2 py-0.5 bg-[#f5c518] text-black font-black text-[9px] md:text-[10px] rounded-sm tracking-tighter shadow-[0_4px_10px_rgba(245,197,24,0.2)]">
                      IMDb {currentItem.rating}
                   </span>
                 </>
               )}
             </div>
 
-            <p className="text-gray-300 text-[13px] md:text-base line-clamp-2 md:line-clamp-3 mb-8 md:mb-10 max-w-xl leading-relaxed font-semibold">
-              {currentItem.description && currentItem.description.trim().length > 10 
-                ? currentItem.description 
-                : `${currentItem.title} - Dive into an unparalleled cinematic experience on AXIS TV. Explore the depths of this ${currentItem.category || (currentItem.type == 1 || currentItem.type === 'Movie' ? 'Sci-Fi' : 'Thriller')} journey as secrets unfold and destinies collide in this high-definition masterpiece.`}
+            <p className="text-gray-300 text-[13px] md:text-base line-clamp-2 md:line-clamp-3 mb-8 md:mb-10 max-w-xl leading-relaxed font-semibold opacity-80 italic">
+              {currentItem.description || ''}
             </p>
 
             <div className="flex items-center gap-3 md:gap-4">
@@ -120,13 +128,15 @@ export default function Carousel({ items }: CarouselProps) {
               <button
                 onClick={() => {
                   if (!user) {
-                    alert("Please sign in to add to your list.");
+                    showToast("Please sign in to add to your list.", "error");
                     return;
                   }
                   if (isInWatchlist(currentItem.id)) {
                     removeFromWatchlist(currentItem.id);
+                    showToast("Removed from My List", "info");
                   } else {
                     addToWatchlist(currentItem);
+                    showToast("Added to My List", "success");
                   }
                 }}
                 className={`flex items-center gap-2 px-6 md:px-8 py-3.5 md:py-4 rounded-md font-black uppercase text-[13px] md:text-[15px] transition-all border active:scale-95 ${isInWatchlist(currentItem.id) ? 'bg-brand border-brand text-white shadow-brand' : 'bg-white/5 border-white/20 text-white hover:bg-white/10 hover:border-white'}`}

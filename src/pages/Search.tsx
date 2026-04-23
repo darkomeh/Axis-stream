@@ -290,6 +290,7 @@ export default function Search() {
                    src={user?.avatar || "https://picsum.photos/seed/user/100/100"} 
                    className="w-full h-full rounded-full object-cover" 
                    alt="Profile"
+                   loading="lazy"
                    referrerPolicy="no-referrer"
                  />
                </div>
@@ -403,6 +404,7 @@ export default function Search() {
                       src={c.image} 
                       alt={c.name}
                       className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                      loading="lazy"
                       referrerPolicy="no-referrer"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent group-hover:via-black/10 transition-all duration-500" />

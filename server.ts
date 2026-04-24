@@ -453,18 +453,6 @@ app.get("/api/image-proxy", async (req, res) => {
       method: 'GET',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
-        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Connection': 'keep-alive',
-        'Referer': url.origin + '/',
-        'Origin': url.origin,
-        'sec-ch-ua': '"Google Chrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"Windows"',
-        'sec-fetch-dest': 'image',
-        'sec-fetch-mode': 'no-cors',
-        'sec-fetch-site': 'cross-site'
       }
     });
 
@@ -482,7 +470,6 @@ app.get("/api/image-proxy", async (req, res) => {
                 method: 'GET',
                 headers: { 
                   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
-                  'Referer': url.origin + '/'
                 }
             });
             if (fallbackResponse.ok) {

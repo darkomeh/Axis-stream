@@ -20,13 +20,9 @@ export const MovieImage: React.FC<MovieImageProps> = ({
   // Try to use provided tint, fallback to a dark gray
   const bgTint = avgHueDark || '#1a1a1a';
   
-  // Use proxy for external images to bypass Cloudflare and referer checks
+  // Use raw direct URL
   const finalSrc = React.useMemo(() => {
-    const raw = src || fallback || '';
-    if (raw && raw.startsWith('http') && !raw.includes(window.location.host)) {
-      return `/api/image-proxy?url=${encodeURIComponent(raw)}`;
-    }
-    return raw;
+    return src || fallback || '';
   }, [src, fallback]);
 
   if (!finalSrc) {

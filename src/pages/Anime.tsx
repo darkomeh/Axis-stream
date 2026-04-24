@@ -133,7 +133,7 @@ export default function Anime() {
           <ListSkeleton count={12} />
         ) : items.length > 0 ? (
           <div className="space-y-8">
-            <PosterGrid items={items} />
+            <PosterGrid items={items} variant="grid" />
             
             {hasMore && query.trim() === "" && (
               <div ref={lastElementRef} className="flex justify-center pt-8 h-20">

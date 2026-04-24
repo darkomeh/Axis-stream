@@ -11,6 +11,7 @@ export interface MediaItem {
   detailPath?: string;
   genres?: string[];
   description?: string;
+  avgHueDark?: string;
 }
 
 export interface HomepageSection {
@@ -44,6 +45,7 @@ export interface ItemDetails {
   releaseDate?: string;
   subtitles?: string;
   images?: string[];
+  avgHueDark?: string;
   trailer?: {
     videoAddress: {
       url: string;

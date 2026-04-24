@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
-  Search, Bell, Home, Film, Tv, ListPlus, Radio, 
+  Search, Bell, Home, Film, Tv, Trophy, Radio, 
   LayoutGrid, Grid2X2, Settings, User as UserIcon
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
@@ -35,9 +35,10 @@ function Navbar() {
 
   const SIDEBAR_LINKS = [
     { label: 'Home', path: '/', icon: Home, isActive: location.pathname === '/' },
-    { label: 'Movies', path: '/browse?type=1', icon: Film, isActive: location.search.includes('type=1') },
-    { label: 'Series', path: '/browse?type=2', icon: Tv, isActive: location.search.includes('type=2') },
-    { label: 'Playlist', path: '/profile', icon: ListPlus, isActive: location.pathname === '/profile' },
+    { label: 'Movies', path: '/movies', icon: Film, isActive: location.pathname === '/movies' || location.search.includes('type=1') },
+    { label: 'Series', path: '/series', icon: Tv, isActive: location.pathname === '/series' || location.search.includes('type=2') },
+    { label: 'Rank', path: '/ranking', icon: Trophy, isActive: location.pathname === '/ranking' },
+    { label: 'Profile', path: '/profile', icon: UserIcon, isActive: location.pathname === '/profile' },
     { label: 'Live TV', path: '/live', icon: Radio, isActive: location.pathname === '/live' },
     { label: 'Browse', path: '/browse', icon: LayoutGrid, isActive: location.pathname === '/browse' && !location.search },
     { label: 'Categories', path: '/categories', icon: Grid2X2, isActive: location.pathname === '/categories' },
@@ -147,40 +148,40 @@ function Navbar() {
             className={`lg:hidden fixed left-0 right-0 top-0 z-50 transition-all duration-300 ${
             isScrolled ? "bg-bg-base/95 premium-blur border-b border-white/5" : "bg-gradient-to-b from-bg-base/80 to-transparent"
           }`}>
-            <div className="flex items-center justify-between px-6 pt-6 pb-2">
-              <Link to="/" className="flex items-center gap-2">
-                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-brand">
+            <div className="flex items-center justify-between px-fluid-sm pt-6 pb-2 gap-2">
+              <Link to="/" className="flex items-center gap-1.5 shrink-0">
+                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-brand w-5 h-5 md:w-6 md:h-6">
                    <path d="M12 2L22 20H2L12 2Z" fill="currentColor"/>
                  </svg>
-                <span className="text-xl font-black tracking-widest text-white uppercase italic">
+                <span className="text-fluid-xl font-black tracking-widest text-white uppercase italic whitespace-nowrap">
                   AXIS <span className="text-brand not-italic">TV</span>
                 </span>
               </Link>
-              <div className="flex items-center gap-3">
-                <Link to="/search" className="w-10 h-10 flex items-center justify-center text-gray-300 hover:text-brand transition-colors bg-white/5 rounded-full backdrop-blur-md">
-                  <Search className="w-5 h-5" />
+              <div className="flex items-center gap-2 md:gap-3 shrink-0">
+                <Link to="/search" className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center text-gray-300 hover:text-brand transition-colors bg-white/5 rounded-full backdrop-blur-md">
+                  <Search className="w-4.5 h-4.5 md:w-5 md:h-5" />
                 </Link>
                 <Link to="/profile" className="relative group">
                   {user?.avatar ? (
-                    <div className="w-10 h-10 rounded-full p-[1px] bg-gradient-to-tr from-brand to-transparent">
+                    <div className="w-9 h-9 md:w-10 md:h-10 rounded-full p-[1px] bg-gradient-to-tr from-brand to-transparent">
                       <img src={user.avatar || undefined} alt="Profile" className="w-full h-full rounded-full object-cover border-2 border-black" loading="lazy" />
                     </div>
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-[#141414] flex items-center justify-center text-white border border-white/20">
-                      <UserIcon className="w-5 h-5" />
+                    <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-[#141414] flex items-center justify-center text-white border border-white/20">
+                      <UserIcon className="w-4.5 h-4.5 md:w-5 md:h-5" />
                     </div>
                   )}
-                  <div className="absolute top-0 right-0 w-3 h-3 bg-brand rounded-full border-2 border-bg-base" />
+                  <div className="absolute top-0 right-0 w-2.5 h-2.5 md:w-3 md:h-3 bg-brand rounded-full border-2 border-bg-base" />
                 </Link>
               </div>
             </div>
 
             {/* Mobile Tabs */}
-            <div className="flex items-center gap-8 px-6 overflow-x-auto hide-scrollbar pb-3">
-               <Link to="/" className={`text-[15px] font-black pb-2 border-b-2 whitespace-nowrap uppercase tracking-tighter transition-all ${location.pathname === '/' ? 'text-white border-brand' : 'text-gray-500 border-transparent'}`}>Home</Link>
-               <Link to="/browse?type=1" className={`text-[15px] font-black pb-2 border-b-2 whitespace-nowrap uppercase tracking-tighter transition-all ${location.search.includes('type=1') ? 'text-white border-brand' : 'text-gray-500 border-transparent'}`}>Movies</Link>
-               <Link to="/browse?type=2" className={`text-[15px] font-black pb-2 border-b-2 whitespace-nowrap uppercase tracking-tighter transition-all ${location.search.includes('type=2') ? 'text-white border-brand' : 'text-gray-500 border-transparent'}`}>Series</Link>
-               <Link to="/profile" className={`text-[15px] font-black pb-2 border-b-2 whitespace-nowrap uppercase tracking-tighter transition-all ${location.pathname === '/profile' ? 'text-white border-brand' : 'text-gray-500 border-transparent'}`}>Playlist</Link>
+            <div className="flex items-center gap-6 md:gap-8 px-fluid-sm overflow-x-auto hide-scrollbar pb-3">
+               <Link to="/" className={`text-fluid-sm font-black pb-2 border-b-2 whitespace-nowrap uppercase tracking-tighter transition-all ${location.pathname === '/' ? 'text-white border-brand' : 'text-gray-500 border-transparent'}`}>Home</Link>
+               <Link to="/movies" className={`text-fluid-sm font-black pb-2 border-b-2 whitespace-nowrap uppercase tracking-tighter transition-all ${location.pathname === '/movies' || location.search.includes('type=1') ? 'text-white border-brand' : 'text-gray-500 border-transparent'}`}>Movies</Link>
+               <Link to="/series" className={`text-fluid-sm font-black pb-2 border-b-2 whitespace-nowrap uppercase tracking-tighter transition-all ${location.pathname === '/series' || location.search.includes('type=2') ? 'text-white border-brand' : 'text-gray-500 border-transparent'}`}>Series</Link>
+               <Link to="/ranking" className={`text-fluid-sm font-black pb-2 border-b-2 whitespace-nowrap uppercase tracking-tighter transition-all ${location.pathname === '/ranking' ? 'text-white border-brand' : 'text-gray-500 border-transparent'}`}>Rank</Link>
             </div>
           </motion.header>
         </>

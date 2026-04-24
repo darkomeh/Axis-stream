@@ -11,7 +11,7 @@ export default function BottomNav() {
     { path: "/", icon: Home, label: "Home" },
     { path: "/browse", icon: LayoutGrid, label: "Browse" },
     { path: "/search", icon: Search, label: "Search" },
-    { path: "/ranking", icon: Trophy, label: "Rankings" },
+    { path: "/ranking", icon: Trophy, label: "Rank" },
     { path: "/profile", icon: User, label: "Profile" },
   ];
 
@@ -23,9 +23,9 @@ export default function BottomNav() {
           animate={{ y: 0, x: "-50%", opacity: 1 }}
           exit={{ y: 100, x: "-50%", opacity: 0 }}
           transition={{ type: "spring", damping: 25, stiffness: 200 }}
-          className="fixed bottom-6 left-1/2 z-[100] w-[92%] max-w-lg lg:hidden"
+          className="fixed bottom-6 left-1/2 z-[100] w-[92%] max-w-lg md:hidden"
         >
-          <nav className="bg-black/60 backdrop-blur-2xl border border-white/10 rounded-3xl px-6 py-3 shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/5">
+          <nav className="bg-black/60 backdrop-blur-2xl border border-white/10 rounded-3xl px-3 md:px-6 py-2.5 md:py-3 shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/5">
             <div className="flex justify-between items-center relative">
               {navItems.map((item, idx) => {
                 const isActive = location.pathname === item.path;
@@ -50,7 +50,7 @@ export default function BottomNav() {
                         isActive ? "text-brand drop-shadow-[0_0_8px_rgba(255,45,45,0.6)]" : "text-gray-400 group-hover:text-gray-200"
                       }`} />
                     </div>
-                    <span className={`text-[9px] font-black uppercase tracking-[0.1em] transition-colors duration-300 ${
+                    <span className={`text-[8px] font-black uppercase tracking-tighter transition-colors duration-300 ${
                       isActive ? "text-white" : "text-gray-500"
                     }`}>
                       {item.label}

@@ -9,11 +9,37 @@
   --color-bg-sidebar: #050505;
   --color-card: #181818;
   --radius-card: 12px;
+
+  /* Fluid Constants */
+  --fluid-px-4: clamp(0.5rem, 1.5vw, 1rem); /* 8px to 16px */
+  --fluid-px-6: clamp(0.625rem, 2vw, 1.5rem); /* 10px to 24px */
+  --fluid-px-12: clamp(0.875rem, 4vw, 3rem); /* 14px to 48px */
+  
+  --fluid-font-xs: clamp(0.5rem, 0.8vw, 0.7rem);
+  --fluid-font-sm: clamp(0.6rem, 1.2vw, 0.8rem);
+  --fluid-font-base: clamp(0.7rem, 1.8vw, 0.95rem);
+  --fluid-font-lg: clamp(0.8rem, 2.2vw, 1.1rem);
+  --fluid-font-xl: clamp(0.9rem, 3vw, 1.2rem);
+  --fluid-font-2xl: clamp(1rem, 4vw, 1.4rem);
+  --fluid-font-hero: clamp(1.2rem, 7vw, 4rem);
+}
+
+@layer utilities {
+  .text-fluid-xs { font-size: var(--fluid-font-xs); }
+  .text-fluid-sm { font-size: var(--fluid-font-sm); }
+  .text-fluid-base { font-size: var(--fluid-font-base); }
+  .text-fluid-lg { font-size: var(--fluid-font-lg); }
+  .text-fluid-xl { font-size: var(--fluid-font-xl); }
+  .text-fluid-2xl { font-size: var(--fluid-font-2xl); }
+  .text-fluid-hero { font-size: var(--fluid-font-hero); }
+
+  .px-fluid { padding-left: var(--fluid-px-12); padding-right: var(--fluid-px-12); }
+  .px-fluid-sm { padding-left: var(--fluid-px-6); padding-right: var(--fluid-px-6); }
 }
 
 @layer base {
   body {
-    @apply bg-bg-base text-white antialiased selection:bg-brand/30 selection:text-white;
+    @apply bg-bg-base text-white antialiased selection:bg-brand/30 selection:text-white overflow-x-hidden;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }

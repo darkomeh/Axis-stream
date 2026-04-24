@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { movieService } from "../services/movieService";
 import { MediaItem } from "../types";
 import PosterGrid from "../components/PosterGrid";
@@ -68,8 +68,14 @@ import { ListSkeleton } from "../components/Skeleton";
 
 export default function Browse() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
-  const initialType = searchParams.get("type") || "0";
+  
+  let pathType = "0";
+  if (location.pathname === "/movies" || location.pathname === "/movie") pathType = "1";
+  if (location.pathname === "/series") pathType = "2";
+  
+  const initialType = searchParams.get("type") || pathType;
   const typeVal = parseInt(initialType) > 0 ? initialType : 1;
   const initialCacheKey = `-${typeVal}-20`;
 
@@ -84,6 +90,11 @@ export default function Browse() {
   const [selectedGenre, setSelectedGenre] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("");
   const [selectedType, setSelectedType] = useState(initialType);
+  
+  // Sync selectedType when route changes (e.g. Navigating between /movies and /series)
+  useEffect(() => {
+    setSelectedType(initialType);
+  }, [initialType]);
 
   const [showFilters, setShowFilters] = useState(false);
   const observer = useRef<IntersectionObserver | null>(null);
@@ -192,7 +203,7 @@ export default function Browse() {
             animate={{ opacity: 1, y: 0 }}
           >
             <h1 className="text-5xl md:text-7xl font-black mb-4 tracking-tighter uppercase leading-none italic" style={{ WebkitTextStroke: '1px rgba(255,255,255,0.1)' }}>
-              Browse <span className="text-brand">Movies</span>
+              Browse <span className="text-brand">{selectedType === "1" ? "Movies" : selectedType === "2" ? "Series" : "All"}</span>
             </h1>
             <p className="text-gray-500 font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs">Curated Excellence • Global Cinema • Unlimited Access</p>
           </motion.div>
@@ -343,7 +354,7 @@ export default function Browse() {
                 <h2 className="text-2xl font-black uppercase tracking-tighter">Recommended Gallery</h2>
              </div>
              
-             <PosterGrid items={items} loading={loading} />
+             <PosterGrid items={items} loading={loading} variant="grid" />
             
             {hasMore && (
               <div ref={lastElementRef} className="flex justify-center pt-16 h-40">

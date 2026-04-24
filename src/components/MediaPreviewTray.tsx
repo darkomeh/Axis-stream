@@ -303,6 +303,7 @@ export default function MediaPreviewTray() {
                       <MovieImage 
                         src={slideImages[slideIndex] || details?.background || details?.poster || ""} 
                         alt={details?.title || ""} 
+                        avgHueDark={details?.avgHueDark}
                         className="w-full h-full object-cover opacity-60"
                       />
                     </motion.div>
@@ -315,7 +316,7 @@ export default function MediaPreviewTray() {
               <div className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-[#0c0c0c]/80 via-[#0c0c0c]/40 to-transparent pointer-events-none" />
 
               {/* Header Controls */}
-              <div className="absolute top-0 inset-x-0 p-4 flex justify-end z-20">
+              <div className="absolute top-0 inset-x-0 p-fluid-sm flex justify-end z-20">
                 <button 
                   onClick={handleClose}
                   className="w-10 h-10 flex items-center justify-center bg-black/40 hover:bg-black/60 backdrop-blur-md rounded-full text-white transition-all"
@@ -326,95 +327,98 @@ export default function MediaPreviewTray() {
 
               {/* Mute/Unmute Float */}
               {!loading && trailerUrl && (
-                <div className="absolute bottom-6 right-6 z-20">
+                <div className="absolute bottom-fluid-sm right-fluid-sm z-20">
                   <button 
                     onClick={() => setIsMuted(!isMuted)}
-                    className="w-10 h-10 flex items-center justify-center bg-black/40 hover:bg-black/60 backdrop-blur-md rounded-full text-white transition-all"
+                    className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center bg-black/40 hover:bg-black/60 backdrop-blur-md rounded-full text-white transition-all"
                   >
-                    {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                    {isMuted ? <VolumeX className="w-4 h-4 md:w-5 md:h-5" /> : <Volume2 className="w-4 h-4 md:w-5 md:h-5" />}
                   </button>
                 </div>
               )}
 
               {/* Mini Info Overlay */}
-              <div className="absolute bottom-6 left-6 right-6 z-20">
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  <h2 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter text-white drop-shadow-2xl mb-4 max-w-[80%]">
-                    {details?.title}
-                  </h2>
-                </motion.div>
+              <div className="absolute bottom-fluid-sm left-fluid right-fluid z-20 pointer-events-none">
+                {details && (
+                  <motion.div
+                    key={details.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    <h2 className="text-lg md:text-3xl font-black italic uppercase tracking-tighter text-white drop-shadow-2xl mb-2 md:mb-4 max-w-[90%] md:max-w-[70%] line-clamp-2 md:line-clamp-none">
+                      {details.title}
+                    </h2>
+                  </motion.div>
+                )}
               </div>
             </div>
 
             {/* Detailed Content */}
-            <div className="px-6 md:px-12 py-8 space-y-10">
+            <div className="px-fluid py-fluid-sm space-y-6 md:space-y-10">
               {/* Meta Info Row - Based on reference image */}
-              <div className="flex flex-col gap-2">
-                <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-gray-300">
+              <div className="flex flex-col gap-1 md:gap-2">
+                <div className="flex flex-wrap items-center gap-1.5 md:gap-2 text-[11px] md:text-sm font-bold text-gray-300">
                   {details?.year && <span className="hover:text-white transition-colors">{details.year}</span>}
-                  <span className="text-gray-600 font-normal ml-1">|</span>
+                  <span className="text-gray-600 font-normal">|</span>
                   {details?.rating && (
-                    <span className="px-1.5 py-0.5 rounded border border-white/20 text-[10px] font-black tracking-widest text-gray-300 ml-1">
+                    <span className="px-1 md:px-1.5 py-0.5 rounded border border-white/20 text-[9px] md:text-[10px] font-black tracking-widest text-gray-300">
                       {details.rating}
                     </span>
                   )}
-                  <span className="text-gray-600 font-normal ml-1">|</span>
-                  {details?.duration && <span className="ml-1">{details.duration}</span>}
-                  <span className="text-gray-600 font-normal ml-1">|</span>
-                  <span className="flex items-center gap-1 ml-1">
+                  <span className="text-gray-600 font-normal">|</span>
+                  {details?.duration && <span>{details.duration}</span>}
+                  <span className="text-gray-600 font-normal">|</span>
+                  <span className="flex items-center gap-1">
                     {(Array.isArray(details?.genres) ? details.genres : (details?.genres as any)?.split(',') || []).slice(0, 3).map((g: string, i: number, arr: string[]) => (
                       <span key={i} className="flex items-center">
                         {g.trim()}
-                        {i < arr.length - 1 && <span className="mr-1">,</span>}
+                        {i < arr.length - 1 && <span className="mr-0.5 md:mr-1">,</span>}
                       </span>
                     ))}
                   </span>
-                  <span className="text-gray-600 font-normal ml-1">|</span>
-                  <div className="flex items-center gap-1.5 bg-[#f5c518] px-1.5 py-0.5 rounded overflow-hidden ml-1">
-                    <span className="text-[10px] text-black font-black uppercase tracking-tighter">IMDb</span>
-                    <span className="text-black font-black text-xs leading-none">{details?.imdbRatingValue || '8.0'}</span>
+                  <span className="text-gray-600 font-normal">|</span>
+                  <div className="flex items-center gap-1 md:gap-1.5 bg-[#f5c518] px-1 md:px-1.5 py-0.5 rounded overflow-hidden">
+                    <span className="text-[8px] md:text-[10px] text-black font-black uppercase tracking-tighter">IMDb</span>
+                    <span className="text-black font-black text-[10px] md:text-xs leading-none">{details?.imdbRatingValue || '8.0'}</span>
                   </div>
                 </div>
                 
-                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em] mt-1">
+                <div className="text-[9px] md:text-[10px] text-gray-500 font-bold uppercase tracking-[0.15em] md:tracking-[0.2em] mt-1">
                   {playData?.subtitles?.length ? `Subtitles: ${playData.subtitles.map(s => s.language).join(', ')}` : "Standard Subtitles Available"}
                 </div>
               </div>
               
-              <p className="text-white/80 leading-relaxed text-[15px] font-medium max-w-3xl">
+              <p className="text-white/80 leading-relaxed text-[13px] md:text-[15px] font-medium max-w-3xl line-clamp-3 md:line-clamp-none">
                 {details?.description || "No description available."}
               </p>
 
               {/* Primary Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
                 <button 
                   onClick={handlePlay}
-                  className="flex-1 flex items-center justify-center gap-3 bg-brand text-white py-4 rounded-xl font-black uppercase tracking-[0.2em] shadow-[0_10px_30px_rgba(229,9,20,0.3)] active:scale-[0.98] transition-all"
+                  className="flex-1 flex items-center justify-center gap-2 md:gap-3 bg-brand text-white py-3.5 md:py-4 rounded-xl font-black uppercase tracking-[0.15em] md:tracking-[0.2em] shadow-[0_10px_30px_rgba(229,9,20,0.3)] active:scale-[0.98] transition-all text-sm md:text-base"
                 >
-                  <Play className="w-5 h-5 fill-current" />
+                  <Play className="w-4 h-4 md:w-5 md:h-5 fill-current" />
                   Watch Now
                 </button>
                 <button 
                   onClick={() => setIsDownloadTrayOpen(true)}
-                  className="flex-1 flex items-center justify-center gap-3 bg-white/10 hover:bg-white/20 text-white py-4 rounded-xl font-black uppercase tracking-[0.2em] border border-white/10 active:scale-[0.98] transition-all"
+                  className="flex-1 flex items-center justify-center gap-2 md:gap-3 bg-white/10 hover:bg-white/20 text-white py-3.5 md:py-4 rounded-xl font-black uppercase tracking-[0.15em] md:tracking-[0.2em] border border-white/10 active:scale-[0.98] transition-all text-sm md:text-base"
                 >
-                  <Download className="w-5 h-5" />
+                  <Download className="w-4 h-4 md:w-5 md:h-5" />
                   Download
                 </button>
               </div>
 
-              {/* Starring Section - Moved above buttons as per image */}
-              <div className="space-y-6">
-                <h3 className="text-white font-black text-sm uppercase tracking-[4px]">Starring</h3>
-                <div className="flex gap-6 overflow-x-auto no-scrollbar pb-2">
+              {/* Starring Section */}
+              <div className="space-y-4 md:space-y-6">
+                <h3 className="text-white font-black text-xs md:text-sm uppercase tracking-[3px] md:tracking-[4px]">Starring</h3>
+                <div className="flex gap-4 md:gap-6 overflow-x-auto no-scrollbar pb-2">
                   {details?.cast?.slice(0, 10).map((actor: any, index: number) => (
                     <div 
                       key={`${actor.id}-${index}`} 
-                      className="flex flex-col items-center gap-4 min-w-[120px] group cursor-pointer" 
+                      className="flex flex-col items-center gap-3 md:gap-4 min-w-[100px] md:min-w-[120px] group cursor-pointer" 
                       onClick={() => { 
                         handleClose(); 
                         setTimeout(() => navigate(`/actor/${actor.id}`), 300);
@@ -425,12 +429,12 @@ export default function MediaPreviewTray() {
                           staffId={actor.id}
                           initialAvatar={actor.avatar}
                           alt={actor.name} 
-                          className="w-24 h-24 rounded-full object-cover border-4 border-white/5 bg-[#1a1a1a] group-hover:border-brand/40 transition-all shadow-2xl !rounded-full" 
+                          className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-2 md:border-4 border-white/5 bg-[#1a1a1a] group-hover:border-brand/40 transition-all shadow-2xl !rounded-full" 
                         />
                       </div>
-                      <div className="text-center w-full px-2">
-                        <p className="text-white text-xs font-black leading-tight group-hover:text-brand transition-colors">{actor.name}</p>
-                        <p className="text-gray-500 text-[10px] font-bold mt-1 uppercase tracking-tighter leading-tight whitespace-normal break-words">
+                      <div className="text-center w-full px-1 md:px-2">
+                        <p className="text-white text-[10px] md:text-xs font-black leading-tight group-hover:text-brand transition-colors line-clamp-1">{actor.name}</p>
+                        <p className="text-gray-500 text-[9px] md:text-[10px] font-bold mt-1 uppercase tracking-tighter leading-tight whitespace-normal break-words line-clamp-1">
                           as {actor.character ? actor.character : "Supporting Role"}
                         </p>
                       </div>
@@ -439,24 +443,24 @@ export default function MediaPreviewTray() {
                 </div>
               </div>
 
-              {/* Action Buttons Circular Style - Below Starring */}
-              <div className="flex items-center gap-10 py-6 border-t border-white/5">
+              {/* Action Buttons Circular Style */}
+              <div className="flex items-center justify-around md:justify-start gap-6 md:gap-10 py-4 md:py-6 border-t border-white/5">
                 <button 
                   onClick={toggleWatchlist} 
-                  className="flex flex-col items-center gap-3 group transition-transform active:scale-95"
+                  className="flex flex-col items-center gap-2 md:gap-3 group transition-transform active:scale-95"
                 >
-                  <div className={`w-14 h-14 flex items-center justify-center rounded-full border-2 transition-all ${
+                  <div className={`w-11 h-11 md:w-14 md:h-14 flex items-center justify-center rounded-full border-[1.5px] md:border-2 transition-all ${
                     details && isInWatchlist(details.id) 
                       ? "bg-brand border-brand shadow-[0_0_20px_rgba(229,9,20,0.4)]" 
                       : "bg-white/5 border-white/10 group-hover:border-white/20"
                   }`}>
                     {details && isInWatchlist(details.id) ? (
-                      <Check className="w-7 h-7 text-white stroke-[3]" />
+                      <Check className="w-5 h-5 md:w-7 md:h-7 text-white stroke-[3]" />
                     ) : (
-                      <Plus className="w-7 h-7 text-white stroke-[3]" />
+                      <Plus className="w-5 h-5 md:w-7 md:h-7 text-white stroke-[3]" />
                     )}
                   </div>
-                  <span className="text-[10px] font-black uppercase text-gray-400 group-hover:text-white tracking-[2px] transition-colors">My List</span>
+                  <span className="text-[8px] md:text-[10px] font-black uppercase text-gray-400 group-hover:text-white tracking-[1.5px] md:tracking-[2px] transition-colors">My List</span>
                 </button>
 
                 <button 
@@ -473,11 +477,11 @@ export default function MediaPreviewTray() {
                              showToast("Link copied to clipboard", "success");
                            }
                          }}
-                         className="flex flex-col items-center gap-3 group transition-transform active:scale-95">
-                  <div className="w-14 h-14 flex items-center justify-center rounded-full bg-white/5 border-2 border-white/10 group-hover:border-white/20 transition-all">
-                    <Share2 className="w-7 h-7 text-white stroke-[3]" />
+                         className="flex flex-col items-center gap-2 md:gap-3 group transition-transform active:scale-95">
+                  <div className="w-11 h-11 md:w-14 md:h-14 flex items-center justify-center rounded-full bg-white/5 border-[1.5px] md:border-2 border-white/10 group-hover:border-white/20 transition-all">
+                    <Share2 className="w-5 h-5 md:w-7 md:h-7 text-white stroke-[3]" />
                   </div>
-                  <span className="text-[10px] font-black uppercase text-gray-400 group-hover:text-white tracking-[2px] transition-colors">Share</span>
+                  <span className="text-[8px] md:text-[10px] font-black uppercase text-gray-400 group-hover:text-white tracking-[1.5px] md:tracking-[2px] transition-colors">Share</span>
                 </button>
                 
                 <button 
@@ -485,28 +489,28 @@ export default function MediaPreviewTray() {
                            handleClose();
                            navigate(`/details/${details?.id}`);
                          }} 
-                         className="flex flex-col items-center gap-3 group transition-transform active:scale-95">
-                  <div className="w-14 h-14 flex items-center justify-center rounded-full bg-white/5 border-2 border-white/10 group-hover:border-white/20 transition-all">
-                    <Info className="w-7 h-7 text-white stroke-[3]" />
+                         className="flex flex-col items-center gap-2 md:gap-3 group transition-transform active:scale-95">
+                  <div className="w-11 h-11 md:w-14 md:h-14 flex items-center justify-center rounded-full bg-white/5 border-[1.5px] md:border-2 border-white/10 group-hover:border-white/20 transition-all">
+                    <Info className="w-5 h-5 md:w-7 md:h-7 text-white stroke-[3]" />
                   </div>
-                  <span className="text-[10px] font-black uppercase text-gray-400 group-hover:text-white tracking-[2px] transition-colors">Details</span>
+                  <span className="text-[8px] md:text-[10px] font-black uppercase text-gray-400 group-hover:text-white tracking-[1.5px] md:tracking-[2px] transition-colors">Details</span>
                 </button>
               </div>
 
               {/* Recommendations Section */}
-              <div className="space-y-6 pt-10 border-t border-white/5">
-                <h3 className="text-white font-black text-sm uppercase tracking-[4px]">Recommendations</h3>
-                <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
+              <div className="space-y-4 md:space-y-6 pt-6 md:pt-10 border-t border-white/5">
+                <h3 className="text-white font-black text-xs md:text-sm uppercase tracking-[3px] md:tracking-[4px]">Recommendations</h3>
+                <div className="flex gap-3 md:gap-4 overflow-x-auto no-scrollbar pb-2">
                   {recommendations.slice(0, 10).map((item, index) => (
                     <div 
                       key={`${item.id}-${index}`} 
-                      className="flex-none w-[170px] group cursor-pointer space-y-3"
+                      className="flex-none w-[130px] md:w-[170px] group cursor-pointer space-y-3"
                       onClick={() => {
                         handleClose();
                         setTimeout(() => openPreview(item.id), 300);
                       }}
                     >
-                      <div className="aspect-[2/3] rounded-xl overflow-hidden bg-[#121212] relative shadow-2xl border border-white/5 group-hover:border-brand/50 transition-colors">
+                      <div className="aspect-[2/3] rounded-lg md:rounded-xl overflow-hidden bg-[#121212] relative shadow-2xl border border-white/5 group-hover:border-brand/50 transition-colors">
                         <MovieImage 
                           src={item.poster} 
                           alt={item.title} 
@@ -520,14 +524,14 @@ export default function MediaPreviewTray() {
               </div>
 
               {/* Stills & Trailer Section */}
-              <div className="space-y-6 pt-10 border-t border-white/5">
-                <h3 className="text-white font-black text-sm uppercase tracking-[4px]">Stills & Trailer</h3>
-                <div className="flex gap-4 overflow-x-auto no-scrollbar pb-6">
+              <div className="space-y-4 md:space-y-6 pt-6 md:pt-10 border-t border-white/5">
+                <h3 className="text-white font-black text-xs md:text-sm uppercase tracking-[3px] md:tracking-[4px]">Stills & Trailer</h3>
+                <div className="flex gap-3 md:gap-4 overflow-x-auto no-scrollbar pb-6">
                   {/* Stills */}
                   {details?.images?.slice(0, 5).map((img, i) => (
                     <div 
                       key={i} 
-                      className="flex-none w-[280px] aspect-video rounded-xl overflow-hidden bg-[#121212] border border-white/5 shadow-2xl cursor-pointer group"
+                      className="flex-none w-[220px] md:w-[280px] aspect-video rounded-lg md:rounded-xl overflow-hidden bg-[#121212] border border-white/5 shadow-2xl cursor-pointer group"
                       onClick={handlePlay}
                     >
                       <MovieImage src={img} alt={`Still ${i}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -537,7 +541,7 @@ export default function MediaPreviewTray() {
                   {/* Trailer Thumbnail */}
                   {details?.images && details.images.length > 0 && (
                      <div 
-                        className="relative flex-none w-[280px] aspect-video rounded-xl overflow-hidden bg-[#121212] border border-white/5 shadow-2xl group cursor-pointer"
+                        className="relative flex-none w-[220px] md:w-[280px] aspect-video rounded-lg md:rounded-xl overflow-hidden bg-[#121212] border border-white/5 shadow-2xl group cursor-pointer"
                         onClick={() => {
                           if (trailerUrl && videoRef.current) {
                             setTimeout(() => {
@@ -552,8 +556,8 @@ export default function MediaPreviewTray() {
                      >
                         <MovieImage src={details.images[0]} alt="Trailer thumbnail" className="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity" />
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-2xl transform transition-transform group-hover:scale-110">
-                            <Play className="w-7 h-7 text-white fill-current ml-1" />
+                          <div className="w-11 h-11 md:w-14 md:h-14 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-2xl transform transition-transform group-hover:scale-110">
+                            <Play className="w-5 h-5 md:w-7 md:h-7 text-white fill-current ml-0.5 md:ml-1" />
                           </div>
                         </div>
                      </div>

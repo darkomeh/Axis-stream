@@ -24,46 +24,42 @@ export function calculateScore(item: MediaItem, query: string): number {
 
   // Match logic
   if (normalizedTitle === normalizedQuery) {
-    score += 200; // Exact match
+    score += 5000; // Exact match is supreme
   } else if (lowerTitle.startsWith(lowerQuery) || lowerQuery.startsWith(lowerTitle)) {
-    score += 150; // Starts with (either way)
+    score += 2000; // Starts with is very strong
   } else if (lowerTitle.includes(lowerQuery) || lowerQuery.includes(lowerTitle)) {
     // Check if it's a whole word match
     const wordRegex = new RegExp(`\\b${lowerQuery}\\b`, 'i');
     const wordRegexReverse = new RegExp(`\\b${lowerTitle}\\b`, 'i');
     if (wordRegex.test(lowerTitle) || wordRegexReverse.test(lowerQuery)) {
-      score += 100; // Whole word match
+      score += 1000; // Whole word match
     } else {
-      score += 50; // Partial match
+      score += 200; // Partial match
     }
   }
 
-  // Metadata scoring
   const itemAny = item as any;
-  
-  // hasResource = true → +30 (increased from 20)
-  if (itemAny.hasResource === true || itemAny.hasResource === "true" || itemAny.hasResource === 1) {
-    score += 30;
+
+  // Rating scoring (up to ~500 points)
+  const ratingStr = item.rating || itemAny.imdbRating || itemAny.rate || itemAny.imdbRatingValue || "0";
+  const rating = parseFloat(ratingStr);
+  if (!isNaN(rating) && rating > 0) {
+    score += (rating * 50); // 8.0 gets 400
   }
 
-  // imdbRating > 6 → +20 (increased from 10)
-  const ratingStr = item.rating || itemAny.imdbRating || itemAny.rate || "0";
-  const rating = parseFloat(ratingStr);
-  if (rating > 7.5) {
-    score += 30; // High quality boost
-  } else if (rating > 6) {
-    score += 15;
+  // Popularity boost (if item was found in trending/hot lists)
+  if (itemAny.isPopular) {
+    score += 1500; // Popular items beat everything except exact/starts-with matches
+  }
+  
+  if (itemAny.hasResource === true || itemAny.hasResource === "true" || itemAny.hasResource === 1) {
+    score += 50;
   }
 
   // Year boost (prefer newer content)
   const year = parseInt(item.year || itemAny.releaseDate || "0");
   if (year > 2020) {
-    score += 10;
-  }
-
-  // Popularity boost (if item was found in trending/hot lists)
-  if (itemAny.isPopular) {
-    score += 50;
+    score += 20;
   }
 
   return score;
@@ -209,13 +205,13 @@ export function processSearchResults(items: MediaItem[], query: string): ScoredM
   // 5. Dynamic Trash Filtering
   // If we have high-relevance results, we can filter out the noise.
   // But we must be careful not to hide what the user might be looking for.
-  const hasExactMatch = sorted.some(item => item.score >= 200);
-  const hasHighRelevance = sorted.some(item => item.score >= 150);
+  const hasExactMatch = sorted.some(item => item.score >= 5000);
+  const hasHighRelevance = sorted.some(item => item.score >= 2000);
 
   if (hasExactMatch) {
-    // If exact match found, keep anything >= 100 OR anything where title/query are subsets of each other
+    // If exact match found, keep anything >= 500 OR anything where title/query are subsets of each other
     return sorted.filter(item => {
-      if (item.score >= 100) return true;
+      if (item.score >= 500) return true;
       const normalizedQuery = normalizeText(query);
       const normalizedTitle = normalizeText(item.title);
       return normalizedTitle.includes(normalizedQuery) || normalizedQuery.includes(normalizedTitle);
@@ -223,7 +219,7 @@ export function processSearchResults(items: MediaItem[], query: string): ScoredM
   } else if (hasHighRelevance) {
     // If startsWith matches found, be moderately aggressive
     return sorted.filter(item => {
-      if (item.score >= 50) return true;
+      if (item.score >= 300) return true;
       const normalizedQuery = normalizeText(query);
       const normalizedTitle = normalizeText(item.title);
       return normalizedTitle.includes(normalizedQuery) || normalizedQuery.includes(normalizedTitle);

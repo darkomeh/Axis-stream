@@ -45,6 +45,7 @@ const Anime = lazyWithRetry(() => import("./pages/Anime"));
 const ActorPage = lazyWithRetry(() => import("./pages/Actor"));
 const Toons = lazyWithRetry(() => import("./pages/Toons"));
 const Profile = lazyWithRetry(() => import("./pages/Profile"));
+const Playlist = lazyWithRetry(() => import("./pages/Playlist"));
 const Downloads = lazyWithRetry(() => import("./pages/Downloads"));
 const OfflinePlayer = lazyWithRetry(() => import("./pages/OfflinePlayer"));
 const Ranking = lazyWithRetry(() => import("./pages/Ranking"));
@@ -81,7 +82,7 @@ function AppContent() {
   }, [siteConfig]);
 
   // Routes where BottomNav should be visible
-  const showNavRoutes = ["/", "/search", "/browse", "/anime", "/toons", "/profile", "/ranking", "/live"];
+  const showNavRoutes = ["/", "/search", "/browse", "/anime", "/toons", "/playlist", "/profile", "/ranking", "/live"];
   const shouldShowNav = showNavRoutes.includes(location.pathname);
 
   return (
@@ -103,6 +104,7 @@ function AppContent() {
                 <Route path="/anime" element={<PageWrapper><Anime /></PageWrapper>} />
                 <Route path="/actor/:id" element={<PageWrapper><ActorPage /></PageWrapper>} />
                 <Route path="/toons" element={<PageWrapper><Toons /></PageWrapper>} />
+                <Route path="/playlist" element={<PageWrapper><Playlist /></PageWrapper>} />
                 <Route path="/profile" element={<PageWrapper><Profile /></PageWrapper>} />
                 <Route path="/ranking" element={<PageWrapper><Ranking /></PageWrapper>} />
                 <Route path="/live" element={<PageWrapper><Live /></PageWrapper>} />
@@ -110,6 +112,7 @@ function AppContent() {
                 <Route path="/legal/:type" element={<PageWrapper><Legal /></PageWrapper>} />
                 {/* Fallback routes for movies/series/trending to browse for now */}
                 <Route path="/movies" element={<PageWrapper><Browse /></PageWrapper>} />
+                <Route path="/movie" element={<PageWrapper><Browse /></PageWrapper>} />
                 <Route path="/series" element={<PageWrapper><Browse /></PageWrapper>} />
                 <Route path="/trending" element={<PageWrapper><Anime /></PageWrapper>} />
               </Routes>

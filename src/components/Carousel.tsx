@@ -38,7 +38,7 @@ export default function Carousel({ items }: CarouselProps) {
 
   return (
     <div 
-      className="relative w-full h-[65vh] md:h-[90vh] overflow-hidden bg-bg-base transition-all"
+      className="relative w-full h-[60vh] md:h-[90vh] overflow-hidden bg-bg-base transition-all"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -59,7 +59,9 @@ export default function Carousel({ items }: CarouselProps) {
                <MovieImage
                 src={currentItem.poster}
                 alt={currentItem.title}
-                className="w-full h-full object-cover md:object-[center_20%] lg:ml-[20%] transition-opacity duration-1000"
+                avgHueDark={currentItem.avgHueDark}
+                isHero={true}
+                className="w-full h-full object-cover lg:object-[center_20%] lg:ml-[20%] transition-opacity duration-1000"
               />
               {/* Cinematic Gradients matched to reference */}
               <div className="absolute inset-0 hero-gradient-mobile lg:hidden" />
@@ -73,7 +75,7 @@ export default function Carousel({ items }: CarouselProps) {
       </AnimatePresence>
 
       <div className="absolute inset-0 flex items-end md:items-center pb-12 md:pb-0">
-        <div className="max-w-[1400px] mx-auto px-6 lg:px-12 w-full">
+        <div className="max-w-[1400px] mx-auto px-fluid w-full">
           <motion.div
             key={`content-${currentIndex}`}
             initial={{ opacity: 0, y: 30 }}
@@ -81,22 +83,22 @@ export default function Carousel({ items }: CarouselProps) {
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="max-w-2xl lg:max-w-3xl animate-fade-in"
           >
-            <div className="mb-2 md:mb-4 flex items-center gap-3">
-              <div className="w-8 h-[2px] bg-brand shadow-[0_0_10px_rgba(255,45,45,0.8)]" />
-              <span className="text-brand font-black text-[10px] md:text-sm tracking-[0.4em] uppercase italic">
+            <div className="mb-2 md:mb-4 flex items-center gap-2 md:gap-3">
+              <div className="w-6 md:w-8 h-[2px] bg-brand shadow-[0_0_10px_rgba(255,45,45,0.8)]" />
+              <span className="text-brand font-black text-[9px] md:text-sm tracking-[0.3em] md:tracking-[0.4em] uppercase italic">
                 {getBadges(currentItem)}
               </span>
             </div>
 
-            <h1 className="text-4xl md:text-8xl lg:text-[100px] font-black text-white mb-4 md:mb-6 tracking-tighter leading-[0.9] uppercase drop-shadow-2xl font-sans" style={{ transform: 'scaleY(1.1)', transformOrigin: 'left' }}>
+            <h1 className="text-xl sm:text-2xl md:text-4xl font-black text-white mb-2 md:mb-4 tracking-tighter leading-tight uppercase drop-shadow-2xl font-sans">
               {currentItem.title}
             </h1>
             
-            <div className="flex flex-wrap items-center gap-3 md:gap-4 text-gray-400 mb-6 md:mb-8 text-[11px] md:text-[15px] font-bold tracking-wide">
+            <div className="flex flex-wrap items-center gap-2 md:gap-4 text-gray-400 mb-4 md:mb-8 text-fluid-xs md:text-[15px] font-bold tracking-wide">
               <span>{currentItem.year || '2024'}</span>
               <span className="text-white/20">•</span>
               
-              <span className="px-1.5 py-0.5 border border-white/20 rounded text-[10px] md:text-[11px] leading-none uppercase">
+              <span className="px-1.5 py-0.5 border border-white/20 rounded text-[9px] md:text-[11px] leading-none uppercase">
                 {currentItem.contentRating || '18+'}
               </span>
               <span className="text-white/20">•</span>
@@ -105,24 +107,24 @@ export default function Carousel({ items }: CarouselProps) {
               
               {currentItem.rating && (
                 <>
-                  <span className="text-white/20">•</span>
-                  <span className="flex items-center gap-1.5 px-2 py-0.5 bg-[#f5c518] text-black font-black text-[9px] md:text-[10px] rounded-sm tracking-tighter shadow-[0_4px_10px_rgba(245,197,24,0.2)]">
-                     IMDb {currentItem.rating}
-                  </span>
+                   <span className="text-white/20">•</span>
+                   <span className="flex items-center gap-1.5 px-2 py-0.5 bg-[#f5c518] text-black font-black text-[8px] md:text-[10px] rounded-sm tracking-tighter shadow-[0_4px_10px_rgba(245,197,24,0.2)]">
+                      IMDb {currentItem.rating}
+                   </span>
                 </>
               )}
             </div>
 
-            <p className="text-gray-300 text-[13px] md:text-base line-clamp-2 md:line-clamp-3 mb-8 md:mb-10 max-w-xl leading-relaxed font-semibold opacity-80 italic">
+            <p className="text-gray-300 text-fluid-sm md:text-base line-clamp-2 md:line-clamp-3 mb-6 md:mb-10 max-w-xl leading-relaxed font-semibold opacity-80 italic">
               {currentItem.description || ''}
             </p>
 
-            <div className="flex items-center gap-3 md:gap-4">
+            <div className="flex items-center gap-2 md:gap-4">
               <Link
                 to={`/details/${currentItem.id}`}
-                className="flex items-center gap-2 px-6 md:px-8 py-3.5 md:py-4 bg-brand text-white rounded-md font-black uppercase text-[13px] md:text-[15px] hover:bg-brand-hover transition-all active:scale-95 shadow-xl glow-brand"
+                className="flex items-center gap-2 px-fluid-sm py-3 md:py-4 bg-brand text-white rounded-md font-black uppercase text-fluid-sm md:text-[15px] hover:bg-brand-hover transition-all active:scale-95 shadow-xl glow-brand"
               >
-                <Play className="w-4 h-4 md:w-5 md:h-5 fill-current" />
+                <Play className="w-3.5 h-3.5 md:w-5 md:h-5 fill-current" />
                 Play Now
               </Link>
               <button
@@ -139,16 +141,16 @@ export default function Carousel({ items }: CarouselProps) {
                     showToast("Added to My List", "success");
                   }
                 }}
-                className={`flex items-center gap-2 px-6 md:px-8 py-3.5 md:py-4 rounded-md font-black uppercase text-[13px] md:text-[15px] transition-all border active:scale-95 ${isInWatchlist(currentItem.id) ? 'bg-brand border-brand text-white shadow-brand' : 'bg-white/5 border-white/20 text-white hover:bg-white/10 hover:border-white'}`}
+                className={`flex items-center gap-2 px-fluid-sm py-3 md:py-4 rounded-md font-black uppercase text-fluid-sm md:text-[15px] transition-all border active:scale-95 ${isInWatchlist(currentItem.id) ? 'bg-brand border-brand text-white shadow-brand' : 'bg-white/5 border-white/20 text-white hover:bg-white/10 hover:border-white'}`}
               >
                 {isInWatchlist(currentItem.id) ? (
                    <>
-                     <Check className="w-4 h-4 md:w-5 md:h-5" />
+                     <Check className="w-3.5 h-3.5 md:w-5 md:h-5" />
                      <span>In Playlist</span>
                    </>
                 ) : (
                    <>
-                     <Plus className="w-4 h-4 md:w-5 md:h-5" />
+                     <Plus className="w-3.5 h-3.5 md:w-5 md:h-5" />
                      <span>Playlist</span>
                    </>
                 )}
@@ -159,13 +161,13 @@ export default function Carousel({ items }: CarouselProps) {
       </div>
 
       {/* Indicators matched to right side */}
-      <div className="absolute bottom-10 md:bottom-20 right-6 md:right-16 flex items-center gap-2.5">
+      <div className="absolute bottom-6 md:bottom-20 right-px-fluid flex items-center gap-2">
         {items.slice(0, 5).map((_, idx) => (
           <button
             key={idx}
             onClick={() => setCurrentIndex(idx)}
-            className={`h-2.5 rounded-full transition-all duration-500 ease-in-out ${
-              idx === currentIndex ? "w-8 bg-brand" : "w-2.5 bg-white/20 hover:bg-white/40"
+            className={`h-2 md:h-2.5 rounded-full transition-all duration-500 ease-in-out ${
+              idx === currentIndex ? "w-6 md:w-8 bg-brand" : "w-2 md:w-2.5 bg-white/20 hover:bg-white/40"
             }`}
           />
         ))}

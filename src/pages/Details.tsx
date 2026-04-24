@@ -384,7 +384,7 @@ export default function Details() {
       <div className="max-w-[1400px] mx-auto px-5 py-8 space-y-8">
         <div className="space-y-4">
            <div className="flex items-center justify-between gap-4">
-             <h1 className="text-4xl sm:text-5xl md:text-8xl font-black uppercase tracking-tighter text-white leading-[0.8] flex-1">
+             <h1 className="text-2xl sm:text-3xl md:text-5xl font-black uppercase tracking-tighter text-white leading-none flex-1">
                 {details.title}
              </h1>
              <button 

@@ -125,7 +125,7 @@ export default function Home() {
       <div className="min-h-screen bg-black text-white pb-20">
         <Navbar />
         <HeroSkeleton />
-        <div className="relative z-10 -mt-10 md:-mt-20 space-y-12 md:space-y-20 pb-20 max-w-[1400px] mx-auto px-6 lg:px-12">
+        <div className="relative z-10 -mt-fluid-sm md:-mt-20 space-y-12 md:space-y-20 pb-20 max-w-[1400px] mx-auto px-fluid">
           <div className="space-y-6"><Skeleton className="h-8 w-48" /><ListSkeleton count={6} /></div>
           <div className="space-y-6"><ListSkeleton count={6} /></div>
           <div className="space-y-6"><ListSkeleton count={6} /></div>
@@ -145,12 +145,12 @@ export default function Home() {
   const carouselItems = trending.slice(0, 6);
 
   return (
-    <div className="min-h-screen bg-black text-white pb-20">
+    <div className="min-h-screen bg-black text-white pb-10 md:pb-20">
       <Navbar />
       
       <Carousel items={carouselItems} />
       
-      <div className="relative z-10 -mt-10 md:-mt-20 space-y-12 md:space-y-20 pb-20">
+      <div className="relative z-10 -mt-fluid md:-mt-20 space-y-fluid md:space-y-20 pb-10 md:pb-20">
         {user && watchlist.length > 0 && (
           <PosterGrid title="My Watchlist" items={watchlist} viewAllLink="/profile" />
         )}
@@ -168,14 +168,14 @@ export default function Home() {
         )}
 
         {popularSearches.length > 0 && (
-          <div className="px-6 lg:px-12">
-            <h2 className="text-2xl font-bold mb-6 tracking-tight">Popular Searches</h2>
-            <div className="flex flex-wrap gap-3">
+          <div className="px-fluid">
+            <h2 className="text-fluid-lg md:text-2xl font-bold mb-4 md:mb-6 tracking-tight">Popular Searches</h2>
+            <div className="flex flex-wrap gap-2 md:gap-3">
               {Array.isArray(popularSearches) && popularSearches.slice(0, 10).map((search, idx) => (
                 <Link 
                   key={idx} 
                   to={`/search?q=${encodeURIComponent(search)}`}
-                  className="px-4 py-2 bg-white/5 hover:bg-brand hover:text-white border border-white/10 hover:border-brand rounded-full text-sm transition-all shadow-sm hover:shadow-[0_0_15px_rgba(229,9,20,0.4)]"
+                  className="px-3.5 py-1.5 md:px-4 md:py-2 bg-white/5 hover:bg-brand hover:text-white border border-white/10 hover:border-brand rounded-full text-[11px] md:text-sm transition-all shadow-sm hover:shadow-[0_0_15px_rgba(229,9,20,0.4)]"
                 >
                   {search}
                 </Link>
@@ -193,11 +193,11 @@ export default function Home() {
         )}
         
         {hotMovies.length > 0 && (
-          <PosterGrid title="Hot Movies" items={hotMovies} />
+          <PosterGrid title="Hot Movies" items={hotMovies} viewAllLink="/movies" />
         )}
         
         {hotSeries.length > 0 && (
-          <PosterGrid title="Hot Series" items={hotSeries} />
+          <PosterGrid title="Hot Series" items={hotSeries} viewAllLink="/series" />
         )}
 
         {homepageData?.operatingList?.map((section: any, idx: number) => (
@@ -211,7 +211,7 @@ export default function Home() {
 
         {/* Discover More Section with Infinite Scroll */}
         <div className="space-y-8">
-          <PosterGrid title="Discover More" items={discoverItems} />
+          <PosterGrid title="Discover More" items={discoverItems} variant="grid" />
           
           {hasMore && (
             <div ref={lastElementRef} className="flex justify-center py-10">

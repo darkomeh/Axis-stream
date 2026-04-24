@@ -820,13 +820,20 @@ export default function VideoPlayer({
             className={`absolute inset-0 z-40 flex flex-col justify-between pointer-events-none ${useIframeFallback ? 'bg-transparent' : 'bg-gradient-to-t from-black/80 via-transparent to-black/60'}`}
           >
             {/* Top Bar */}
-            <div className="flex items-center justify-between p-4 md:p-6 pointer-events-auto">
-              <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-all text-white">
-                <ArrowLeft className="w-6 h-6 drop-shadow-md" />
-              </button>
+            <div className="flex items-center justify-between p-fluid-sm pointer-events-auto">
+              <div className="flex items-center flex-1 min-w-0 mr-4">
+                <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-all text-white flex-shrink-0">
+                  <ArrowLeft className="w-6 h-6 md:w-7 md:h-7 drop-shadow-md" />
+                </button>
+                <div className="ml-2 overflow-hidden">
+                  <h1 className="text-[10px] md:text-sm font-black text-white truncate drop-shadow-lg uppercase tracking-widest italic opacity-80">
+                    {title}
+                  </h1>
+                </div>
+              </div>
               
               {!useIframeFallback && (
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 md:gap-4">
                   <button 
                     onClick={() => {
                       if (navigator.share) {
@@ -842,11 +849,11 @@ export default function VideoPlayer({
                     }}
                     className="p-2 hover:bg-white/10 rounded-full transition-all text-white"
                   >
-                    <Share2 className="w-6 h-6 drop-shadow-md" />
+                    <Share2 className="w-5 h-5 md:w-6 md:h-6 drop-shadow-md" />
                   </button>
                   <button onClick={() => setShowHelp(true)} className="flex flex-col items-center p-2 text-white hover:text-gray-300 transition-colors cursor-pointer">
-                    <Keyboard className="w-6 h-6 drop-shadow-md mb-0.5" />
-                    <span className="text-[8px] font-black uppercase tracking-tighter">Shortcuts</span>
+                    <Keyboard className="w-5 h-5 md:w-6 md:h-6 drop-shadow-md mb-0.5" />
+                    <span className="text-[7px] md:text-[8px] font-black uppercase tracking-tighter">Shortcuts</span>
                   </button>
                 </div>
               )}
@@ -885,25 +892,25 @@ export default function VideoPlayer({
             {!useIframeFallback && (
                <>
             {/* Center Controls */}
-            <div className="flex items-center justify-center gap-12 md:gap-24 lg:gap-32 pointer-events-auto">
+            <div className="flex items-center justify-center gap-[clamp(1rem,8vw,6rem)] pointer-events-auto">
               <button 
                 onClick={() => seek(-10)} 
                 className="group transition-all transform active:scale-95"
               >
-                <div className="relative flex items-center justify-center w-14 h-14 rounded-full border border-white/20 bg-black/20 backdrop-blur-sm group-hover:bg-white/10">
-                   <RotateCcw className="w-8 h-8 text-white stroke-[1.5]" />
-                   <span className="absolute text-[10px] font-black text-white mt-0.5">10</span>
+                <div className="relative flex items-center justify-center w-[clamp(32px,9vw,52px)] h-[clamp(32px,9vw,52px)] rounded-full border border-white/20 bg-black/20 backdrop-blur-sm group-hover:bg-white/10">
+                   <RotateCcw className="w-4 h-4 md:w-8 md:h-8 text-white stroke-[1.5]" />
+                   <span className="absolute text-[6px] md:text-[10px] font-black text-white mt-0.5">10</span>
                 </div>
               </button>
               
               <button 
                 onClick={togglePlay} 
-                className="w-24 h-24 md:w-28 md:h-28 flex items-center justify-center bg-[#E50914] rounded-full text-white hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_rgba(229,9,20,0.4)] relative group"
+                className="w-[clamp(56px,16vw,100px)] h-[clamp(56px,16vw,100px)] flex items-center justify-center bg-[#E50914] rounded-full text-white hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_rgba(229,9,20,0.4)] relative group"
               >
                 {isPlaying ? (
-                  <Pause className="w-10 h-10 md:w-12 md:h-12 fill-white" strokeWidth={0} />
+                  <Pause className="w-6 h-6 md:w-11 md:h-11 fill-white" strokeWidth={0} />
                 ) : (
-                  <Play className="w-10 h-10 md:w-12 md:h-12 fill-white ml-2" strokeWidth={0} />
+                  <Play className="w-6 h-6 md:w-11 md:h-11 fill-white ml-1 md:ml-1.5" strokeWidth={0} />
                 )}
               </button>
 
@@ -911,30 +918,30 @@ export default function VideoPlayer({
                 onClick={() => seek(10)} 
                 className="group transition-all transform active:scale-95"
               >
-                <div className="relative flex items-center justify-center w-14 h-14 rounded-full border border-white/20 bg-black/20 backdrop-blur-sm group-hover:bg-white/10">
-                  <RotateCw className="w-8 h-8 text-white stroke-[1.5]" />
-                  <span className="absolute text-[10px] font-black text-white mt-0.5">10</span>
+                <div className="relative flex items-center justify-center w-[clamp(32px,9vw,52px)] h-[clamp(32px,9vw,52px)] rounded-full border border-white/20 bg-black/20 backdrop-blur-sm group-hover:bg-white/10">
+                  <RotateCw className="w-4 h-4 md:w-8 md:h-8 text-white stroke-[1.5]" />
+                  <span className="absolute text-[6px] md:text-[10px] font-black text-white mt-0.5">10</span>
                 </div>
               </button>
             </div>
 
             {/* Bottom Controls */}
-            <div className="pointer-events-auto p-4 md:p-6 mb-2 w-full">
-              <div className="flex flex-col gap-4">
+            <div className="pointer-events-auto px-fluid-sm py-fluid-sm mb-2 w-full">
+              <div className="flex flex-col gap-2 md:gap-4">
                 
                 {/* Progress Slider */}
-                <div className="flex items-center gap-4">
-                  <button onClick={togglePlay} className="text-white hover:scale-110 transition-transform">
-                    {isPlaying ? <Pause className="w-5 h-5 md:w-6 md:h-6 fill-white" /> : <Play className="w-5 h-5 md:w-6 md:h-6 fill-white ml-1" />}
+                <div className="flex items-center gap-3 md:gap-4">
+                  <button onClick={togglePlay} className="text-white hover:scale-110 transition-transform shrink-0">
+                    {isPlaying ? <Pause className="w-4 h-4 md:w-6 md:h-6 fill-white" /> : <Play className="w-4 h-4 md:w-6 md:h-6 fill-white ml-0.5 md:ml-1" />}
                   </button>
 
-                  <div className="group/progress relative flex-1 h-8 flex items-center cursor-pointer no-click-toggle">
-                    <div className="w-full h-[3px] md:h-[4px] bg-white/20 rounded-full relative">
+                  <div className="group/progress relative flex-1 h-6 flex items-center cursor-pointer no-click-toggle">
+                    <div className="w-full h-[2.5px] md:h-[4px] bg-white/20 rounded-full relative">
                        <div 
                         className="absolute inset-y-0 left-0 bg-[#E50914] rounded-full"
                         style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
                       >
-                         <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full border border-[#E50914] scale-0 group-hover/progress:scale-100 transition-transform shadow-lg" />
+                         <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 bg-white rounded-full border border-[#E50914] scale-0 group-hover/progress:scale-100 transition-transform shadow-lg" />
                       </div>
                     </div>
                     <input 
@@ -951,33 +958,17 @@ export default function VideoPlayer({
                     />
                   </div>
 
-                  <div className="text-white font-mono text-[10px] md:text-sm tracking-wider min-w-[70px] text-right">
+                  <div className="text-white font-mono text-[9px] md:text-sm tracking-wider min-w-[60px] md:min-w-[70px] text-right shrink-0">
                      {formatTime(currentTime)} <span className="text-white/20 px-0.5">/</span> {formatTime(duration)}
                   </div>
                   
-                  <div className="flex items-center gap-3 ml-2">
-                    <span className="text-white/40 text-[10px] md:text-xs font-black uppercase tracking-tighter">1X</span>
+                  <div className="flex items-center gap-2 md:gap-3 ml-1 md:ml-2">
+                    <span className="hidden sm:inline text-white/40 text-[9px] md:text-xs font-black uppercase tracking-tighter">1X</span>
                     <button onClick={() => setActiveMenu('settings')} className="text-white/60 hover:text-white transition-colors">
-                       <Settings className="w-5 h-5 md:w-6 md:h-6" />
-                    </button>
-                    <button onClick={() => setActiveMenu('report')} className="text-white/60 hover:text-white transition-colors" title="Report Issue">
-                       <Flag className="w-5 h-5 md:w-6 md:h-6" />
+                       <Settings className="w-4.5 h-4.5 md:w-6 md:h-6" />
                     </button>
                     <button onClick={() => setActiveMenu('audio')} className="text-white/60 hover:text-white transition-colors">
-                       <MonitorPlay className="w-5 h-5 md:w-6 md:h-6" />
-                    </button>
-                    <button 
-                      onClick={async () => {
-                        if (document.pictureInPictureElement) {
-                          await document.exitPictureInPicture().catch(console.error);
-                        } else if (videoRef.current && document.pictureInPictureEnabled) {
-                          await videoRef.current.requestPictureInPicture().catch(console.error);
-                        }
-                      }}
-                      className="text-white/60 hover:text-white transition-colors"
-                      title="Picture in Picture"
-                    >
-                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 md:w-6 md:h-6"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><rect x="12" y="14" width="7" height="4" rx="1" ry="1"></rect></svg>
+                       <MonitorPlay className="w-4.5 h-4.5 md:w-6 md:h-6" />
                     </button>
                     <button 
                       onClick={() => {
@@ -987,7 +978,7 @@ export default function VideoPlayer({
                       }}
                       className="text-white/60 hover:text-white transition-colors"
                     >
-                      <Maximize2 className="w-5 h-5 md:w-6 md:h-6" />
+                      <Maximize2 className="w-4.5 h-4.5 md:w-6 md:h-6" />
                     </button>
                   </div>
                 </div>
@@ -1025,16 +1016,16 @@ export default function VideoPlayer({
               exit={{ opacity: 0, y: 10 }}
               transition={{ duration: 0.15 }}
               onClick={(e) => e.stopPropagation()}
-              className="absolute bottom-16 right-4 md:right-8 w-64 max-w-[calc(100vw-2rem)] bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden pointer-events-auto text-white"
+              className="absolute bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 md:right-8 w-full max-w-[260px] bg-zinc-900/98 backdrop-blur-3xl border border-white/10 rounded-xl shadow-2xl overflow-hidden pointer-events-auto text-white ring-1 ring-white/10"
             >
               {activeMenu !== 'settings' && (
-                <div className="flex items-center p-3 border-b border-black/5 dark:border-white/5 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors" onClick={() => setActiveMenu('settings')}>
-                  <ArrowLeft className="w-4 h-4 mr-2 opacity-70" />
-                  <span className="font-medium text-[13px] capitalize">{activeMenu}</span>
+                <div className="flex items-center p-3 border-b border-white/10 cursor-pointer hover:bg-white/10 transition-colors" onClick={() => setActiveMenu('settings')}>
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  <span className="font-bold text-[10px] uppercase tracking-widest text-[#00A8E1]">{activeMenu}</span>
                 </div>
               )}
 
-              <div className="max-h-[min(60vh,400px)] overflow-y-auto no-scrollbar py-2">
+              <div className="max-h-[40vh] md:max-h-[350px] overflow-y-auto no-scrollbar py-2">
                   {activeMenu === 'settings' && (
                     <div className="flex flex-col">
                       <button 

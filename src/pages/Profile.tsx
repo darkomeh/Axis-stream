@@ -360,39 +360,6 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* MY PLAYLISTS SECTION */}
-        <div className="bg-white/5 border border-white/10 rounded-[32px] p-6 backdrop-blur-2xl">
-          <button className="w-full flex items-center justify-between mb-8 px-2 group">
-            <h3 className="text-sm font-black uppercase tracking-[0.2em] flex items-center gap-3">
-              <ListVideo className="w-5 h-5 text-brand" /> My Playlists
-            </h3>
-            <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-brand transition-colors" />
-          </button>
-          
-          <div className="bg-black/20 border border-white/5 rounded-3xl p-10 text-center space-y-6 border-dashed">
-            {playlists && playlists.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
-                {playlists.map(p => (
-                  <div key={p.id} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
-                    <div>
-                      <h4 className="font-bold text-white tracking-wide">{p.name}</h4>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-widest">{p.items.length} Items</p>
-                    </div>
-                    <button onClick={() => deletePlaylist(p.id)} className="p-2 text-gray-500 hover:text-brand transition-colors">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">No custom playlists created yet.</p>
-            )}
-            <button onClick={handleCreatePlaylist} className="inline-flex items-center gap-2 px-8 py-3.5 border border-white/20 hover:border-brand/50 hover:bg-brand/5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all group active:scale-95 shadow-lg hover:shadow-brand/10">
-              <Plus className="w-4 h-4 text-white group-hover:text-brand transition-colors" /> Create Playlist
-            </button>
-          </div>
-        </div>
-
         {/* MY WATCHLIST SECTION */}
         <div className="bg-white/5 border border-white/10 rounded-[32px] p-6 backdrop-blur-2xl">
           <button className="w-full flex items-center justify-between mb-8 px-2 group">

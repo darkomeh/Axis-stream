@@ -388,7 +388,7 @@ app.get("/api/staff/works", async (req, res) => {
     const data = await externalMovieService.getActorWorks(
       String(staffId || ""),
       Number(page) || 1,
-      Number(perPage) || 10
+      Number(perPage) || 24
     );
     res.json(data);
   } catch (error: any) {

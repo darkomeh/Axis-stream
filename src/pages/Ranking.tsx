@@ -57,7 +57,7 @@ export default function Ranking() {
 
       <Navbar />
       
-      <div className="relative z-10 pt-28 px-6 lg:px-12 max-w-[1400px] mx-auto">
+      <div className="relative z-10 pt-20 px-fluid max-w-[1400px] mx-auto">
         <motion.button 
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -104,7 +104,7 @@ export default function Ranking() {
                   onClick={() => openPreview(item.id)}
                   className="relative block bg-white/[0.03] backdrop-blur-3xl border border-white/5 rounded-[40px] overflow-hidden hover:bg-white/[0.07] hover:border-white/20 transition-all duration-500 shadow-2xl active:scale-[0.99] cursor-pointer"
                 >
-                  <div className="flex items-center gap-6 md:gap-12 p-6 md:p-10">
+                  <div className="flex flex-col sm:flex-row items-center gap-4 md:gap-12 p-4 md:p-10">
                     
                     {/* Rank Number Circle */}
                     <div className="flex-shrink-0 w-16 h-16 md:w-24 md:h-24 rounded-full bg-black/40 border border-white/10 flex items-center justify-center z-10 shadow-inner group-hover:border-brand/50 transition-colors">
@@ -114,7 +114,7 @@ export default function Ranking() {
                     </div>
 
                     {/* Poster with Glass Frame */}
-                    <div className="flex-shrink-0 w-24 md:w-44 aspect-[2/3] rounded-[24px] overflow-hidden border border-white/10 shadow-2xl group-hover:scale-105 transition-transform duration-700 relative z-10">
+                    <div className="flex-shrink-0 w-32 sm:w-24 md:w-44 aspect-[2/3] rounded-[24px] overflow-hidden border border-white/10 shadow-2xl group-hover:scale-105 transition-transform duration-700 relative z-10">
                       {item.cover || item.poster ? (
                         <MovieImage 
                           src={item.cover || item.poster} 
@@ -130,8 +130,8 @@ export default function Ranking() {
                     </div>
 
                     {/* Info */}
-                    <div className="flex-1 space-y-3 md:space-y-6 z-10">
-                      <div className="flex items-center gap-3">
+                    <div className="flex-1 space-y-3 md:space-y-6 z-10 text-center sm:text-left">
+                      <div className="flex items-center justify-center sm:justify-start gap-3">
                         <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5">
                            <TrendingUp className="w-3 h-3 text-brand" />
                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
@@ -145,11 +145,11 @@ export default function Ranking() {
                         )}
                       </div>
 
-                      <h3 className="text-2xl md:text-5xl font-black group-hover:text-brand transition-all tracking-tighter leading-tight uppercase line-clamp-2 italic">
+                      <h3 className="text-xl md:text-5xl font-black group-hover:text-brand transition-all tracking-tighter leading-tight uppercase line-clamp-2 italic">
                         {item.title}
                       </h3>
 
-                      <div className="flex items-center gap-6">
+                      <div className="flex items-center justify-center sm:justify-start gap-6">
                         <div className="flex items-center gap-2 px-4 py-2 bg-[#f5c518]/10 rounded-xl border border-[#f5c518]/20">
                           <Star className="w-5 h-5 text-[#f5c518] fill-[#f5c518]" />
                           <span className="text-lg md:text-xl font-black text-[#f5c518] italic">{item.score || item.rating || '9.8'}</span>

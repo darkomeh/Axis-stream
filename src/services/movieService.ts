@@ -31,7 +31,7 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 1, backoff =
     return cached.data;
   }
 
-  const tryDirect = !config.url?.startsWith('http');
+  const tryDirect = !config.url?.startsWith('http') && !config.url?.includes('/staff/');
   if (tryDirect) {
     try {
       const directResponse = await axios.get(`${EXTERNAL_API_URL}${config.url}`, {
@@ -67,6 +67,7 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 1, backoff =
             rating: item.score || item.imdbRatingValue || item.rating,
             rank: index + 1,
             year: item.releaseDate ? item.releaseDate.substring(0, 4) : item.year,
+            avgHueDark: item.avgHueDark || item.avgHue || item.hue || '#1a1a1a'
           }));
         }
         else if (config.url === '/live') {
@@ -107,6 +108,7 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 1, backoff =
             description: subject.description,
             poster: getImageUrl(subject.cover) || getImageUrl(subject.poster) || '',
             background: getImageUrl(subject.stills?.[0]) || getImageUrl(subject.cover) || '',
+            avgHueDark: subject.avgHueDark || subject.avgHue || subject.hue || '#1a1a1a',
             rating: subject.imdbRatingValue || subject.rating,
             imdbRatingValue: subject.imdbRatingValue,
             year: subject.releaseDate ? subject.releaseDate.substring(0, 4) : subject.year,
@@ -190,15 +192,18 @@ function normalizeItem(item: any): MediaItem {
     rating: item.imdbRatingValue || item.rating,
     type: item.subjectType === 2 ? 'Series' : item.subjectType === 1 ? 'Movie' : (item.type || (item.subjectType === 6 ? 'Video' : 'Media')),
     year: item.releaseDate ? item.releaseDate.substring(0, 4) : item.year,
-    quality: item.quality
+    quality: item.quality,
+    avgHueDark: item.avgHueDark || item.avgHue || item.hue || '#1a1a1a'
   };
 }
 
 function getImageUrl(img: any): string {
   if (!img) return '';
   if (typeof img === 'string') return sanitizeImageUrl(img);
-  if (typeof img === 'object') {
-    return sanitizeImageUrl(img.url || img.coverUrl || img.posterUrl || img.avatar || img.cover || '');
+  if (typeof img === 'object' && img !== null) {
+    const url = img.url || img.coverUrl || img.posterUrl || img.avatarUrl || img.photoUrl || img.avatar || img.cover || img.image || img.photo || img.img || '';
+    if (typeof url === 'string') return sanitizeImageUrl(url);
+    if (typeof url === 'object' && url !== null) return getImageUrl(url);
   }
   return '';
 }
@@ -554,7 +559,7 @@ export const movieService = {
     }
   },
 
-  async getActorWorks(staffId: string, page = 1, perPage = 10): Promise<MediaItem[]> {
+  async getActorWorks(staffId: string, page = 1, perPage = 24): Promise<MediaItem[]> {
     try {
       return await fetchWithRetry({ url: `/staff/works`, params: { staffId, page, perPage } });
     } catch (e: any) {

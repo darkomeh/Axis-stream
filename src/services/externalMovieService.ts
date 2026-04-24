@@ -109,8 +109,9 @@ function getImageUrl(img: any): string {
   if (!img) return '';
   if (typeof img === 'string') return img;
   if (typeof img === 'object') {
-    // Check common nested structures from this API
-    return img.url || img.coverUrl || img.posterUrl || img.avatar || img.cover || img.image || '';
+    const url = img.url || img.coverUrl || img.posterUrl || img.avatarUrl || img.photoUrl || img.avatar || img.cover || img.image || img.photo || img.img || '';
+    if (typeof url === 'string') return url;
+    if (typeof url === 'object' && url !== null) return getImageUrl(url);
   }
   return '';
 }
@@ -499,14 +500,48 @@ export const externalMovieService = {
     }
   },
 
-  async getActorWorks(staffId: string, page = 1, perPage = 10): Promise<MediaItem[]> {
+  async getActorWorks(staffId: string, page = 1, perPage = 24): Promise<MediaItem[]> {
     try {
-      const response = await fetchWithRetry({ 
-        url: `/staff/works`, 
-        params: { staffId, page, perPage } 
-      });
-      const list = response.data?.data?.items || [];
-      return Array.isArray(list) ? list.map(normalizeItem) : [];
+      // Fetch up to 3 pages to get a good amount of distinct non-dubbed films
+      const allItems: any[] = [];
+      for (let i = 1; i <= 3; i++) {
+        const response = await fetchWithRetry({ 
+          url: `/staff/works`, 
+          params: { staffId, page: i, perPage } 
+        });
+        const list = response.data?.data?.items || [];
+        if (Array.isArray(list) && list.length > 0) {
+          allItems.push(...list);
+        }
+        if (!Array.isArray(list) || list.length < perPage) {
+          break; // No more items
+        }
+      }
+
+      const items = allItems.map(normalizeItem);
+      
+      // Deduplicate items based on id and clean title
+      const uniqueItems = new Map();
+      for (const item of items) {
+        if (!uniqueItems.has(item.id)) {
+          // Check if clean title is already in there
+          let duplicateTitleFound = false;
+          // Clean title removes [Dubbed] or [Version française] etc.
+          const cleanTitle = item.title.replace(/\[.*?\]|\(.*?\)/g, '').trim().toLowerCase();
+          
+          for (const [_, existing] of uniqueItems) {
+            const existingClean = existing.title.replace(/\[.*?\]|\(.*?\)/g, '').trim().toLowerCase();
+            if (existingClean === cleanTitle) {
+              duplicateTitleFound = true;
+              break;
+            }
+          }
+          if (!duplicateTitleFound) {
+            uniqueItems.set(item.id, item);
+          }
+        }
+      }
+      return Array.from(uniqueItems.values());
     } catch (e: any) {
       if (!e.message?.includes("skip retry")) {
         console.warn("Error in getActorWorks (Staff ID might be dead):", e.message || e);
@@ -524,15 +559,19 @@ export const externalMovieService = {
       const list = response.data?.data || [];
       if (!Array.isArray(list)) return [];
       return list.map((data: any) => {
-        const avatarUrl = (typeof data.avatarUrl === 'string' ? data.avatarUrl : data.avatarUrl?.url) ||
-                          (typeof data.avatar === 'string' ? data.avatar : data.avatar?.url) || 
-                          (typeof data.cover === 'string' ? data.cover : data.cover?.url) || 
-                          (typeof data.image === 'string' ? data.image : data.image?.url) || 
-                          (typeof data.photo === 'string' ? data.photo : data.photo?.url) || '';
+        let avatarUrl = '';
+        const possibleFields = [data.avatarUrl, data.avatar, data.coverUrl, data.cover, data.image, data.photoUrl, data.photo, data.img];
+        for (const field of possibleFields) {
+          const extractedUrl = getImageUrl(field);
+          if (extractedUrl) {
+            avatarUrl = extractedUrl;
+            break;
+          }
+        }
         const sanitizedAvatarUrl = sanitizeImageUrl(avatarUrl);
         return {
-          id: String(data.staffId),
-          name: data.name,
+          id: String(data.staffId || data.id),
+          name: data.name || data.title,
           avatar: sanitizedAvatarUrl,
           avatarUrl: sanitizedAvatarUrl
         };

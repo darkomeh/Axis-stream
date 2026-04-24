@@ -381,7 +381,7 @@ export default function Search() {
             <PosterGrid items={results.filter(item => {
               if (activeCategory === "All") return true;
               return item.category?.includes(activeCategory);
-            })} loading={loading} />
+            })} loading={loading} variant="grid" />
             
             {hasMore && <div ref={lastElementRef} className="h-10" />}
           </div>

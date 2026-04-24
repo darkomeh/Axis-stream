@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { movieService } from "../services/movieService";
 import { Actor, MediaItem } from "../types";
@@ -18,6 +18,23 @@ export default function ActorPage() {
   const [works, setWorks] = useState<MediaItem[]>([]);
   const [relatedActors, setRelatedActors] = useState<Actor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const observer = useRef<IntersectionObserver | null>(null);
+
+  const lastElementRef = useCallback((node: HTMLDivElement) => {
+    if (loading || loadingMore) return;
+    if (observer.current) observer.current.disconnect();
+    
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setPage(prevPage => prevPage + 1);
+      }
+    });
+    
+    if (node) observer.current.observe(node);
+  }, [loading, loadingMore, hasMore]);
 
   const handleBack = () => {
     if (window.history.length > 2) {
@@ -34,12 +51,13 @@ export default function ActorPage() {
         setLoading(true);
         const [actorData, worksData, relatedData] = await Promise.all([
           movieService.getActorDetails(id),
-          movieService.getActorWorks(id),
+          movieService.getActorWorks(id, 1),
           movieService.getRelatedActors(id)
         ]);
         setActor(actorData);
         setWorks(worksData);
         setRelatedActors(relatedData);
+        setHasMore(worksData.length >= 24);
       } catch (e) {
         console.error("Failed to load actor data", e);
       } finally {
@@ -48,6 +66,27 @@ export default function ActorPage() {
     };
     loadActor();
   }, [id]);
+
+  useEffect(() => {
+    if (page > 1 && id) {
+      const loadMore = async () => {
+        try {
+          setLoadingMore(true);
+          const data = await movieService.getActorWorks(id, page);
+          if (data.length === 0) {
+            setHasMore(false);
+          } else {
+            setWorks(prev => [...prev, ...data]);
+          }
+        } catch (err) {
+          console.error("Error loading more actor works:", err);
+        } finally {
+          setLoadingMore(false);
+        }
+      };
+      loadMore();
+    }
+  }, [page, id]);
 
   if (loading) {
     return (
@@ -146,10 +185,20 @@ export default function ActorPage() {
           <h2 className="text-3xl font-bold tracking-tight">Filmography</h2>
           <div className="flex items-center gap-2 text-gray-500 text-sm font-bold uppercase tracking-widest">
             <span>{works.length} Items</span>
-            <ChevronRight className="w-4 h-4" />
           </div>
         </div>
-        <PosterGrid items={works} />
+        <PosterGrid items={works} variant="grid" />
+        
+        {hasMore && (
+          <div ref={lastElementRef} className="flex justify-center pt-12 h-20">
+            {loadingMore && (
+              <div className="flex items-center gap-3 text-brand">
+                <Film className="w-5 h-5 animate-spin" />
+                <span className="text-sm font-black uppercase tracking-widest">Fetching more works...</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Related Actors */}

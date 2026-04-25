@@ -1,5 +1,31 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { MediaItem } from '../types';
+import { 
+  onAuthStateChanged, 
+  User as FirebaseUser 
+} from 'firebase/auth';
+import { 
+  auth, 
+  db 
+} from '../lib/firebase';
+import { 
+  loginWithGoogle, 
+  loginWithEmail as firebaseLoginWithEmail, 
+  signupWithEmail as firebaseSignupWithEmail, 
+  logoutUser,
+  addWatchHistory,
+  addFavorite,
+  getWatchHistory
+} from '../services/firebaseService';
+import { 
+  collection, 
+  onSnapshot, 
+  query, 
+  orderBy, 
+  limit, 
+  doc,
+  getDoc
+} from 'firebase/firestore';
 
 interface User {
   id: string;
@@ -53,6 +79,9 @@ export interface Playlist {
 interface AuthContextType {
   user: User | null;
   login: (username: string, email: string, avatar?: string) => void;
+  loginWithGoogle: () => Promise<void>;
+  loginWithEmail: (email: string, pass: string) => Promise<void>;
+  signupWithEmail: (email: string, pass: string, name: string) => Promise<void>;
   logout: () => void;
   watchlist: MediaItem[];
   addToWatchlist: (item: MediaItem) => void;
@@ -118,6 +147,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [watchlist, setWatchlist] = useState<MediaItem[]>([]);
   const [history, setHistory] = useState<MediaItem[]>([]);
   
@@ -167,49 +197,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('axis_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    const unsubscribe = onAuthStateChanged(auth, (fUser) => {
+      setFirebaseUser(fUser);
+      if (fUser) {
+        const newUser = {
+          id: fUser.uid,
+          username: fUser.displayName || fUser.email?.split('@')[0] || 'User',
+          email: fUser.email || '',
+          avatar: fUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${fUser.uid}`
+        };
+        setUser(newUser);
+        localStorage.setItem('axis_user', JSON.stringify(newUser));
+      } else {
+        setUser(null);
+        localStorage.removeItem('axis_user');
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
+  // Sync Favorites (Watchlist) from Firestore
   useEffect(() => {
-    if (user) {
-      const storedWatchlist = localStorage.getItem(`axis_watchlist_${user.id}`);
-      if (storedWatchlist) setWatchlist(JSON.parse(storedWatchlist));
-      
-      const storedHistory = localStorage.getItem(`axis_history_${user.id}`);
-      if (storedHistory) setHistory(JSON.parse(storedHistory));
-
-      const storedPrefs = localStorage.getItem(`axis_prefs_${user.id}`);
-      if (storedPrefs) setPreferences({ ...defaultPreferences, ...JSON.parse(storedPrefs) });
-
-      const storedStats = localStorage.getItem(`axis_stats_${user.id}`);
-      if (storedStats) {
-        const parsed = JSON.parse(storedStats);
-        setStats({ ...initialStats, ...parsed });
-      } else {
-        setStats(initialStats);
-      }
-
-      const storedPlaylists = localStorage.getItem(`axis_playlists_${user.id}`);
-      if (storedPlaylists) setPlaylists(JSON.parse(storedPlaylists));
-
-      const storedFollowing = localStorage.getItem(`axis_following_${user.id}`);
-      if (storedFollowing) setFollowing(JSON.parse(storedFollowing));
-
-      const storedContinueWatching = localStorage.getItem(`axis_continue_watching_${user.id}`);
-      if (storedContinueWatching) setContinueWatching(JSON.parse(storedContinueWatching));
-    } else {
-      setWatchlist([]);
-      setHistory([]);
-      setPreferences(defaultPreferences);
-      setStats(initialStats);
-      setPlaylists([]);
-      setFollowing([]);
-      setContinueWatching([]);
+    if (firebaseUser) {
+      const q = query(
+        collection(db, `users/${firebaseUser.uid}/favorites`),
+        orderBy('addedAt', 'desc')
+      );
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const items = snapshot.docs.map(doc => ({
+          id: doc.data().movieId,
+          title: doc.data().title,
+          // We might need more data here, but for now we'll store basic info
+          // In a real app, we'd fetch full details if needed or store them in favorites
+          type: 'Movie' as const // Defaulting
+        } as MediaItem));
+        setWatchlist(items);
+        localStorage.setItem(`axis_watchlist_${firebaseUser.uid}`, JSON.stringify(items));
+      });
+      return () => unsubscribe();
     }
-  }, [user]);
+  }, [firebaseUser]);
+
+  // Sync Watch History from Firestore
+  useEffect(() => {
+    if (firebaseUser) {
+      const q = query(
+        collection(db, `users/${firebaseUser.uid}/watchHistory`),
+        orderBy('watchedAt', 'desc'),
+        limit(50)
+      );
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const items = snapshot.docs.map(doc => ({
+          id: doc.data().movieId,
+          title: doc.data().title,
+          type: 'Movie' as const
+        } as MediaItem));
+        setHistory(items);
+        localStorage.setItem(`axis_history_${firebaseUser.uid}`, JSON.stringify(items));
+      });
+      return () => unsubscribe();
+    }
+  }, [firebaseUser]);
 
   const isAdmin = useMemo(() => {
     return user?.username.toLowerCase() === 'great' && user?.email === 'greatmayuku2@gmail.com';
@@ -260,20 +308,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('axis_user', JSON.stringify(newUser));
   }, []);
 
+  const handleLoginWithGoogle = useCallback(async () => {
+    await loginWithGoogle();
+  }, []);
+
+  const handleLoginWithEmail = useCallback(async (email: string, pass: string) => {
+    await firebaseLoginWithEmail(email, pass);
+  }, []);
+
+  const handleSignupWithEmail = useCallback(async (email: string, pass: string, name: string) => {
+    await firebaseSignupWithEmail(email, pass, name);
+  }, []);
+
   const logout = useCallback(() => {
+    logoutUser();
     setUser(null);
     localStorage.removeItem('axis_user');
   }, []);
 
-  const addToWatchlist = useCallback((item: MediaItem) => {
+  const addToWatchlist = useCallback(async (item: MediaItem) => {
     if (!user) return;
-    setWatchlist(prev => {
-      const updated = [...prev.filter(i => i.id !== item.id), item];
-      setLastActionType(`WATCHLIST_ADD: ${item.title}`);
-      localStorage.setItem(`axis_watchlist_${user.id}`, JSON.stringify(updated));
-      return updated;
-    });
-  }, [user]);
+    if (firebaseUser) {
+      await addFavorite(item.id, item.title);
+    } else {
+      setWatchlist(prev => {
+        const updated = [...prev.filter(i => i.id !== item.id), item];
+        setLastActionType(`WATCHLIST_ADD: ${item.title}`);
+        localStorage.setItem(`axis_watchlist_${user.id}`, JSON.stringify(updated));
+        return updated;
+      });
+    }
+  }, [user, firebaseUser]);
 
   const removeFromWatchlist = useCallback((id: string) => {
     if (!user) return;
@@ -288,15 +353,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return watchlist.some(i => i.id === id);
   }, [watchlist]);
 
-  const addToHistory = useCallback((item: MediaItem) => {
+  const addToHistory = useCallback(async (item: MediaItem) => {
     if (!user) return;
-    setHistory(prev => {
-      const updated = [item, ...prev.filter(i => i.id !== item.id)].slice(0, 50);
-      setLastActionType(`WATCH_START: ${item.title}`);
-      localStorage.setItem(`axis_history_${user.id}`, JSON.stringify(updated));
-      return updated;
-    });
-  }, [user]);
+    if (firebaseUser) {
+      await addWatchHistory(item.id, item.title);
+    } else {
+      setHistory(prev => {
+        const updated = [item, ...prev.filter(i => i.id !== item.id)].slice(0, 50);
+        setLastActionType(`WATCH_START: ${item.title}`);
+        localStorage.setItem(`axis_history_${user.id}`, JSON.stringify(updated));
+        return updated;
+      });
+    }
+  }, [user, firebaseUser]);
 
   const removeFromHistory = useCallback((id: string) => {
     if (!user) return;
@@ -461,7 +530,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   const value = useMemo(() => ({
-    user, login, logout, isAdmin, 
+    user, 
+    login, 
+    loginWithGoogle: handleLoginWithGoogle,
+    loginWithEmail: handleLoginWithEmail,
+    signupWithEmail: handleSignupWithEmail,
+    logout, 
+    isAdmin, 
     systemMessage, isMaintenance, isBanned,
     broadcastLevel, siteConfig,
     watchlist, addToWatchlist, removeFromWatchlist, isInWatchlist,

@@ -1,0 +1,54 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile data",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastLogin": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "WatchHistory": {
+      "title": "WatchHistory",
+      "description": "User's watch history entry",
+      "type": "object",
+      "properties": {
+        "movieId": { "type": "string" },
+        "title": { "type": "string" },
+        "watchedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["movieId", "watchedAt"]
+    },
+    "Favorite": {
+      "title": "Favorite",
+      "description": "User's favorite movie",
+      "type": "object",
+      "properties": {
+        "movieId": { "type": "string" },
+        "title": { "type": "string" },
+        "addedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["movieId", "addedAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Collection of user profiles"
+    },
+    "users/{userId}/watchHistory/{historyId}": {
+      "schema": "WatchHistory",
+      "description": "User's watch history"
+    },
+    "users/{userId}/favorites/{favoriteId}": {
+      "schema": "Favorite",
+      "description": "User's favorite movies"
+    }
+  }
+}

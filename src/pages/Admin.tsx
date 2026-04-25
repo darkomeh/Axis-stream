@@ -16,6 +16,12 @@ import {
   Tooltip, ResponsiveContainer, AreaChart, Area 
 } from 'recharts';
 
+import { 
+  getUsers as getFirebaseUsers, 
+  getUserCount as getFirebaseUserCount 
+} from '../services/firebaseService';
+import { Timestamp } from 'firebase/firestore';
+
 interface AdminUser {
   id: string;
   username: string;
@@ -80,19 +86,47 @@ export default function Admin() {
   const fetchData = async () => {
     try {
       setPageError('');
-      const [statsRes, usersRes, systemRes] = await Promise.all([
+      const [statsRes, usersRes, systemRes, firebaseUsers, firebaseUserCount] = await Promise.all([
         fetch('/api/admin/stats'),
         fetch('/api/admin/users'),
-        fetch('/api/admin/system')
+        fetch('/api/admin/system'),
+        getFirebaseUsers(),
+        getFirebaseUserCount()
       ]);
       const statsData = await statsRes.json();
       const usersData = await usersRes.json();
       const systemData = await systemRes.json();
       
+      // Merge local users and firebase users for a complete view
+      // In a full migration, we'd only use Firebase
+      const combinedUsers = [...usersData];
+      if (firebaseUsers) {
+        firebaseUsers.forEach((fu: any) => {
+          if (!combinedUsers.some(u => u.email === fu.email)) {
+            combinedUsers.push({
+              id: fu.uid,
+              username: fu.name,
+              email: fu.email,
+              avatar: fu.photoURL,
+              createdAt: fu.createdAt instanceof Timestamp ? fu.createdAt.toDate().toISOString() : fu.createdAt?.seconds ? new Date(fu.createdAt.seconds * 1000).toISOString() : new Date().toISOString(),
+              watchlistCount: 0,
+              historyCount: 0,
+              stats: {
+                totalViews: 0,
+                watchTimeMinutes: 0,
+                currentStreak: 0,
+                badges: []
+              }
+            });
+          }
+        });
+      }
+
       setData({
         ...statsData,
         ...systemData,
-        allUsers: usersData
+        totalUsers: firebaseUserCount || statsData.totalUsers,
+        allUsers: combinedUsers
       });
       if (systemData.broadcastMessage) setBroadcastInput(systemData.broadcastMessage);
     } catch (e) {

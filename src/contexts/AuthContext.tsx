@@ -131,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isMaintenance, setIsMaintenance] = useState(false);
   const [isBanned, setIsBanned] = useState(false);
   const [broadcastLevel, setBroadcastLevel] = useState<'info' | 'warning' | 'critical'>('info');
-  const [siteConfig, setSiteConfig] = useState<{ siteName: string; brandColor: string; tagline: string; logoUrl?: string; }>({ siteName: 'AxisTV', brandColor: '#E50914', tagline: 'Home of Endless Movies and Series', logoUrl: 'https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg' });
+  const [siteConfig, setSiteConfig] = useState<{ siteName: string; brandColor: string; tagline: string; logoUrl?: string; }>({ siteName: 'Axis TV', brandColor: '#E50914', tagline: 'Your Movie Plug', logoUrl: 'https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg' });
   const [lastActionType, setLastActionType] = useState<string | null>(null);
 
   useEffect(() => {

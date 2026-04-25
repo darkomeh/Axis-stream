@@ -5,19 +5,19 @@ import { ArrowLeft } from 'lucide-react';
 const policies = {
   terms: {
     title: 'Terms of Service',
-    content: `Effective Date: 2026\n\nWelcome to AXIS TV. By accessing or using our platform, you agree to be bound by these Terms of Service. All content on AXIS TV is provided by non-affiliated third parties. We do not host or upload any media files on our servers. Your continued use of the platform constitutes your agreement to these terms.`,
+    content: `Effective Date: 2026\n\nWelcome to Axis TV. By accessing or using our platform, you agree to be bound by these Terms of Service. All content on Axis TV is provided by non-affiliated third parties. We do not host or upload any media files on our servers. Your continued use of the platform constitutes your agreement to these terms.`,
   },
   privacy: {
     title: 'Privacy Policy',
-    content: `Effective Date: 2026\n\nAXIS TV respects your privacy. We collect minimal information required to personalize your experience, such as your watchlist and continue-watching state. These are stored locally and synced securely if you create an account. We do not sell your personal data.`,
+    content: `Effective Date: 2026\n\nAxis TV respects your privacy. We collect minimal information required to personalize your experience, such as your watchlist and continue-watching state. These are stored locally and synced securely if you create an account. We do not sell your personal data.`,
   },
   cookies: {
     title: 'Cookie Policy',
-    content: `Effective Date: 2026\n\nAXIS TV uses essential cookies and local storage tokens to keep you logged in and to remember your preferences (like volume, subtitle settings, and watch history). By using our service, you consent to our use of these essential local storage mechanisms.`,
+    content: `Effective Date: 2026\n\nAxis TV uses essential cookies and local storage tokens to keep you logged in and to remember your preferences (like volume, subtitle settings, and watch history). By using our service, you consent to our use of these essential local storage mechanisms.`,
   },
   dmca: {
     title: 'DMCA Notice',
-    content: `Effective Date: 2026\n\nAXIS TV functions strictly as a search engine and directory for media. We only link to and embed content provided by third-party services. If you hold copyright for any material and wish for it to be removed, please contact the respective third-party hosting service directly.`,
+    content: `Effective Date: 2026\n\nAxis TV functions strictly as a search engine and directory for media. We only link to and embed content provided by third-party services. If you hold copyright for any material and wish for it to be removed, please contact the respective third-party hosting service directly.`,
   }
 };
 

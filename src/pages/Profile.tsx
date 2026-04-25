@@ -4,7 +4,8 @@ import {
   LogOut, Clock, Bookmark, ArrowLeft, 
   Award, ListVideo, Trophy, Settings,
   Edit2, ChevronRight, Play, Plus, X,
-  Search, Bell, Menu, Star, MoreVertical
+  Search, Bell, Menu, Star, MoreVertical,
+  Flame, Zap, Heart, Ghost, Shield
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -249,17 +250,29 @@ export default function Profile() {
 
           {stats?.badges && stats.badges.length > 0 ? (
             <div className="space-y-4">
-              {stats.badges.map((badge, idx) => (
-                <div key={idx} className="bg-gradient-to-br from-purple-900/40 to-brand/40 border border-white/10 rounded-3xl p-5 flex items-center gap-5 shadow-2xl">
-                  <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center border border-white/10 shadow-[0_0_20px_rgba(255,255,255,0.1)]">
-                    <Trophy className="w-7 h-7 text-white fill-white/20" />
+              {stats.badges.map((badge, idx) => {
+                const badgeInfo = {
+                  '7-day streak': { icon: Flame, color: 'text-orange-500', bg: 'from-orange-600/20', desc: 'Watched 7 days in a row' },
+                  'Horror Master': { icon: Ghost, color: 'text-purple-500', bg: 'from-purple-600/20', desc: 'Expert of the dark arts' },
+                  'Romance King': { icon: Heart, color: 'text-pink-500', bg: 'from-pink-600/20', desc: 'True romantic at heart' },
+                  'Weekend Binger': { icon: Zap, color: 'text-yellow-500', bg: 'from-yellow-600/20', desc: 'Marathon viewer' },
+                  'Pro Member': { icon: Shield, color: 'text-blue-500', bg: 'from-blue-600/20', desc: 'Official Axis TV Elite' }
+                }[badge] || { icon: Trophy, color: 'text-brand', bg: 'from-brand/20', desc: 'Earned milestone' };
+
+                const Icon = badgeInfo.icon;
+
+                return (
+                  <div key={idx} className={`bg-gradient-to-br ${badgeInfo.bg} to-black/20 border border-white/10 rounded-3xl p-5 flex items-center gap-5 shadow-2xl`}>
+                    <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 shadow-lg">
+                      <Icon className={`w-7 h-7 ${badgeInfo.color} fill-current/10`} />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-lg font-black tracking-tight leading-tight uppercase">{badge}</h4>
+                      <p className="text-[9px] font-black text-white/40 uppercase tracking-widest mt-1">{badgeInfo.desc}</p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="text-lg font-black tracking-tight leading-tight">{badge}</h4>
-                    <p className="text-[9px] font-black text-white/60 uppercase tracking-widest mt-1 italic">Achieved</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="bg-black/20 border border-white/5 rounded-3xl p-8 text-center">

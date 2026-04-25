@@ -53,12 +53,17 @@ function Navbar() {
           {/* DESKTOP SIDEBAR */}
           <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 bg-bg-sidebar border-r border-white/5 flex-col z-[100]">
             <div className="p-8">
-              <Link to="/" className="flex items-center gap-2 group">
-                 <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-brand">
-                   <path d="M12 2L22 20H2L12 2Z" fill="currentColor"/>
-                 </svg>
-                 <span className="text-2xl font-black tracking-widest text-white uppercase italic">
-                   AXIS <span className="text-brand not-italic">TV</span>
+              <Link to="/" className="flex flex-col gap-0.5 group">
+                 <div className="flex items-center gap-2">
+                   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-brand shrink-0">
+                     <path d="M12 2L22 20H2L12 2Z" fill="currentColor"/>
+                   </svg>
+                   <span className="text-2xl font-black text-white tracking-tight">
+                     Axis TV
+                   </span>
+                 </div>
+                 <span className="text-[10px] font-black uppercase tracking-widest text-brand ml-10">
+                   Your Movie Plug
                  </span>
               </Link>
             </div>
@@ -149,13 +154,18 @@ function Navbar() {
             isScrolled ? "bg-bg-base/95 premium-blur border-b border-white/5" : "bg-gradient-to-b from-bg-base/80 to-transparent"
           }`}>
             <div className="flex items-center justify-between px-fluid-sm pt-6 pb-2 gap-2">
-              <Link to="/" className="flex items-center gap-1.5 shrink-0">
-                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-brand w-5 h-5 md:w-6 md:h-6">
-                   <path d="M12 2L22 20H2L12 2Z" fill="currentColor"/>
-                 </svg>
-                <span className="text-fluid-xl font-black tracking-widest text-white uppercase italic whitespace-nowrap">
-                  AXIS <span className="text-brand not-italic">TV</span>
-                </span>
+              <Link to="/" className="flex flex-col shrink-0">
+                 <div className="flex items-center gap-1.5">
+                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-brand w-5 h-5">
+                     <path d="M12 2L22 20H2L12 2Z" fill="currentColor"/>
+                   </svg>
+                   <span className="text-xl font-black text-white tracking-tight">
+                     Axis TV
+                   </span>
+                 </div>
+                 <span className="text-[8px] font-black uppercase tracking-[0.15em] text-brand ml-6.5">
+                   Your Movie Plug
+                 </span>
               </Link>
               <div className="flex items-center gap-2 md:gap-3 shrink-0">
                 <Link to="/search" className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center text-gray-300 hover:text-brand transition-colors bg-white/5 rounded-full backdrop-blur-md">

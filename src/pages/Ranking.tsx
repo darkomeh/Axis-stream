@@ -87,7 +87,7 @@ export default function Ranking() {
           </div>
           <div>
             <h1 className="text-5xl md:text-7xl font-black mb-3 tracking-tighter uppercase italic leading-none">
-              Axis <span className="text-brand">Rankings</span>
+              Axis TV <span className="text-brand">Rankings</span>
             </h1>
             <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-[10px] md:text-xs">The Authoritative Guide to Global Cinematic Excellence</p>
           </div>

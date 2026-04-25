@@ -298,7 +298,7 @@ export default function Search() {
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               onFocus={() => setIsFocused(true)}
-              placeholder="Search movies, series, anime..."
+              placeholder="Search on Axis TV..."
               className="w-full h-14 pl-14 pr-12 bg-[#0F0F0F] border border-white/5 rounded-full text-base text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand/50 transition-all shadow-[0_0_15px_rgba(255,45,45,0.02)] focus:shadow-[0_0_25px_rgba(255,45,45,0.1)]"
             />
             {query && (

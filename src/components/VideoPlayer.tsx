@@ -92,6 +92,7 @@ export default function VideoPlayer({
     isTrailer || (mediaData.sources.length === 0 && !!mediaData.embedUrl);
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(1);
   const [currentTime, setCurrentTime] = useState(0);
@@ -1067,7 +1068,7 @@ export default function VideoPlayer({
                         navigator
                           .share({
                             title,
-                            text: `Check out ${title} on AXIS TV!`,
+                            text: `Check out ${title} on Axis TV!`,
                             url: window.location.href,
                           })
                           .catch(() => {});
@@ -1437,7 +1438,7 @@ export default function VideoPlayer({
                       onClick={() => {
                         const source = mediaData.sources[selectedSourceIdx];
                         const url = source.downloadUrl || source.url;
-                        const fileName = `[${title}] [Axis Stream].mp4`.replace(
+                        const fileName = `[${title}] [Axis TV].mp4`.replace(
                           /[^a-zA-Z0-9 -\[\]]/g,
                           "",
                         );

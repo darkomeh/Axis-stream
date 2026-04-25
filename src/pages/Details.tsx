@@ -75,7 +75,7 @@ export default function Details() {
 
   useEffect(() => {
     if (details) {
-      document.title = `${details.title} - Axis`;
+      document.title = `${details.title} - Axis TV`;
       trackWatchActivity({
         id: details.id,
         title: details.title,
@@ -86,7 +86,7 @@ export default function Details() {
         genres: details.genres
       });
     }
-    return () => { document.title = "Axis"; };
+    return () => { document.title = "Axis TV"; };
   }, [details]);
 
   useEffect(() => {
@@ -469,7 +469,7 @@ export default function Details() {
               <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-center">Add to Playlist</span>
            </button>
            <button 
-              onClick={handleShare}
+              onClick={() => handleShare()}
               className="flex items-center gap-3 px-5 md:px-6 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all border border-white/5 active:scale-95 group"
            >
               <Share2 className="w-4 h-4 md:w-5 md:h-5 text-gray-400 group-hover:text-white transition-colors" />

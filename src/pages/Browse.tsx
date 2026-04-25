@@ -345,7 +345,7 @@ export default function Browse() {
 
         {!selectedGenre && !selectedCountry && selectedType === "0" && trending.length > 0 && (
           <div className="-mx-6 lg:-mx-12 mb-20">
-            <TopTenGrid title="Bestsellers in Axis" items={trending.slice(0, 10)} />
+            <TopTenGrid title="Top Content on Axis TV" items={trending.slice(0, 10)} />
           </div>
         )}
 

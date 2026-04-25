@@ -22,16 +22,21 @@ function Footer() {
       <div className="max-w-[1400px] mx-auto px-fluid">
         {/* Top Logo & Branding */}
         <div className="mb-8 md:mb-12">
-          <Link to="/" className="flex items-center gap-3 mb-6 group">
-            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-brand flex items-center justify-center shadow-[0_0_20px_rgba(255,45,45,0.4)] transition-transform group-hover:scale-110 duration-500">
-              <Play className="w-5 h-5 md:w-6 md:h-6 text-white fill-current ml-0.5" />
+          <Link to="/" className="flex flex-col gap-1 mb-6 group">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-brand flex items-center justify-center shadow-[0_0_20px_rgba(255,45,45,0.4)] transition-transform group-hover:scale-110 duration-500">
+                <Play className="w-5 h-5 md:w-6 md:h-6 text-white fill-current ml-0.5" />
+              </div>
+              <span className="text-2xl md:text-3xl font-black tracking-tight text-white">
+                Axis TV
+              </span>
             </div>
-            <span className="text-2xl md:text-3xl font-black italic tracking-tighter text-white uppercase">
-              AXIS <span className="text-brand not-italic">TV</span>
+            <span className="text-xs md:text-sm font-black uppercase tracking-[0.3em] text-brand ml-13 md:ml-15 opacity-80">
+              Your Movie Plug
             </span>
           </Link>
-          <p className="text-gray-400 text-fluid-xs md:text-[15px] leading-relaxed max-w-2xl font-medium">
-            Experience the ultimate premium streaming platform. Watch the latest movies, series, and exclusive content in high quality with our seamless cinematic interface.
+          <p className="text-gray-400 text-fluid-xs md:text-[15px] leading-relaxed max-w-2xl font-medium mt-4">
+            Axis TV is your movie plug for premium streaming. Watch the latest movies, series, and exclusive content in high quality with our seamless cinematic interface.
           </p>
         </div>
 
@@ -172,7 +177,7 @@ function Footer() {
               <Crown className="w-6 h-6 md:w-8 md:h-8" />
             </div>
             <div>
-              <h4 className="text-white font-black uppercase text-sm md:text-base tracking-widest mb-1 italic">Want to create a site like AXIS TV?</h4>
+              <h4 className="text-white font-black uppercase text-sm md:text-base tracking-widest mb-1 italic">Want to create a site like Axis TV?</h4>
               <p className="text-gray-500 text-[11px] md:text-[13px] font-bold leading-relaxed max-w-xl">
                 Contact the developer to get your own premium streaming website or app.
               </p>
@@ -210,7 +215,7 @@ function Footer() {
         {/* Final Disclaimer & Copyright */}
         <div className="pt-8 border-t border-white/5 text-center">
           <p className="text-gray-500 text-sm font-black uppercase tracking-[0.2em] mb-4 overflow-hidden">
-            &copy; 2026 <span className="text-brand italic">AXIS TV</span>. All rights reserved.
+            &copy; 2026 Axis TV. All rights reserved.
           </p>
           <p className="text-gray-600 text-[11px] font-bold uppercase tracking-widest leading-loose max-w-4xl mx-auto opacity-60">
             This site does not store any files on its server. All contents are provided by non-affiliated third parties.

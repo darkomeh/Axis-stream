@@ -11,9 +11,9 @@ interface SEOProps {
   schema?: any;
 }
 
-const DEFAULT_TITLE = 'Axis TV — Watch Movies and Series Online';
-const DEFAULT_DESCRIPTION = 'Stream the latest movies, trending series, and popular anime for free on Axis TV. Your home for high-quality entertainment and instant streaming.';
-const DEFAULT_KEYWORDS = 'watch movies online, stream series, axis tv, free movies, watch anime, latest series, hd movies';
+const DEFAULT_TITLE = 'Axis TV — Your Movie Plug';
+const DEFAULT_DESCRIPTION = 'Axis TV — Your Movie Plug. Watch and download movies, series, anime, K-dramas and more. Fast, clean streaming.';
+const DEFAULT_KEYWORDS = 'watch movies online, stream series, axis tv, free movies, watch anime, latest series, hd movies, k-dramas, axis tv your movie plug';
 const SITE_URL = 'https://axislabs.dpdns.org/';
 const DEFAULT_IMAGE = 'https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg';
 

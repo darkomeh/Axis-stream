@@ -150,7 +150,7 @@ export default function Home() {
       <SEO />
       
       {/* Hidden H1 for SEO */}
-      <h1 className="sr-only">Axis TV — Watch Movies and Series Online</h1>
+      <h1 className="sr-only">Axis TV — Your Movie Plug</h1>
 
       <Navbar />
       
@@ -166,7 +166,7 @@ export default function Home() {
         )}
 
         {trending.length > 0 && (
-          <TopTenGrid title="Top 10 in AXIS TV" items={trending.slice(6, 16)} />
+          <TopTenGrid title="Top 10 on Axis TV" items={trending.slice(6, 16)} />
         )}
 
         {recommendations.length > 0 && (

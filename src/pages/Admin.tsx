@@ -283,7 +283,7 @@ export default function Admin() {
           <div>
             <h1 className="text-4xl font-black tracking-tighter flex items-center gap-4">
               <ShieldAlert className="w-10 h-10 text-brand" />
-              AXIS COMMAND CENTER
+              AXIS TV COMMAND CENTER
             </h1>
             <p className="text-gray-500 mt-2 font-medium">Full platform control and administrative intelligence.</p>
           </div>

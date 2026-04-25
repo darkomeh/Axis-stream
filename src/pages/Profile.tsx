@@ -6,7 +6,7 @@ import {
   Edit2, ChevronRight, Play, Plus, X,
   Search, Bell, Menu, Star, MoreVertical
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { MovieImage } from '../components/MovieImage';
 import { useToast } from '../contexts/ToastContext';
@@ -18,19 +18,8 @@ const AVATARS = [
   { id: 'm2', url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Oliver', gender: 'male' },
 ];
 
-const BG_POSTERS = [
-  'https://picsum.photos/seed/wick/200/300',
-  'https://picsum.photos/seed/expanse/200/300',
-  'https://picsum.photos/seed/matrix/200/300',
-  'https://picsum.photos/seed/marvel/200/300',
-  'https://picsum.photos/seed/interstellar/200/300',
-  'https://picsum.photos/seed/inception/200/300',
-  'https://picsum.photos/seed/dune/200/300',
-  'https://picsum.photos/seed/batman/200/300',
-];
-
 export default function Profile() {
-  const { user, login, logout, watchlist, history, clearHistory, stats, preferences, updatePreferences, playlists, createPlaylist, deletePlaylist, removeFromHistory } = useAuth();
+  const { user, login, logout, watchlist, history, clearHistory, stats, preferences, updatePreferences, removeFromHistory } = useAuth();
   const { showToast } = useToast();
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [username, setUsername] = useState('');
@@ -74,26 +63,11 @@ export default function Profile() {
     }
   };
 
-  const handleCreatePlaylist = () => {
-    const name = window.prompt("Enter Playlist Name:");
-    if (name && name.trim().length > 0) {
-      createPlaylist(name.trim());
-      showToast("Playlist created successfully!", "success");
-    }
-  };
-
   if (!user) {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col relative overflow-hidden">
-        {/* Animated Background Collage */}
-        <div className="absolute inset-0 z-0 opacity-20 filter blur-[2px]">
-          <div className="grid grid-cols-4 gap-2 rotate-12 scale-125 -translate-y-20">
-            {BG_POSTERS.concat(BG_POSTERS).map((url, i) => (
-              <img key={i} src={url} alt="" className="w-full aspect-[2/3] object-cover rounded-lg" loading="lazy" referrerPolicy="no-referrer" />
-            ))}
-          </div>
-          <div className="absolute inset-0 bg-gradient-to-b from-black via-black/80 to-black" />
-        </div>
+        {/* Abstract Background for Login */}
+        <div className="absolute inset-0 z-0 opacity-20 bg-gradient-to-br from-brand/20 via-black to-purple-900/20" />
 
         <div className="flex-1 flex items-center justify-center p-6 relative z-10">
           <button 
@@ -176,15 +150,8 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-black text-white relative pb-32">
-      {/* Background Poster Collage */}
-      <div className="fixed inset-0 z-0 opacity-10 filter blur-[1px]">
-        <div className="grid grid-cols-4 gap-4 rotate-6 scale-110">
-          {[...Array(12)].map((_, i) => (
-            <img key={i} src={BG_POSTERS[i % BG_POSTERS.length]} alt="" className="w-full aspect-[2/3] object-cover rounded-xl" loading="lazy" />
-          ))}
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-b from-black via-black/90 to-black" />
-      </div>
+      {/* Background Gradient */}
+      <div className="fixed inset-0 z-0 bg-gradient-to-b from-brand/5 to-black" />
 
       {/* Custom Top Navigation */}
       <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-8 md:pl-[280px]">
@@ -193,16 +160,13 @@ export default function Profile() {
           <h1 className="text-2xl font-black tracking-tight italic uppercase">My Profile</h1>
         </button>
         <div className="flex items-center gap-4">
-          <button className="w-10 h-10 flex items-center justify-center text-white bg-white/5 rounded-full backdrop-blur-md border border-white/10 hover:bg-white/10 transition-all">
+          <Link to="/search" className="w-10 h-10 flex items-center justify-center text-white bg-white/5 rounded-full backdrop-blur-md border border-white/10 hover:bg-white/10 transition-all">
             <Search className="w-5 h-5" />
-          </button>
+          </Link>
           <div className="relative w-10 h-10 rounded-full overflow-hidden border border-white/20 p-0.5">
             <img src={user.avatar || undefined} alt="" className="w-full h-full object-cover rounded-full" loading="lazy" />
             <div className="absolute top-0 right-0 w-3 h-3 bg-brand border-2 border-black rounded-full" />
           </div>
-          <button className="w-10 h-10 flex items-center justify-center text-white bg-white/5 rounded-full backdrop-blur-md border border-white/10 hover:bg-white/10 transition-all">
-            <Menu className="w-5 h-5" />
-          </button>
         </div>
       </div>
 
@@ -214,16 +178,6 @@ export default function Profile() {
           animate={{ opacity: 1, scale: 1 }}
           className="relative bg-white/5 border border-white/10 rounded-[32px] overflow-hidden backdrop-blur-2xl p-8 shadow-[0_20px_50px_rgba(0,0,0,0.5)] group ring-1 ring-white/5"
         >
-          {/* Card Poster Background Overlay */}
-          <div className="absolute inset-x-0 bottom-0 top-0 z-0 opacity-20 pointer-events-none overflow-hidden">
-             <div className="grid grid-cols-4 gap-2 -rotate-3 scale-110 opacity-40">
-                {BG_POSTERS.slice(0, 4).map((url, i) => (
-                  <img key={i} src={url} alt="" className="w-full aspect-[2/3] object-cover rounded-lg blur-[1px]" loading="lazy" />
-                ))}
-             </div>
-             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-          </div>
-
           <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
             {/* Profile Image with Glow Ring */}
             <div className="relative">
@@ -288,26 +242,36 @@ export default function Profile() {
               <Award className="w-5 h-5 text-brand" /> Achievements
             </h3>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-brand uppercase tracking-widest">1 Earned</span>
+              <span className="text-[10px] font-black text-brand uppercase tracking-widest">{stats?.badges?.length || 0} Earned</span>
               <ChevronRight className="w-4 h-4 text-gray-500" />
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-900/40 to-brand/40 border border-white/10 rounded-3xl p-5 flex items-center gap-5 shadow-2xl">
-            <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center border border-white/10 shadow-[0_0_20px_rgba(255,255,255,0.1)]">
-              <Trophy className="w-7 h-7 text-white fill-white/20" />
+          {stats?.badges && stats.badges.length > 0 ? (
+            <div className="space-y-4">
+              {stats.badges.map((badge, idx) => (
+                <div key={idx} className="bg-gradient-to-br from-purple-900/40 to-brand/40 border border-white/10 rounded-3xl p-5 flex items-center gap-5 shadow-2xl">
+                  <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center border border-white/10 shadow-[0_0_20px_rgba(255,255,255,0.1)]">
+                    <Trophy className="w-7 h-7 text-white fill-white/20" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-black tracking-tight leading-tight">{badge}</h4>
+                    <p className="text-[9px] font-black text-white/60 uppercase tracking-widest mt-1 italic">Achieved</p>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="flex-1">
-              <h4 className="text-lg font-black tracking-tight leading-tight">7-day streak</h4>
-              <p className="text-[9px] font-black text-white/60 uppercase tracking-widest mt-1 italic">Achieved</p>
+          ) : (
+            <div className="bg-black/20 border border-white/5 rounded-3xl p-8 text-center">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">No achievements yet. Start watching to earn badges!</p>
             </div>
-          </div>
+          )}
 
           <div className="mt-8 px-2 space-y-4">
              <div className="flex items-center justify-between">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em]">Current Streak</p>
                 <div className="flex items-center gap-2">
-                   <span className="text-brand font-black text-xl italic tracking-tighter">9 DAYS</span>
+                   <span className="text-brand font-black text-xl italic tracking-tighter">{stats?.currentStreak || 0} DAYS</span>
                 </div>
              </div>
              
@@ -320,14 +284,14 @@ export default function Profile() {
                 </div>
                 <motion.div 
                   initial={{ width: 0 }}
-                  animate={{ width: '85%' }}
+                  animate={{ width: `${Math.min(((stats?.currentStreak || 0) / 10) * 100, 100)}%` }}
                   className="h-full bg-brand relative shadow-[0_0_10px_rgba(255,45,45,0.8)]"
                 >
                   <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full shadow-[0_0_10px_#fff]" />
                 </motion.div>
              </div>
              <p className="text-[10px] text-gray-500 font-bold leading-relaxed uppercase tracking-wide">
-               Keep the vibes going! Watch daily to maintain your streak.
+               {stats?.currentStreak > 0 ? "You're on fire! Keep it up." : "Start your journey today. Watch any movie to start a streak!"}
              </p>
           </div>
         </div>
@@ -362,12 +326,12 @@ export default function Profile() {
 
         {/* MY WATCHLIST SECTION */}
         <div className="bg-white/5 border border-white/10 rounded-[32px] p-6 backdrop-blur-2xl">
-          <button className="w-full flex items-center justify-between mb-8 px-2 group">
+          <div className="w-full flex items-center justify-between mb-8 px-2 group">
             <h3 className="text-sm font-black uppercase tracking-[0.2em] flex items-center gap-3">
               <Bookmark className="w-5 h-5 text-brand" /> My Watchlist ({watchlist?.length || 0})
             </h3>
             <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-brand transition-colors" />
-          </button>
+          </div>
           
           {watchlist && watchlist.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

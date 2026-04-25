@@ -10,6 +10,7 @@ import Footer from "../components/Footer";
 import PopcornLoader from "../components/PopcornLoader";
 import { useAuth } from "../contexts/AuthContext";
 import { Loader2 } from "lucide-react";
+import { SEO } from "../components/SEO";
 
 import { 
   HeroSkeleton, 
@@ -146,6 +147,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black text-white pb-10 md:pb-20">
+      <SEO />
+      
+      {/* Hidden H1 for SEO */}
+      <h1 className="sr-only">Axis TV — Watch Movies and Series Online</h1>
+
       <Navbar />
       
       <Carousel items={carouselItems} />

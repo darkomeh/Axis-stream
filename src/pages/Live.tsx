@@ -9,11 +9,13 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 
 import { MovieImage } from "../components/MovieImage";
+import { ErrorMessage } from "../components/ErrorMessage";
 
 export default function Live() {
   const navigate = useNavigate();
   const [matches, setMatches] = useState<LiveMatch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const handleBack = () => {
     if (window.history.length > 2) {
@@ -23,17 +25,21 @@ export default function Live() {
     }
   };
 
+  const loadLive = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await movieService.getLive();
+      setMatches(data);
+    } catch (e) {
+      console.error("Failed to load live matches", e);
+      setError("Failed to load live matches. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadLive = async () => {
-      try {
-        const data = await movieService.getLive();
-        setMatches(data);
-      } catch (e) {
-        console.error("Failed to load live matches", e);
-      } finally {
-        setLoading(false);
-      }
-    };
     loadLive();
   }, []);
 
@@ -59,7 +65,9 @@ export default function Live() {
           </div>
         </div>
 
-        {loading ? (
+        {error ? (
+          <ErrorMessage message={error} onRetry={loadLive} />
+        ) : loading ? (
           <div className="flex items-center justify-center py-40">
             <PopcornLoader />
           </div>

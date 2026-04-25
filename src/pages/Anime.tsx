@@ -8,7 +8,9 @@ import Footer from "../components/Footer";
 import PopcornLoader from "../components/PopcornLoader";
 import { Search, ArrowLeft, Loader2 } from "lucide-react";
 import { processSearchResults } from "../lib/searchUtils";
+import { SEO } from "../components/SEO";
 
+import { ErrorMessage } from "../components/ErrorMessage";
 import { ListSkeleton } from "../components/Skeleton";
 
 export default function Anime() {
@@ -19,6 +21,7 @@ export default function Anime() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const observer = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useCallback((node: HTMLDivElement) => {
@@ -55,6 +58,7 @@ export default function Anime() {
   const loadAnime = async (p: number, reset: boolean = false) => {
     if (reset) {
       if (items.length === 0) setLoading(true);
+      setError(null);
     } else {
       setLoadingMore(true);
     }
@@ -72,6 +76,7 @@ export default function Anime() {
       setHasMore(data.length > 0);
     } catch (e) {
       console.error("Failed to load anime", e);
+      if (reset) setError("Failed to load Anime. Please try again.");
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -86,6 +91,7 @@ export default function Anime() {
       return;
     }
     setLoading(true);
+    setError(null);
     try {
       const data = await movieService.search(query);
       const processed = processSearchResults(data, query).filter(item => item.category === "Anime");
@@ -93,6 +99,7 @@ export default function Anime() {
       setHasMore(false); // Disable infinite scroll during search
     } catch (e) {
       console.error("Failed to search anime", e);
+      setError("Search failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -100,6 +107,11 @@ export default function Anime() {
 
   return (
     <div className="min-h-screen bg-black text-white pb-20">
+      <SEO 
+        title="Watch Anime Online"
+        description="Stream the latest and most popular anime series on Axis TV. Huge collection of dubbed and subbed anime for all fans."
+        url="/anime"
+      />
       <Navbar />
       <div className="pt-28 px-6 lg:px-12 max-w-[1400px] mx-auto">
         <button 
@@ -129,7 +141,9 @@ export default function Anime() {
           </div>
         </form>
 
-        {loading && items.length === 0 ? (
+        {error ? (
+          <ErrorMessage message={error} onRetry={() => loadAnime(1, true)} />
+        ) : loading && items.length === 0 ? (
           <ListSkeleton count={12} />
         ) : items.length > 0 ? (
           <div className="space-y-8">

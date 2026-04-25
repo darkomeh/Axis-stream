@@ -16,6 +16,7 @@ const isToon = (item: MediaItem) => {
   return !isBad;
 };
 
+import { ErrorMessage } from "../components/ErrorMessage";
 import { ListSkeleton } from "../components/Skeleton";
 
 export default function Toons() {
@@ -26,6 +27,7 @@ export default function Toons() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const observer = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useCallback((node: HTMLDivElement) => {
@@ -62,6 +64,7 @@ export default function Toons() {
   const loadToons = async (p: number, reset: boolean = false) => {
     if (reset) {
       if (items.length === 0) setLoading(true);
+      setError(null);
     } else {
       setLoadingMore(true);
     }
@@ -79,6 +82,7 @@ export default function Toons() {
       setHasMore(data.length > 0);
     } catch (e) {
       console.error("Failed to load toons", e);
+      if (reset) setError("Failed to load Toons. Please try again.");
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -93,6 +97,7 @@ export default function Toons() {
       return;
     }
     setLoading(true);
+    setError(null);
     try {
       // Just search directly, but filter out adult cartoons
       const data = await movieService.search(query);
@@ -100,6 +105,7 @@ export default function Toons() {
       setHasMore(false);
     } catch (e) {
       console.error("Failed to search toons", e);
+      setError("Search failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -136,7 +142,9 @@ export default function Toons() {
           </div>
         </form>
 
-        {loading && items.length === 0 ? (
+        {error ? (
+          <ErrorMessage message={error} onRetry={() => loadToons(1, true)} />
+        ) : loading && items.length === 0 ? (
           <ListSkeleton count={12} />
         ) : items.length > 0 ? (
           <div className="space-y-8">

@@ -7,6 +7,7 @@ import PosterGrid from "../components/PosterGrid";
 import EpisodeSelector from "../components/EpisodeSelector";
 import PopcornLoader from "../components/PopcornLoader";
 import { ErrorMessage } from "../components/ErrorMessage";
+import { SEO } from "../components/SEO";
 import { 
   ArrowLeft, Star, Download, Film, Bookmark, Check, Share2, 
   ListVideo, Play, X, UserPlus, Users, 
@@ -16,7 +17,6 @@ import { motion, AnimatePresence } from "motion/react";
 import Tray from "../components/Tray";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
-import { localDownloadService } from "../services/localDownloadService";
 import { MovieImage } from "../components/MovieImage";
 import { useMediaPreview } from "../contexts/MediaPreviewContext";
 
@@ -43,10 +43,6 @@ export default function Details() {
   const [isDownloadTrayOpen, setIsDownloadTrayOpen] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   
-  const [downloadingUrl, setDownloadingUrl] = useState<string | null>(null);
-  const [downloadProgress, setDownloadProgress] = useState<number>(0);
-  const [isDownloadingItem, setIsDownloadingItem] = useState(false);
-
   const [isMiniPlayer, setIsMiniPlayer] = useState(false);
   const [userClosedMiniPlayer, setUserClosedMiniPlayer] = useState(false);
   const [sourceSizes, setSourceSizes] = useState<Record<string, string>>({});
@@ -190,25 +186,40 @@ export default function Details() {
   }, [id, user]);
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  const [justShared, setJustShared] = useState(false);
 
-  const handleShare = async () => {
+  const handleShare = async (platform?: string) => {
     if (!details) return;
     
-    const shareText = `Movie: *${details.title}*\nRating: ${details.rating || 'N/A'} ⭐\nGenre: ${details.genres?.join(', ') || 'N/A'}\nYear: ${details.year || 'N/A'}\nLink: ${window.location.href}`;
+    const url = window.location.href;
+    const title = details.title;
+    const text = `Watching ${title} on Axis TV! Check it out:`;
     
+    if (platform === 'twitter') {
+      window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
+      return;
+    }
+    
+    if (platform === 'facebook') {
+      window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+      return;
+    }
+
+    if (platform === 'whatsapp') {
+      window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`, '_blank');
+      return;
+    }
+
     try {
       if (navigator.share) {
         await navigator.share({
-          title: details.title,
-          text: shareText,
-          url: window.location.href,
+          title: title,
+          text: text,
+          url: url,
         });
       } else {
-        await navigator.clipboard.writeText(shareText);
-        showToast("Details copied to clipboard!", "success");
+        await navigator.clipboard.writeText(`${text} ${url}`);
+        showToast("Link copied to clipboard!", "success");
       }
-      setJustShared(true);
       setIsShareModalOpen(true);
     } catch (err: any) {
       if (err.name !== 'AbortError' && err.message !== 'Share canceled') {
@@ -340,6 +351,27 @@ export default function Details() {
 
   return (
     <div className="min-h-screen bg-black text-white pb-20">
+      <SEO 
+        title={details.title}
+        description={details.description.slice(0, 160)}
+        keywords={`${details.title}, watch ${details.title} online, ${details.genres?.join(', ')}, Axis TV`}
+        image={details.poster}
+        type={details.type === 'Series' ? 'video.tv_show' : 'video.movie'}
+        schema={{
+          "@context": "https://schema.org",
+          "@type": details.type === 'Series' ? 'TVSeries' : 'Movie',
+          "name": details.title,
+          "description": details.description,
+          "image": details.poster,
+          "datePublished": details.year,
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": details.imdbRatingValue || details.rating || "8.5",
+            "bestRating": "10",
+            "ratingCount": "1000"
+          }
+        }}
+      />
       {/* Video Player Section */}
       <div className="w-full aspect-video bg-black relative z-40" ref={playerRef}>
         {mediaData ? (
@@ -610,9 +642,25 @@ export default function Details() {
       <Tray 
         isOpen={isShareModalOpen} 
         onClose={() => setIsShareModalOpen(false)} 
-        title="Download Poster?"
+        title="Share this with friends"
       >
-        <div className="flex flex-col items-center gap-6 p-4 text-center">
+        <div className="flex flex-col items-center gap-8 p-4 text-center">
+           <div className="flex gap-4 w-full justify-center">
+              {[
+                { name: 'Twitter', icon: '🐦', platform: 'twitter', color: 'bg-[#1DA1F2]' },
+                { name: 'Facebook', icon: 'f', platform: 'facebook', color: 'bg-[#1877F2]' },
+                { name: 'WhatsApp', icon: '💬', platform: 'whatsapp', color: 'bg-[#25D366]' },
+              ].map(social => (
+                <button 
+                  key={social.platform}
+                  onClick={() => handleShare(social.platform)}
+                  className={`${social.color} w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-lg hover:scale-110 transition-transform active:scale-95`}
+                >
+                  {social.icon}
+                </button>
+              ))}
+           </div>
+
            <div className="w-40 aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl border border-white/10 ring-1 ring-white/10">
               <MovieImage src={details.poster} alt={details.title} className="w-full h-full object-cover" />
            </div>

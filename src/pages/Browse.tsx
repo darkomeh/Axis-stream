@@ -8,6 +8,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import PopcornLoader from "../components/PopcornLoader";
 import { ErrorMessage } from "../components/ErrorMessage";
+import { SEO } from "../components/SEO";
 import { Filter, ChevronDown, X, Loader2, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -172,6 +173,11 @@ export default function Browse() {
 
   return (
     <div className="min-h-screen bg-[#000000] text-white pb-20 relative overflow-hidden">
+      <SEO 
+        title={`${selectedGenre || 'Discover'} Movies & Series`}
+        description={`Browse our extensive catalog of ${selectedGenre || ''} movies and series on Axis TV. Filter by genre, country, and type to find your next favorite watch.`}
+        url="/browse"
+      />
       {/* Background Poster Collage (Subtle) */}
       <div className="fixed inset-0 z-0 opacity-10 blur-[80px] pointer-events-none">
         <img 

@@ -101,9 +101,10 @@ export default function MediaPreviewTray() {
   };
 
   const handlePlay = () => {
-    if (!previewId) return;
+    if (!details) return;
+    const slug = details.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     handleClose();
-    navigate(`/details/${previewId}`);
+    navigate(`/watch/${details.id}/${slug}`);
   };
 
   const toggleWatchlist = () => {

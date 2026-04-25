@@ -74,10 +74,12 @@ export default function Admin() {
   const [isPinVerified, setIsPinVerified] = useState(true);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
+  const [pageError, setPageError] = useState('');
   const navigate = useNavigate();
 
   const fetchData = async () => {
     try {
+      setPageError('');
       const [statsRes, usersRes, systemRes] = await Promise.all([
         fetch('/api/admin/stats'),
         fetch('/api/admin/users'),
@@ -95,6 +97,7 @@ export default function Admin() {
       if (systemData.broadcastMessage) setBroadcastInput(systemData.broadcastMessage);
     } catch (e) {
       console.error("Failed to load admin data", e);
+      setPageError('Failed to establish neural link. Reload module?');
     } finally {
       setLoading(false);
     }
@@ -249,6 +252,24 @@ export default function Admin() {
             <ChevronRight className="w-3 h-3 rotate-180" /> Abort Mission
           </button>
         </motion.div>
+      </div>
+    );
+  }
+
+  if (loading || !data) {
+    return (
+      <div className="min-h-screen bg-black text-white pb-20 flex items-center justify-center">
+        {pageError ? (
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-red-500">{pageError}</h2>
+            <button onClick={fetchData} className="mt-4 px-6 py-2 bg-white/10 rounded-full font-bold hover:bg-white/20 transition-all">Retry</button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center">
+            <Activity className="w-8 h-8 text-brand animate-pulse mb-4" />
+            <h2 className="text-xl font-bold">Connecting...</h2>
+          </div>
+        )}
       </div>
     );
   }

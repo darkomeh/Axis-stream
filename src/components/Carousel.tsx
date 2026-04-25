@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { MediaItem } from "../types";
-import { Play, ChevronLeft, ChevronRight, Star, Plus, Check } from "lucide-react";
+import { Play, Plus, Check } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { MovieImage } from "./MovieImage";
 import { useAuth } from "../contexts/AuthContext";

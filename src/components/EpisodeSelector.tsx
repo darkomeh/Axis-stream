@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { ItemDetails } from '../types';
-import { Download, ChevronDown, Film, X, Play } from 'lucide-react';
+import { ChevronDown, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Tray from './Tray';
 

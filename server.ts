@@ -175,7 +175,6 @@ app.get("/api/aggregated-popular", async (req, res) => {
   if (cachedData) return res.json(cachedData);
 
   try {
-    console.log("[API] Fetching aggregated popular data...");
     const [trending, hot, ranking, homepage] = await Promise.all([
       externalMovieService.getTrending(1, 50).catch(() => []),
       externalMovieService.getHot().catch(() => ({ movies: [], series: [] })),
@@ -497,7 +496,6 @@ app.get("/api/image-proxy", async (req, res) => {
 // Video Proxy Route
 app.get("/api/proxy", async (req, res) => {
   const videoUrl = req.query.url as string;
-  console.log("[Proxy] Requesting:", videoUrl);
   if (!videoUrl) {
     return res.status(400).send("URL is required");
   }
@@ -729,6 +727,42 @@ app.get("/api/admin/stats", (req, res) => {
     searchVelocity: adminState.searchLogs.filter(s => new Date(s.timestamp).getTime() > Date.now() - 3600000).length,
     openReports: adminState.reports.filter(r => r.status === 'open').length
   });
+});
+
+app.get("/sitemap.xml", (req, res) => {
+  const SITE_URL = "https://axislabs.dpdns.org";
+  const pages = [
+    "",
+    "/movies",
+    "/series",
+    "/anime",
+    "/toons",
+    "/ranking",
+    "/live",
+    "/browse",
+    "/search",
+    "/playlist"
+  ];
+
+  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  ${pages.map(page => `
+  <url>
+    <loc>${SITE_URL}${page}</loc>
+    <changefreq>daily</changefreq>
+    <priority>${page === "" ? "1.0" : "0.8"}</priority>
+  </url>`).join("")}
+</urlset>`;
+
+  res.header("Content-Type", "application/xml");
+  res.send(sitemap);
+});
+
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain");
+  res.send(`User-agent: *
+Allow: /
+Sitemap: https://axislabs.dpdns.org/sitemap.xml`);
 });
 
 // Legacy fallback for any other /api/* routes

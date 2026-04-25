@@ -17,6 +17,7 @@ export default function Ranking() {
   const { openPreview } = useMediaPreview();
   const [rankings, setRankings] = useState<RankingItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const handleBack = () => {
     if (window.history.length > 2) {
@@ -26,20 +27,32 @@ export default function Ranking() {
     }
   };
 
+  const loadRankings = async () => {
+    try {
+      if (rankings.length === 0) setLoading(true);
+      setError(null);
+      const data = await movieService.getRanking();
+      setRankings(data.slice(0, 50));
+    } catch (e) {
+      console.error("Failed to load rankings", e);
+      setError("Failed to load rankings. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadRankings = async () => {
-      try {
-        if (rankings.length === 0) setLoading(true);
-        const data = await movieService.getRanking();
-        setRankings(data.slice(0, 50));
-      } catch (e) {
-        console.error("Failed to load rankings", e);
-      } finally {
-        setLoading(false);
-      }
-    };
     loadRankings();
   }, []);
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
+        <h2 className="text-xl font-bold text-red-500 mb-4">{error}</h2>
+        <button onClick={loadRankings} className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-full font-bold transition-all">Retry</button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#000000] text-white pb-20 relative overflow-hidden">

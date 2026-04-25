@@ -17,44 +17,32 @@ const GENRE_CARDS = [
   { 
     name: "Action", 
     icon: Sparkles, 
-    color: "bg-red-600/20 text-red-500",
-    image: "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=800",
-    count: "1,245 titles"
+    color: "bg-red-600/20 text-red-500"
   },
   { 
     name: "Comedy", 
     icon: Smile, 
-    color: "bg-yellow-500/20 text-yellow-500",
-    image: "https://images.unsplash.com/photo-1585647347483-22b66260dfff?auto=format&fit=crop&q=80&w=800",
-    count: "892 titles"
+    color: "bg-yellow-500/20 text-yellow-500"
   },
   { 
     name: "Drama", 
     icon: Theater, 
-    color: "bg-purple-600/20 text-purple-500",
-    image: "https://images.unsplash.com/photo-1505686994434-e3cc5abf1330?auto=format&fit=crop&q=80&w=800",
-    count: "1,123 titles"
+    color: "bg-purple-600/20 text-purple-500"
   },
   { 
     name: "Sci-Fi", 
     icon: Rocket, 
-    color: "bg-blue-600/20 text-blue-500",
-    image: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&q=80&w=800",
-    count: "1,015 titles"
+    color: "bg-blue-600/20 text-blue-500"
   },
   { 
     name: "Horror", 
     icon: Ghost, 
-    color: "bg-gray-600/20 text-gray-400",
-    image: "https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?auto=format&fit=crop&q=80&w=800",
-    count: "786 titles"
+    color: "bg-gray-600/20 text-gray-400"
   },
   { 
     name: "Romance", 
     icon: Heart, 
-    color: "bg-rose-500/20 text-rose-500",
-    image: "https://images.unsplash.com/photo-1518621736915-f3b1c41bfd00?auto=format&fit=crop&q=80&w=800",
-    count: "947 titles"
+    color: "bg-rose-500/20 text-rose-500"
   },
 ];
 
@@ -322,10 +310,6 @@ export default function Search() {
               </button>
             )}
           </div>
-          
-          <button className="w-14 h-14 flex items-center justify-center bg-[#0F0F0F] rounded-full border border-white/5 backdrop-blur-md text-white transition-all active:scale-95 shadow-lg">
-            <Filter className="w-6 h-6" />
-          </button>
         </div>
       </div>
 
@@ -338,7 +322,7 @@ export default function Search() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="fixed top-[180px] left-6 right-6 bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden z-[60] shadow-2xl backdrop-blur-3xl"
+              className="fixed top-[180px] left-6 right-6 lg:left-[300px] lg:right-auto lg:w-[600px] max-w-full bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden z-[60] shadow-2xl backdrop-blur-3xl"
             >
               <div className="px-5 py-3 border-b border-white/5 bg-white/5">
                 <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Suggestions</span>
@@ -357,7 +341,9 @@ export default function Search() {
           )}
         </AnimatePresence>
 
-        {results.length > 0 ? (
+        {error ? (
+           <div className="py-20 text-center text-red-500 font-bold">{error}</div>
+        ) : results.length > 0 ? (
           <div className="space-y-8 animate-fade-in">
             <div className="flex flex-col gap-6">
               <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2">
@@ -391,30 +377,18 @@ export default function Search() {
             <section className="space-y-6">
               <div className="flex items-center justify-between px-1">
                 <h3 className="text-xl font-black tracking-tighter text-white">Explore Genres</h3>
-                <button className="text-brand text-xs font-black uppercase tracking-widest hover:opacity-80 transition-opacity">View all</button>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 {GENRE_CARDS.map((c, i) => (
                   <button
                     key={i}
                     onClick={() => handleGenreClick(c.name)}
-                    className="relative aspect-[1.8/1] rounded-[24px] overflow-hidden group active:scale-[0.98] transition-transform shadow-xl border border-white/5"
+                    className={`relative aspect-[2/1] rounded-[24px] overflow-hidden group active:scale-[0.98] transition-transform shadow-xl border border-white/5 ${c.color.split(' ')[0]} bg-opacity-10 backdrop-blur-md`}
                   >
-                    <img 
-                      src={c.image} 
-                      alt={c.name}
-                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent group-hover:via-black/10 transition-all duration-500" />
-                    <div className="absolute inset-0 p-5 flex flex-col justify-between">
-                      <div className={`w-10 h-10 rounded-xl ${c.color} backdrop-blur-md flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform`}>
-                        <c.icon className="w-5 h-5" strokeWidth={2.5} />
-                      </div>
-                      <div className="text-left">
+                    <div className="absolute inset-0 p-5 flex items-center justify-center">
+                      <div className="flex flex-col items-center text-center gap-2">
+                        <c.icon className={`w-8 h-8 ${c.color.split(' ')[1]}`} strokeWidth={2.5} />
                         <span className="block text-lg font-black text-white uppercase tracking-tight drop-shadow-md">{c.name}</span>
-                        <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{c.count}</span>
                       </div>
                     </div>
                   </button>
@@ -444,7 +418,10 @@ export default function Search() {
                       <span className="text-[14px] font-bold text-gray-400 group-hover:text-white transition-colors">{term}</span>
                       <X className="w-4 h-4 text-gray-600 hover:text-brand" strokeWidth={3} onClick={(e) => {
                         e.stopPropagation();
-                        // Optional: remove single item logic
+                        // remove single item
+                        const newHistory = searchHistory.filter(h => h !== term);
+                        localStorage.setItem('axis_search_history', JSON.stringify(newHistory));
+                        setSearchHistory(newHistory);
                       }} />
                     </div>
                   ))}
@@ -453,25 +430,26 @@ export default function Search() {
             )}
 
             {/* Popular Searches Section */}
-            <section className="space-y-6">
-              <div className="flex items-center gap-3 px-1">
-                <TrendingUp className="w-6 h-6 text-gray-500" />
-                <h3 className="text-xl font-black tracking-tighter text-white">Popular Searches</h3>
-              </div>
-              <div className="flex flex-wrap gap-2.5">
-                {["Sistas", "Teen Wolf", "The Vampire Diaries", "The Blacklist", "Fatal Seduction", "Wednesday", "The Walking Dead", "Game of Thrones", "Lucifer"].map((term, idx) => (
-                  <div 
-                    key={idx} 
-                    className="flex items-center gap-2.5 px-6 py-3 rounded-full bg-[#0F0F0F] border border-white/10 group hover:border-brand/50 hover:bg-brand/5 transition-all cursor-pointer"
-                    onClick={() => handlePopularClick(term)}
-                  >
-                    <ArrowUpRight className="w-4 h-4 text-brand" strokeWidth={3} />
-                    <span className="text-[14px] font-bold text-gray-400 group-hover:text-white transition-colors">{term}</span>
-                    <X className="w-4 h-4 text-gray-600 group-hover:text-white" strokeWidth={3} />
-                  </div>
-                ))}
-              </div>
-            </section>
+            {popularSearches.length > 0 && (
+              <section className="space-y-6">
+                <div className="flex items-center gap-3 px-1">
+                  <TrendingUp className="w-6 h-6 text-gray-500" />
+                  <h3 className="text-xl font-black tracking-tighter text-white">Popular Searches</h3>
+                </div>
+                <div className="flex flex-wrap gap-2.5">
+                  {popularSearches.map((term, idx) => (
+                    <div 
+                      key={idx} 
+                      className="flex items-center gap-2.5 px-6 py-3 rounded-full bg-[#0F0F0F] border border-white/10 group hover:border-brand/50 hover:bg-brand/5 transition-all cursor-pointer"
+                      onClick={() => handlePopularClick(term)}
+                    >
+                      <ArrowUpRight className="w-4 h-4 text-brand" strokeWidth={3} />
+                      <span className="text-[14px] font-bold text-gray-400 group-hover:text-white transition-colors">{term}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         )}
       </div>

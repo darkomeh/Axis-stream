@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { Suspense, lazy, useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ToastProvider } from "./contexts/ToastContext";
@@ -11,9 +11,9 @@ import { MediaPreviewProvider } from "./contexts/MediaPreviewContext";
 import BottomNav from "./components/BottomNav";
 import MediaPreviewTray from "./components/MediaPreviewTray";
 import PopcornLoader from "./components/PopcornLoader";
+import { Analytics } from "./components/Analytics";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AnimatePresence, motion } from "motion/react";
-import { WifiOff, AlertTriangle } from "lucide-react";
 
 // Helper to gracefully handle Vite dynamic import failures (stale chunks after rebuild)
 function lazyWithRetry(componentImport: () => Promise<any>) {
@@ -46,8 +46,6 @@ const ActorPage = lazyWithRetry(() => import("./pages/Actor"));
 const Toons = lazyWithRetry(() => import("./pages/Toons"));
 const Profile = lazyWithRetry(() => import("./pages/Profile"));
 const Playlist = lazyWithRetry(() => import("./pages/Playlist"));
-const Downloads = lazyWithRetry(() => import("./pages/Downloads"));
-const OfflinePlayer = lazyWithRetry(() => import("./pages/OfflinePlayer"));
 const Ranking = lazyWithRetry(() => import("./pages/Ranking"));
 const Live = lazyWithRetry(() => import("./pages/Live"));
 const Admin = lazyWithRetry(() => import("./pages/Admin"));
@@ -87,6 +85,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-black text-white selection:bg-brand/30 selection:text-white font-sans antialiased pb-20">
+      <Analytics />
       <MediaPreviewTray />
       <main>
         <Suspense fallback={
@@ -100,6 +99,7 @@ function AppContent() {
                 <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
                 <Route path="/search" element={<PageWrapper><Search /></PageWrapper>} />
                 <Route path="/details/:id" element={<PageWrapper><Details /></PageWrapper>} />
+                <Route path="/watch/:id/:slug?" element={<PageWrapper><Details /></PageWrapper>} />
                 <Route path="/browse" element={<PageWrapper><Browse /></PageWrapper>} />
                 <Route path="/anime" element={<PageWrapper><Anime /></PageWrapper>} />
                 <Route path="/actor/:id" element={<PageWrapper><ActorPage /></PageWrapper>} />

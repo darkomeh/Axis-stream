@@ -25,6 +25,7 @@ export default function Profile() {
     loginWithGoogle, 
     loginWithEmail, 
     signupWithEmail, 
+    updateProfile,
     logout, 
     watchlist, 
     history, 
@@ -32,10 +33,13 @@ export default function Profile() {
     stats, 
     preferences, 
     updatePreferences, 
-    removeFromHistory 
+    removeFromHistory,
+    resetPassword,
+    submitSupportTicket
   } = useAuth();
   const { showToast } = useToast();
   const [isLoginMode, setIsLoginMode] = useState(true);
+  const [isForgotPasswordMode, setIsForgotPasswordMode] = useState(false);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,24 +48,39 @@ export default function Profile() {
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
   const navigate = useNavigate();
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
+  const [supportSubject, setSupportSubject] = useState('');
+  const [supportMessage, setSupportMessage] = useState('');
   const [editUsername, setEditUsername] = useState('');
-  const [editEmail, setEditEmail] = useState('');
+  const [editBio, setEditBio] = useState('');
   const [editAvatar, setEditAvatar] = useState('');
 
   const openEditProfile = () => {
     if (user) {
-      setEditUsername(user.username);
-      setEditEmail(user.email);
+      setEditUsername(user.username || user.name);
+      setEditBio(user.bio || '');
       setEditAvatar(user.avatar || '');
       setIsEditProfileOpen(true);
     }
   };
 
-  const handleSaveProfile = () => {
-    if (editUsername && editEmail) {
-      // In a real app, we would update the Firestore document here
-      showToast("Profile updates are handled automatically via sync", "info");
-      setIsEditProfileOpen(false);
+  const handleSaveProfile = async () => {
+    if (editUsername) {
+      setIsLoading(true);
+      try {
+        await updateProfile({ 
+          username: editUsername, 
+          bio: editBio,
+          photoURL: editAvatar,
+          name: editUsername // Sync name with username for simplicity
+        });
+        showToast("Profile updated successfully", "success");
+        setIsEditProfileOpen(false);
+      } catch (error: any) {
+        showToast(error.message || "Failed to update profile", "error");
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -98,6 +117,43 @@ export default function Profile() {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      showToast("Please enter your email address first", "info");
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      await resetPassword(email);
+      showToast("Password reset link sent to your email", "success");
+      setIsForgotPasswordMode(false);
+    } catch (error: any) {
+      showToast(error.message || "Failed to send reset link", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmitTicket = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supportSubject || !supportMessage) return;
+
+    setIsLoading(true);
+    try {
+      await submitSupportTicket(supportSubject, supportMessage);
+      showToast("Bug report sent! Our tech team is on it.", "success");
+      setIsSupportOpen(false);
+      setSupportSubject('');
+      setSupportMessage('');
+    } catch (error: any) {
+      showToast("Uplink failed. Try again soon.", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleBack = () => {
     if (window.history.length > 2) {
       navigate(-1);
@@ -127,26 +183,28 @@ export default function Profile() {
             className="w-full max-w-md bg-white/5 border border-white/10 p-8 rounded-[32px] backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/10"
           >
             <h2 className="text-3xl font-black text-center mb-8 italic tracking-tighter uppercase">
-              {isLoginMode ? 'Welcome Back' : 'Create Account'}
+              {isForgotPasswordMode ? 'Reset Link' : (isLoginMode ? 'Welcome Back' : 'Create Account')}
             </h2>
 
-            <div className="flex flex-col items-center mb-10">
-              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">Choose your avatar</p>
-              <div className="flex gap-4">
-                {AVATARS.map((av) => (
-                  <button 
-                    key={av.id}
-                    onClick={() => setSelectedAvatar(av.url)}
-                    className={`relative w-14 h-14 rounded-full overflow-hidden transition-all duration-300 ring-2 ${selectedAvatar === av.url ? 'ring-brand scale-110 shadow-[0_0_15px_rgba(255,45,45,0.4)]' : 'ring-white/10 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 hover:ring-white/30'}`}
-                  >
-                    <img src={av.url} alt="" className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
-                  </button>
-                ))}
+            {!isForgotPasswordMode && (
+              <div className="flex flex-col items-center mb-10">
+                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">Choose your avatar</p>
+                <div className="flex gap-4">
+                  {AVATARS.map((av) => (
+                    <button 
+                      key={av.id}
+                      onClick={() => setSelectedAvatar(av.url)}
+                      className={`relative w-14 h-14 rounded-full overflow-hidden transition-all duration-300 ring-2 ${selectedAvatar === av.url ? 'ring-brand scale-110 shadow-[0_0_15px_rgba(255,45,45,0.4)]' : 'ring-white/10 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 hover:ring-white/30'}`}
+                    >
+                      <img src={av.url} alt="" className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
             
-            <form onSubmit={handleAuth} className="space-y-5">
-              {!isLoginMode && (
+            <form onSubmit={isForgotPasswordMode ? handleForgotPassword : handleAuth} className="space-y-5">
+              {!isLoginMode && !isForgotPasswordMode && (
                 <div className="space-y-1">
                   <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Username</label>
                   <input 
@@ -170,59 +228,88 @@ export default function Profile() {
                   required
                 />
               </div>
-              <div className="space-y-1">
-                <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Password</label>
-                <input 
-                  type="password" 
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:ring-1 focus:ring-brand transition-all text-sm font-medium"
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
+              {!isForgotPasswordMode && (
+                <div className="space-y-1">
+                  <div className="flex justify-between px-2">
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest">Password</label>
+                    {isLoginMode && (
+                      <button 
+                        type="button" 
+                        onClick={() => setIsForgotPasswordMode(true)}
+                        className="text-[9px] font-black text-brand uppercase tracking-widest hover:underline"
+                      >
+                        Forgot?
+                      </button>
+                    )}
+                  </div>
+                  <input 
+                    type="password" 
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:ring-1 focus:ring-brand transition-all text-sm font-medium"
+                    placeholder="••••••••"
+                    required={!isForgotPasswordMode}
+                  />
+                </div>
+              )}
               <button 
                 type="submit"
                 disabled={isLoading}
                 className="w-full bg-brand hover:bg-brand/90 disabled:opacity-50 text-white font-black py-4 rounded-2xl transition-all mt-4 shadow-[0_10px_20px_rgba(255,45,45,0.3)] uppercase tracking-widest text-sm active:scale-[0.98]"
               >
-                {isLoading ? 'Processing...' : (isLoginMode ? 'Sign In' : 'Sign Up')}
+                {isLoading ? 'Processing...' : (isForgotPasswordMode ? 'Send Reset Link' : (isLoginMode ? 'Sign In' : 'Sign Up'))}
               </button>
 
-              <div className="relative py-4">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-white/10"></div>
-                </div>
-                <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest">
-                  <span className="bg-black/20 backdrop-blur px-2 text-gray-500">Or continue with</span>
-                </div>
-              </div>
+              {isForgotPasswordMode && (
+                <button 
+                  type="button"
+                  onClick={() => setIsForgotPasswordMode(false)}
+                  className="w-full text-center text-xs font-black text-gray-500 uppercase tracking-widest hover:text-white transition-colors"
+                >
+                  Back to Login
+                </button>
+              )}
 
-              <button 
-                type="button"
-                onClick={handleGoogleLogin}
-                disabled={isLoading}
-                className="w-full bg-white/5 hover:bg-white/10 text-white font-black py-4 rounded-2xl transition-all border border-white/10 flex items-center justify-center gap-3 uppercase tracking-widest text-sm active:scale-[0.98]"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                </svg>
-                Google
-              </button>
+              {!isForgotPasswordMode && (
+                <>
+                  <div className="relative py-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-white/10"></div>
+                    </div>
+                    <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest">
+                      <span className="bg-black/20 backdrop-blur px-2 text-gray-500">Or continue with</span>
+                    </div>
+                  </div>
+
+                  <button 
+                    type="button"
+                    onClick={handleGoogleLogin}
+                    disabled={isLoading}
+                    className="w-full bg-white/5 hover:bg-white/10 text-white font-black py-4 rounded-2xl transition-all border border-white/10 flex items-center justify-center gap-3 uppercase tracking-widest text-sm active:scale-[0.98]"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                    Google
+                  </button>
+                </>
+              )}
             </form>
             
-            <div className="mt-8 text-center text-xs text-gray-500 font-medium">
-              {isLoginMode ? "First time here?" : "Joined before?"}
-              <button 
-                onClick={() => setIsLoginMode(!isLoginMode)}
-                className="ml-2 text-brand hover:underline font-bold"
-              >
-                {isLoginMode ? 'Create Account' : 'Sign In Now'}
-              </button>
-            </div>
+            {!isForgotPasswordMode && (
+              <div className="mt-8 text-center text-xs text-gray-500 font-medium">
+                {isLoginMode ? "First time here?" : "Joined before?"}
+                <button 
+                  onClick={() => setIsLoginMode(!isLoginMode)}
+                  className="ml-2 text-brand hover:underline font-bold"
+                >
+                  {isLoginMode ? 'Create Account' : 'Sign In Now'}
+                </button>
+              </div>
+            )}
           </motion.div>
         </div>
       </div>
@@ -281,6 +368,11 @@ export default function Profile() {
                   </div>
                 </div>
                 <p className="text-gray-400 font-medium">{user.email}</p>
+                {user.bio && (
+                  <p className="text-gray-300 text-sm font-medium mt-4 md:max-w-[400px] bg-white/5 p-3 rounded-2xl border border-white/5">
+                    {user.bio}
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-wrap justify-center md:justify-start gap-4">
@@ -417,6 +509,24 @@ export default function Profile() {
           </div>
         </div>
 
+        {/* SUPPORT & HELP SECTION */}
+        <div className="bg-white/5 border border-white/10 rounded-[32px] p-6 backdrop-blur-2xl">
+          <div className="w-full flex items-center justify-between mb-8 px-2 group">
+            <h3 className="text-sm font-black uppercase tracking-[0.2em] flex items-center gap-3">
+              <Shield className="w-5 h-5 text-gray-400" /> Support & Bug Report
+            </h3>
+            <button 
+              onClick={() => setIsSupportOpen(true)}
+              className="px-4 py-2 bg-brand/10 hover:bg-brand/20 text-brand border border-brand/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+            >
+              Open Ticket
+            </button>
+          </div>
+          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide leading-relaxed px-2">
+            Spotted a glitch? Need help with your account? Our tech team is on standby 24/7. Send us a message and we'll reply to your notification board.
+          </p>
+        </div>
+
         {/* MY WATCHLIST SECTION */}
         <div className="bg-white/5 border border-white/10 rounded-[32px] p-6 backdrop-blur-2xl">
           <div className="w-full flex items-center justify-between mb-8 px-2 group">
@@ -503,6 +613,64 @@ export default function Profile() {
       </div>
 
       <AnimatePresence>
+        {isSupportOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-[#121212] border border-white/10 rounded-[32px] p-8 max-w-md w-full relative"
+            >
+              <button 
+                onClick={() => setIsSupportOpen(false)}
+                className="absolute top-6 right-6 p-2 bg-white/5 rounded-full text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              <h2 className="text-2xl font-black uppercase italic tracking-tight mb-2">Technical Support</h2>
+              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-6 px-1">Bug reports & account help</p>
+              
+              <form onSubmit={handleSubmitTicket} className="space-y-6">
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Subject</label>
+                  <input 
+                    type="text" 
+                    value={supportSubject}
+                    onChange={e => setSupportSubject(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:ring-1 focus:ring-brand transition-all text-sm font-medium"
+                    placeholder="e.g. Video buffering issue"
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Message</label>
+                  <textarea 
+                    value={supportMessage}
+                    onChange={e => setSupportMessage(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:ring-1 focus:ring-brand transition-all text-sm font-medium min-h-[150px] resize-none"
+                    placeholder="Describe the issue in detail..."
+                    required
+                  />
+                </div>
+                
+                <button 
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-brand hover:bg-brand/90 disabled:opacity-50 text-white font-black py-4 rounded-2xl transition-all shadow-[0_10px_20px_rgba(255,45,45,0.3)] uppercase tracking-widest text-sm"
+                >
+                  {isLoading ? 'Uplinking...' : 'Submit Bug Report'}
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+
         {isEditProfileOpen && (
           <motion.div 
             initial={{ opacity: 0 }}
@@ -552,21 +720,21 @@ export default function Profile() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Email (Changing this resets history)</label>
-                  <input 
-                    type="email" 
-                    value={editEmail}
-                    onChange={e => setEditEmail(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:ring-1 focus:ring-brand transition-all text-sm font-medium"
-                    placeholder="Email"
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Bio</label>
+                  <textarea 
+                    value={editBio}
+                    onChange={e => setEditBio(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:ring-1 focus:ring-brand transition-all text-sm font-medium min-h-[100px] resize-none"
+                    placeholder="Tell us about yourself..."
                   />
                 </div>
                 
                 <button 
                   onClick={handleSaveProfile}
-                  className="w-full bg-brand hover:bg-brand/90 text-white font-black py-4 rounded-2xl transition-all shadow-[0_10px_20px_rgba(255,45,45,0.3)] uppercase tracking-widest text-sm"
+                  disabled={isLoading}
+                  className="w-full bg-brand hover:bg-brand/90 disabled:opacity-50 text-white font-black py-4 rounded-2xl transition-all shadow-[0_10px_20px_rgba(255,45,45,0.3)] uppercase tracking-widest text-sm"
                 >
-                  Save Changes
+                  {isLoading ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </motion.div>

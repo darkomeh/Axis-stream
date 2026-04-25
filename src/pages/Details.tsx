@@ -27,7 +27,7 @@ export default function Details() {
   const playerRef = useRef<HTMLDivElement>(null);
   const { 
     user, addToHistory, addToWatchlist, removeFromWatchlist, 
-    isInWatchlist, continueWatching, trackWatchActivity 
+    isInWatchlist, continueWatching, trackWatchActivity, openLoginPopup 
   } = useAuth();
   const { showToast } = useToast();
   
@@ -172,8 +172,10 @@ export default function Details() {
         setSelectedSeason(s);
         setSelectedEpisode(e);
         
-        const itemMedia = await movieService.getPlay(id, s, e);
-        setMediaData({ ...itemMedia, initialTime });
+        if (user) {
+          const itemMedia = await movieService.getPlay(id, s, e);
+          setMediaData({ ...itemMedia, initialTime });
+        }
       } catch (err) {
         console.error("Error loading details:", err);
         setError(err instanceof Error ? err.message : "Failed to load details. Please try again later.");
@@ -374,7 +376,27 @@ export default function Details() {
       />
       {/* Video Player Section */}
       <div className="w-full aspect-video bg-black relative z-40" ref={playerRef}>
-        {mediaData ? (
+        {!user ? (
+          <div className="w-full h-full flex flex-col items-center justify-center relative bg-[#0c0c0c] px-6 text-center border-b border-white/5 shadow-2xl">
+            <button 
+              onClick={handleBack}
+              className="absolute top-4 left-4 p-2 hover:bg-white/10 rounded-full transition-colors flex items-center gap-2 text-white z-50"
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <div className="w-20 h-20 bg-brand/20 rounded-full flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(229,9,20,0.2)]">
+              <Play className="w-10 h-10 text-brand fill-current" />
+            </div>
+            <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter text-white mb-4 italic">Stream {details.title}</h2>
+            <p className="text-gray-400 text-sm md:text-base font-bold uppercase tracking-widest max-w-[400px] mb-8">Access high-quality streams, trailers and save your progress by signing in.</p>
+            <button 
+              onClick={() => openLoginPopup()}
+              className="px-12 py-4 bg-brand text-white rounded-full font-black uppercase tracking-[0.2em] text-sm hover:bg-brand-hover transition-all active:scale-95 shadow-xl glow-brand"
+            >
+              Sign In to Watch
+            </button>
+          </div>
+        ) : mediaData ? (
           <VideoPlayer 
             mediaData={mediaData} 
             poster={details.background || details.poster} 

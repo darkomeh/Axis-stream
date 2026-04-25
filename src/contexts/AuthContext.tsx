@@ -15,7 +15,18 @@ import {
   logoutUser,
   addWatchHistory,
   addFavorite,
-  getWatchHistory
+  getWatchHistory,
+  updateProfile as firebaseUpdateProfile,
+  saveContinueWatching as firebaseSaveContinueWatching,
+  sendChatMessage as firebaseSendChatMessage,
+  resetPassword as firebaseResetPassword,
+  trackVisitor,
+  trackWatchTime,
+  createSupportTicket,
+  getSupportTickets,
+  replyToTicket,
+  getAdvancedUserStats,
+  getGlobalStats
 } from '../services/firebaseService';
 import { 
   collection, 
@@ -30,8 +41,11 @@ import {
 interface User {
   id: string;
   username: string;
+  name: string;
   email: string;
   avatar?: string;
+  bio?: string;
+  role?: 'user' | 'admin' | 'moderator';
 }
 
 export interface SubtitlePreferences {
@@ -82,6 +96,15 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   signupWithEmail: (email: string, pass: string, name: string) => Promise<void>;
+  updateProfile: (data: { name?: string, photoURL?: string, bio?: string, username?: string }) => Promise<void>;
+  saveContinueWatching: (movieId: string, title: string, lastPosition: number, duration: number) => Promise<void>;
+  sendChatMessage: (text: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  submitSupportTicket: (subject: string, message: string) => Promise<void>;
+  trackWatchTime: (seconds: number) => Promise<void>;
+  getSupportTickets: () => Promise<any[]>;
+  replyToSupportTicket: (ticketId: string, text: string) => Promise<void>;
+  getGlobalAnalytics: () => Promise<any>;
   logout: () => void;
   watchlist: MediaItem[];
   addToWatchlist: (item: MediaItem) => void;
@@ -116,6 +139,9 @@ interface AuthContextType {
   updateContinueWatching: (item: ContinueWatchingItem) => void;
   removeFromContinueWatching: (id: string) => void;
   setLastActionType: (type: string | null) => void;
+  isLoginPopupOpen: boolean;
+  openLoginPopup: () => void;
+  closeLoginPopup: () => void;
 }
 
 const initialStats: UserStats = {
@@ -163,6 +189,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [broadcastLevel, setBroadcastLevel] = useState<'info' | 'warning' | 'critical'>('info');
   const [siteConfig, setSiteConfig] = useState<{ siteName: string; brandColor: string; tagline: string; logoUrl?: string; }>({ siteName: 'Axis TV', brandColor: '#E50914', tagline: 'Your Movie Plug', logoUrl: 'https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg' });
   const [lastActionType, setLastActionType] = useState<string | null>(null);
+  const [isLoginPopupOpen, setIsLoginPopupOpen] = useState(false);
+
+  const openLoginPopup = useCallback(() => setIsLoginPopupOpen(true), []);
+  const closeLoginPopup = useCallback(() => setIsLoginPopupOpen(false), []);
 
   useEffect(() => {
     let retryCount = 0;
@@ -199,22 +229,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (fUser) => {
       setFirebaseUser(fUser);
-      if (fUser) {
-        const newUser = {
-          id: fUser.uid,
-          username: fUser.displayName || fUser.email?.split('@')[0] || 'User',
-          email: fUser.email || '',
-          avatar: fUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${fUser.uid}`
-        };
-        setUser(newUser);
-        localStorage.setItem('axis_user', JSON.stringify(newUser));
-      } else {
+      if (!fUser) {
         setUser(null);
         localStorage.removeItem('axis_user');
       }
     });
     return () => unsubscribe();
   }, []);
+
+  // Real-time synchronization of user profile
+  useEffect(() => {
+    if (firebaseUser) {
+      const userRef = doc(db, 'users', firebaseUser.uid);
+      const unsubscribe = onSnapshot(userRef, (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          const newUser = {
+            id: firebaseUser.uid,
+            username: data.username || data.name || 'User',
+            name: data.name || data.username || 'User',
+            email: data.email || '',
+            avatar: data.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.uid}`,
+            bio: data.bio || '',
+            role: data.role || 'user'
+          };
+          setUser(newUser);
+          setIsBanned(data.isBanned || false);
+          localStorage.setItem('axis_user', JSON.stringify(newUser));
+        }
+      });
+      return () => unsubscribe();
+    }
+  }, [firebaseUser]);
 
   // Sync Favorites (Watchlist) from Firestore
   useEffect(() => {
@@ -260,7 +306,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [firebaseUser]);
 
   const isAdmin = useMemo(() => {
-    return user?.username.toLowerCase() === 'great' && user?.email === 'greatmayuku2@gmail.com';
+    return user?.email === 'greatmayuku2@gmail.com';
   }, [user]);
 
   // Sync with server for Admin view
@@ -300,6 +346,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const newUser = { 
       id: email, 
       username, 
+      name: username,
       email, 
       avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}` 
     };
@@ -318,6 +365,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const handleSignupWithEmail = useCallback(async (email: string, pass: string, name: string) => {
     await firebaseSignupWithEmail(email, pass, name);
+  }, []);
+
+  const handleUpdateProfile = useCallback(async (data: { name?: string, photoURL?: string, bio?: string, username?: string }) => {
+    await firebaseUpdateProfile(data);
+  }, []);
+
+  const handleSaveContinueWatching = useCallback(async (movieId: string, title: string, lastPosition: number, duration: number) => {
+    await firebaseSaveContinueWatching(movieId, title, lastPosition, duration);
+  }, []);
+
+  const handleSendChatMessage = useCallback(async (text: string) => {
+    await firebaseSendChatMessage(text);
+  }, []);
+
+  const handleResetPassword = useCallback(async (email: string) => {
+    await firebaseResetPassword(email);
+  }, []);
+
+  const handleSubmitSupportTicket = useCallback(async (subject: string, message: string) => {
+    await createSupportTicket(subject, message);
+  }, []);
+
+  const handleTrackWatchTime = useCallback(async (seconds: number) => {
+    await trackWatchTime(seconds);
+  }, []);
+
+  const handleGetSupportTickets = useCallback(async () => {
+    return await getSupportTickets() || [];
+  }, []);
+
+  const handleReplyToSupportTicket = useCallback(async (ticketId: string, text: string) => {
+    await replyToTicket(ticketId, text);
+  }, []);
+
+  const handleGetGlobalAnalytics = useCallback(async () => {
+    return await getGlobalStats();
   }, []);
 
   const logout = useCallback(() => {
@@ -461,15 +544,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isFollowing = useCallback((id: string) => following.includes(id), [following]);
 
-  const updateContinueWatching = useCallback((item: ContinueWatchingItem) => {
-    if (!user) return;
-    setContinueWatching(prev => {
-      const existing = prev.filter(i => i.id !== item.id);
-      const updated = [item, ...existing].slice(0, 20);
-      localStorage.setItem(`axis_continue_watching_${user.id}`, JSON.stringify(updated));
-      return updated;
-    });
-  }, [user]);
+  const updateContinueWatching = useCallback(async (item: ContinueWatchingItem) => {
+    if (firebaseUser) {
+      await firebaseSaveContinueWatching(item.id, item.title, item.progress, item.duration);
+    } else if (user) {
+      setContinueWatching(prev => {
+        const existing = prev.filter(i => i.id !== item.id);
+        const updated = [item, ...existing].slice(0, 20);
+        localStorage.setItem(`axis_continue_watching_${user.id}`, JSON.stringify(updated));
+        return updated;
+      });
+    }
+  }, [user, firebaseUser]);
 
   const removeFromContinueWatching = useCallback((id: string) => {
     if (!user) return;
@@ -535,6 +621,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loginWithGoogle: handleLoginWithGoogle,
     loginWithEmail: handleLoginWithEmail,
     signupWithEmail: handleSignupWithEmail,
+    updateProfile: handleUpdateProfile,
+    saveContinueWatching: handleSaveContinueWatching,
+    sendChatMessage: handleSendChatMessage,
+    resetPassword: handleResetPassword,
+    submitSupportTicket: handleSubmitSupportTicket,
+    trackWatchTime: handleTrackWatchTime,
+    getSupportTickets: handleGetSupportTickets,
+    replyToSupportTicket: handleReplyToSupportTicket,
+    getGlobalAnalytics: handleGetGlobalAnalytics,
     logout, 
     isAdmin, 
     systemMessage, isMaintenance, isBanned,
@@ -546,7 +641,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     playlists, createPlaylist, deletePlaylist, addToPlaylist, removeFromPlaylist,
     following, toggleFollow, isFollowing,
     continueWatching, updateContinueWatching, removeFromContinueWatching,
-    setLastActionType
+    setLastActionType,
+    isLoginPopupOpen,
+    openLoginPopup,
+    closeLoginPopup
   }), [
     user, login, logout, isAdmin,
     systemMessage, isMaintenance, isBanned,
@@ -558,8 +656,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     playlists, createPlaylist, deletePlaylist, addToPlaylist, removeFromPlaylist,
     following, toggleFollow, isFollowing,
     continueWatching, updateContinueWatching, removeFromContinueWatching,
-    setLastActionType
+    setLastActionType,
+    isLoginPopupOpen,
+    openLoginPopup,
+    closeLoginPopup
   ]);
+
+  // Visitor Tracking
+  useEffect(() => {
+    const hasTracked = sessionStorage.getItem('axis_visitor_tracked');
+    if (!hasTracked) {
+      trackVisitor();
+      sessionStorage.setItem('axis_visitor_tracked', 'true');
+    }
+  }, []);
 
   return (
     <AuthContext.Provider value={value}>

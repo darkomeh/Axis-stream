@@ -81,11 +81,15 @@ export default function VideoPlayer({
   const {
     preferences,
     addWatchTime,
+    trackWatchTime,
     user,
     updateContinueWatching,
     updatePreferences,
   } = useAuth();
   const { showToast } = useToast();
+
+  // Reference for tracking elapsed time for global analytics
+  const lastTrackedTimeRef = useRef<number>(0);
 
   // Track if we need to fall back to an iframe instead of direct video play
   const useIframeFallback =
@@ -684,11 +688,27 @@ export default function VideoPlayer({
     if (!video) return;
 
     const onTimeUpdate = () => {
-      setCurrentTime(video.currentTime);
+      const v = videoRef.current;
+      if (!v) return;
+      setCurrentTime(v.currentTime);
+
+      // Global Analytics - track every 30 seconds of real watching
+      const now = Date.now();
+      const lastGlobalUpdate = (v as any)._lastGlobalUpdate || 0;
+      if (now - lastGlobalUpdate > 30000) { // 30 seconds
+        (v as any)._lastGlobalUpdate = now;
+        const elapsed = (v as any)._lastTrackedTotal || 0;
+        const currentTotal = v.currentTime;
+        const delta = Math.floor(Math.abs(currentTotal - elapsed));
+        // Only track if it's a reasonable forward progress (not a massive seek)
+        if (delta > 0 && delta < 60) {
+          trackWatchTime(delta);
+        }
+        (v as any)._lastTrackedTotal = currentTotal;
+      }
 
       // Update continue watching every 5 seconds or on significant progress
-      const now = Date.now();
-      const lastUpdate = (video as any)._lastProgressUpdate || 0;
+      const lastUpdate = (v as any)._lastProgressUpdate || 0;
 
       if (now - lastUpdate > 5000 && video.duration > 0) {
         (video as any)._lastProgressUpdate = now;

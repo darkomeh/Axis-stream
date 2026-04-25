@@ -326,6 +326,10 @@ export const movieService = {
       return list;
     } catch (e: any) {
       console.error("Error in getTrending:", e.message || e);
+      // Fallback to homeCache if direct trending fails
+      if (this._homeCache?.data?.topPickList?.length) {
+        return this._homeCache.data.topPickList;
+      }
       return [];
     }
   },

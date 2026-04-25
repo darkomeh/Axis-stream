@@ -143,7 +143,7 @@ export default function Home() {
     );
   }
 
-  const carouselItems = trending.slice(0, 6);
+  const carouselItems = (trending.length > 0 ? trending : (homepageData?.topPickList || [])).slice(0, 6);
 
   return (
     <div className="min-h-screen bg-black text-white pb-10 md:pb-20">

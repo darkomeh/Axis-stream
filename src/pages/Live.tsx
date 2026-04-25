@@ -10,6 +10,7 @@ import { motion } from "motion/react";
 
 import { MovieImage } from "../components/MovieImage";
 import { ErrorMessage } from "../components/ErrorMessage";
+import LiveChat from "../components/LiveChat";
 
 export default function Live() {
   const navigate = useNavigate();
@@ -154,6 +155,7 @@ export default function Live() {
         )}
       </div>
 
+      <LiveChat />
       <Footer />
     </div>
   );

@@ -17,7 +17,7 @@ import Tray from "./Tray";
 
 export default function MediaPreviewTray() {
   const { previewId, triggerSource, closePreview, openPreview } = useMediaPreview();
-  const { user, addToWatchlist, removeFromWatchlist, isInWatchlist, preferences } = useAuth();
+  const { user, addToWatchlist, removeFromWatchlist, isInWatchlist, preferences, openLoginPopup } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   
@@ -101,6 +101,12 @@ export default function MediaPreviewTray() {
   };
 
   const handlePlay = () => {
+    if (!user) {
+      showToast("Please sign in to watch.", "error");
+      openLoginPopup();
+      handleClose();
+      return;
+    }
     if (!details) return;
     const slug = details.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     handleClose();
@@ -109,7 +115,7 @@ export default function MediaPreviewTray() {
 
   const toggleWatchlist = () => {
     if (!details || !user) {
-      showToast("Sign in to save items", "error");
+      openLoginPopup();
       return;
     }
     if (isInWatchlist(details.id)) {
@@ -245,6 +251,20 @@ export default function MediaPreviewTray() {
               {loading ? (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : !user ? (
+                <div className="relative w-full h-full flex flex-col items-center justify-center bg-black/60 backdrop-blur-md px-6 text-center z-30">
+                  <div className="w-16 h-16 bg-brand/20 rounded-full flex items-center justify-center mb-4">
+                    <Play className="w-8 h-8 text-brand fill-current" />
+                  </div>
+                  <h3 className="text-xl font-black uppercase tracking-tighter text-white mb-2 italic">Login to Stream</h3>
+                  <p className="text-gray-400 text-xs font-bold uppercase tracking-widest max-w-[280px]">Access trailers, high-quality streams, and favorites by signing in.</p>
+                  <button 
+                    onClick={() => { handleClose(); navigate('/profile'); }}
+                    className="mt-6 px-8 py-3 bg-brand text-white rounded-full font-black uppercase tracking-widest text-xs hover:bg-brand-hover transition-all active:scale-95 shadow-lg"
+                  >
+                    Sign In Now
+                  </button>
                 </div>
               ) : !isTrailerSuppressed && trailerUrl ? (
                 <>

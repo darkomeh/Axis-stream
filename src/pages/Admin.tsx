@@ -18,7 +18,12 @@ import {
 
 import { 
   getUsers as getFirebaseUsers, 
-  getUserCount as getFirebaseUserCount 
+  getUserCount as getFirebaseUserCount,
+  getActiveUserCount,
+  getAdvancedUserStats,
+  getGlobalStats,
+  getSupportTickets,
+  replyToTicket as replyToSupportTicket
 } from '../services/firebaseService';
 import { Timestamp } from 'firebase/firestore';
 
@@ -66,6 +71,20 @@ interface AdminState {
   };
   searchVelocity?: number;
   openReports?: number;
+  activeUserCount: number;
+  advancedStats: {
+    total: number;
+    last7Days: number;
+    last30Days: number;
+    admins: number;
+    banned: number;
+  };
+  globalAnalytics: {
+    totalVisitors: number;
+    totalWatchTimeSeconds: number;
+    lastUpdated: any;
+  } | null;
+  supportTickets: any[];
 }
 
 export default function Admin() {
@@ -73,8 +92,9 @@ export default function Admin() {
   const { showToast } = useToast();
   const [data, setData] = useState<AdminState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'system' | 'logs' | 'content' | 'branding' | 'reports'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'system' | 'logs' | 'content' | 'branding' | 'reports' | 'support'>('overview');
   const [broadcastInput, setBroadcastInput] = useState('');
+  const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
   const [broadcastLevel, setBroadcastLevel] = useState<'info' | 'warning' | 'critical'>('info');
   const [isUpdating, setIsUpdating] = useState(false);
   const [isPinVerified, setIsPinVerified] = useState(true);
@@ -84,34 +104,70 @@ export default function Admin() {
   const navigate = useNavigate();
 
   const fetchData = async () => {
+    if (!isAdmin) {
+      setPageError('Access Denied: Administrative privileges required.');
+      setLoading(false);
+      return;
+    }
+    
+    setLoading(true);
     try {
       setPageError('');
-      const [statsRes, usersRes, systemRes, firebaseUsers, firebaseUserCount] = await Promise.all([
+      // statsRes, usersRes, systemRes are from internal API
+      const [statsRes, usersRes, systemRes] = await Promise.all([
         fetch('/api/admin/stats'),
         fetch('/api/admin/users'),
-        fetch('/api/admin/system'),
-        getFirebaseUsers(),
-        getFirebaseUserCount()
+        fetch('/api/admin/system')
       ]);
+      
+      if (!statsRes.ok || !usersRes.ok || !systemRes.ok) {
+        throw new Error('Neural uplink failed. Server reported an inconsistency.');
+      }
+
       const statsData = await statsRes.json();
       const usersData = await usersRes.json();
       const systemData = await systemRes.json();
+
+      let firebaseUsers: any[] = [];
+      let firebaseUserCount = 0;
+      let activeUserCount = 0;
+      let advancedStats = { total: 0, last7Days: 0, last30Days: 0, admins: 0, banned: 0 };
+      let globalAnalytics = null;
+      let supportTickets: any[] = [];
+
+      try {
+        const [fUsers, fCount, fActive, fAdvanced, fGlobal, fSupport] = await Promise.all([
+          getFirebaseUsers(),
+          getFirebaseUserCount(),
+          getActiveUserCount(),
+          getAdvancedUserStats(),
+          getGlobalStats() as any,
+          getSupportTickets()
+        ]);
+        firebaseUsers = fUsers || [];
+        firebaseUserCount = fCount || 0;
+        activeUserCount = fActive || 0;
+        advancedStats = fAdvanced || { total: 0, last7Days: 0, last30Days: 0, admins: 0, banned: 0 };
+        globalAnalytics = fGlobal;
+        supportTickets = fSupport || [];
+      } catch (fe) {
+        console.error("Firebase admin fetch partially failed:", fe);
+      }
       
       // Merge local users and firebase users for a complete view
-      // In a full migration, we'd only use Firebase
       const combinedUsers = [...usersData];
-      if (firebaseUsers) {
+      if (firebaseUsers && firebaseUsers.length > 0) {
         firebaseUsers.forEach((fu: any) => {
           if (!combinedUsers.some(u => u.email === fu.email)) {
             combinedUsers.push({
               id: fu.uid,
-              username: fu.name,
+              username: fu.name || fu.email.split('@')[0],
               email: fu.email,
-              avatar: fu.photoURL,
+              avatar: fu.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${fu.uid}`,
               createdAt: fu.createdAt instanceof Timestamp ? fu.createdAt.toDate().toISOString() : fu.createdAt?.seconds ? new Date(fu.createdAt.seconds * 1000).toISOString() : new Date().toISOString(),
               watchlistCount: 0,
               historyCount: 0,
-              stats: {
+              stats: fu.stats || {
                 totalViews: 0,
                 watchTimeMinutes: 0,
                 currentStreak: 0,
@@ -126,20 +182,26 @@ export default function Admin() {
         ...statsData,
         ...systemData,
         totalUsers: firebaseUserCount || statsData.totalUsers,
-        allUsers: combinedUsers
+        activeUsers: activeUserCount || statsData.activeUsers,
+        allUsers: combinedUsers,
+        advancedStats,
+        globalAnalytics,
+        supportTickets
       });
       if (systemData.broadcastMessage) setBroadcastInput(systemData.broadcastMessage);
-    } catch (e) {
-      console.error("Failed to load admin data", e);
-      setPageError('Failed to establish neural link. Reload module?');
+    } catch (e: any) {
+      console.error("Failed to load admin data:", e);
+      setPageError(e.message || 'Failed to establish neural link. Reload module?');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
-  }, [isPinVerified]);
+    if (isPinVerified) {
+      fetchData();
+    }
+  }, [isPinVerified, user, isAdmin]);
 
   const handleVerifyPin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,6 +260,23 @@ export default function Admin() {
         body: JSON.stringify({ siteConfig: newConfig })
       });
       await fetchData();
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleReplyToTicket = async (ticketId: string) => {
+    const text = replyInputs[ticketId];
+    if (!text) return;
+    
+    setIsUpdating(true);
+    try {
+      await replyToSupportTicket(ticketId, text);
+      showToast("Reply transmitted to user uplink", "success");
+      setReplyInputs(prev => ({ ...prev, [ticketId]: '' }));
+      await fetchData();
+    } catch (e: any) {
+      showToast("Reply failed to synchronize", "error");
     } finally {
       setIsUpdating(false);
     }
@@ -329,7 +408,8 @@ export default function Admin() {
               { id: 'content', label: 'Spotlight', icon: <Award className="w-4 h-4" /> },
               { id: 'reports', label: 'Intel', icon: <ShieldAlert className="w-4 h-4" /> },
               { id: 'system', label: 'Operations', icon: <Activity className="w-4 h-4" /> },
-              { id: 'logs', label: 'Audit', icon: <Clock className="w-4 h-4" /> }
+              { id: 'logs', label: 'Audit', icon: <Clock className="w-4 h-4" /> },
+              { id: 'support', label: 'Inbox', icon: <Mail className="w-4 h-4" /> }
             ].map(tab => (
               <button 
                 key={tab.id}
@@ -403,16 +483,34 @@ export default function Admin() {
                         color="text-brand"
                       />
                       <StatCard 
-                        label="New Today" 
-                        value={data.newToday} 
-                        icon={<Calendar className="w-6 h-6" />}
-                        color="text-blue-500"
+                        label="Visitors" 
+                        value={data.globalAnalytics?.totalVisitors || 0} 
+                        icon={<TrendingUp className="w-6 h-6" />}
+                        color="text-green-500"
+                      />
+                      <StatCard 
+                        label="Total Watch Hours" 
+                        value={Math.floor((data.globalAnalytics?.totalWatchTimeSeconds || 0) / 3600)} 
+                        icon={<Clock className="w-6 h-6" />}
+                        color="text-yellow-500"
                       />
                    </div>
                 </div>
 
-                {/* Stats Grid */}
+                {/* Advanced Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+                  <StatCard 
+                    label="Joined (7 Days)" 
+                    value={data.advancedStats?.last7Days || 0} 
+                    icon={<Calendar className="w-6 h-6" />}
+                    color="text-orange-500"
+                  />
+                  <StatCard 
+                    label="Joined (30 Days)" 
+                    value={data.advancedStats?.last30Days || 0} 
+                    icon={<Calendar className="w-6 h-6" />}
+                    color="text-blue-500"
+                  />
                   <StatCard 
                     label="Active Sessions" 
                     value={data.allUsers.filter(u => {
@@ -837,6 +935,81 @@ export default function Admin() {
                       Cycle Access Hash
                     </button>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'support' && (
+              <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden p-8">
+                <div className="flex items-center justify-between mb-8">
+                  <h2 className="text-xl font-bold flex items-center gap-2">
+                    <Mail className="w-6 h-6 text-brand" />
+                    Support Intel
+                  </h2>
+                  <span className="text-xs font-black text-gray-500 uppercase tracking-widest">{data.supportTickets?.length || 0} Active Tickets</span>
+                </div>
+
+                <div className="space-y-6">
+                  {data.supportTickets?.map((ticket, idx) => (
+                    <motion.div 
+                      key={ticket.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="bg-white/2 border border-white/5 rounded-[2rem] p-8 hover:bg-white/5 transition-colors"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                         <div className="flex items-center gap-4">
+                            <div className={`p-3 rounded-2xl ${ticket.status === 'open' ? 'bg-orange-500/10 text-orange-500' : 'bg-green-500/10 text-green-500'}`}>
+                               <Mail className="w-6 h-6" />
+                            </div>
+                            <div>
+                               <h4 className="text-lg font-black uppercase tracking-tighter italic">{ticket.subject}</h4>
+                               <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest">From: {ticket.userName} ({ticket.userEmail})</p>
+                            </div>
+                         </div>
+                         <div className="flex items-center gap-3">
+                            <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${ticket.status === 'open' ? 'bg-orange-600/20 text-orange-400' : 'bg-green-600/20 text-green-400'}`}>
+                               {ticket.status}
+                            </span>
+                            <span className="text-[10px] font-bold text-gray-700">{new Date(ticket.createdAt?.toDate ? ticket.createdAt.toDate() : ticket.createdAt).toLocaleString()}</span>
+                         </div>
+                      </div>
+
+                      <div className="bg-black/30 border border-white/5 rounded-2xl p-6 mb-6">
+                         <p className="text-sm font-medium text-gray-300 leading-relaxed italic">"{ticket.message}"</p>
+                      </div>
+
+                      {ticket.status === 'open' ? (
+                        <div className="flex gap-4">
+                           <input 
+                              type="text" 
+                              value={replyInputs[ticket.id] || ''}
+                              onChange={(e) => setReplyInputs(prev => ({ ...prev, [ticket.id]: e.target.value }))}
+                              placeholder="Type administrative response..."
+                              className="flex-1 bg-black/50 border border-white/10 rounded-2xl px-6 py-4 focus:border-brand outline-none text-sm font-medium"
+                           />
+                           <button 
+                              onClick={() => handleReplyToTicket(ticket.id)}
+                              disabled={isUpdating}
+                              className="px-8 py-4 bg-brand hover:bg-brand-hover text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl shadow-brand/20 active:scale-95"
+                           >
+                              Reply
+                           </button>
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-green-500/5 border border-green-500/10 rounded-2xl text-[10px] font-black text-green-500 uppercase tracking-widest text-center">
+                           Response transmitted. Awaiting user acknowledgment.
+                        </div>
+                      )}
+                    </motion.div>
+                  ))}
+
+                  {(!data.supportTickets || data.supportTickets.length === 0) && (
+                    <div className="py-20 text-center opacity-20">
+                       <Mail className="w-12 h-12 mx-auto mb-4" />
+                       <p className="text-sm uppercase font-black tracking-widest">Support buffer empty</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

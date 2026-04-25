@@ -11,6 +11,7 @@ import { MediaPreviewProvider } from "./contexts/MediaPreviewContext";
 import BottomNav from "./components/BottomNav";
 import MediaPreviewTray from "./components/MediaPreviewTray";
 import PopcornLoader from "./components/PopcornLoader";
+import LoginPopup from "./components/LoginPopup";
 import { Analytics } from "./components/Analytics";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AnimatePresence, motion } from "motion/react";
@@ -85,6 +86,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-black text-white selection:bg-brand/30 selection:text-white font-sans antialiased pb-20">
+      <LoginPopup />
       <Analytics />
       <MediaPreviewTray />
       <main>

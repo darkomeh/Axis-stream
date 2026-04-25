@@ -11,7 +11,9 @@ import {
 import { 
   loginWithGoogle, 
   loginWithEmail as firebaseLoginWithEmail, 
-  signupWithEmail as firebaseSignupWithEmail, 
+  signupWithEmail as firebaseSignupWithEmail,
+  sendMagicLink as firebaseSendMagicLink,
+  completeMagicLinkSignIn as firebaseCompleteMagicLinkSignIn,
   logoutUser,
   addWatchHistory,
   addFavorite,
@@ -96,6 +98,7 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   signupWithEmail: (email: string, pass: string, name: string) => Promise<void>;
+  sendMagicLink: (email: string) => Promise<void>;
   updateProfile: (data: { name?: string, photoURL?: string, bio?: string, username?: string }) => Promise<void>;
   saveContinueWatching: (movieId: string, title: string, lastPosition: number, duration: number) => Promise<void>;
   sendChatMessage: (text: string) => Promise<void>;
@@ -367,6 +370,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await firebaseSignupWithEmail(email, pass, name);
   }, []);
 
+  const handleSendMagicLink = useCallback(async (email: string) => {
+    await firebaseSendMagicLink(email);
+  }, []);
+
+  useEffect(() => {
+    // Automatically try to verify email link when AuthContext mounts
+    const url = window.location.href;
+    firebaseCompleteMagicLinkSignIn(url).then(user => {
+      if (user) {
+         setSystemMessage('Successfully signed in with email link!');
+      }
+    }).catch(err => {
+         console.error(err);
+    });
+  }, []);
+
   const handleUpdateProfile = useCallback(async (data: { name?: string, photoURL?: string, bio?: string, username?: string }) => {
     await firebaseUpdateProfile(data);
   }, []);
@@ -621,6 +640,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loginWithGoogle: handleLoginWithGoogle,
     loginWithEmail: handleLoginWithEmail,
     signupWithEmail: handleSignupWithEmail,
+    sendMagicLink: handleSendMagicLink,
     updateProfile: handleUpdateProfile,
     saveContinueWatching: handleSaveContinueWatching,
     sendChatMessage: handleSendChatMessage,
@@ -659,7 +679,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLastActionType,
     isLoginPopupOpen,
     openLoginPopup,
-    closeLoginPopup
+    closeLoginPopup,
+    handleSendMagicLink
   ]);
 
   // Visitor Tracking

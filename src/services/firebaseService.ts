@@ -7,7 +7,10 @@ import {
   signOut, 
   onAuthStateChanged,
   User as FirebaseUser,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink
 } from 'firebase/auth';
 import { 
   doc, 
@@ -231,6 +234,9 @@ export const loginWithGoogle = async () => {
 };
 
 export const signupWithEmail = async (email: string, pass: string, name: string) => {
+  if (!/^[a-zA-Z][a-zA-Z0-9._]*@gmail\.com$/i.test(email)) {
+    throw new Error("Only valid Gmail addresses are allowed.");
+  }
   try {
     const result = await createUserWithEmailAndPassword(auth, email, pass);
     await saveUser(result.user, name);
@@ -242,6 +248,9 @@ export const signupWithEmail = async (email: string, pass: string, name: string)
 };
 
 export const loginWithEmail = async (email: string, pass: string) => {
+  if (!/^[a-zA-Z][a-zA-Z0-9._]*@gmail\.com$/i.test(email)) {
+    throw new Error("Only valid Gmail addresses are allowed.");
+  }
   try {
     const result = await signInWithEmailAndPassword(auth, email, pass);
     await saveUser(result.user);
@@ -250,6 +259,44 @@ export const loginWithEmail = async (email: string, pass: string) => {
     console.error("Login Error", error);
     throw error;
   }
+};
+
+export const sendMagicLink = async (email: string) => {
+  if (!/^[a-zA-Z][a-zA-Z0-9._]*@gmail\.com$/i.test(email)) {
+    throw new Error("Only valid Gmail addresses are allowed.");
+  }
+  try {
+    const actionCodeSettings = {
+      url: window.location.href, // Redirects back to the current setup
+      handleCodeInApp: true,
+    };
+    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+    window.localStorage.setItem('emailForSignIn', email);
+  } catch (error) {
+    console.error("Error sending magic link", error);
+    throw error;
+  }
+};
+
+export const completeMagicLinkSignIn = async (url: string) => {
+  try {
+    if (isSignInWithEmailLink(auth, url)) {
+      let email = window.localStorage.getItem('emailForSignIn');
+      if (!email) {
+        email = window.prompt('Please provide your email for confirmation');
+      }
+      if (email) {
+        const result = await signInWithEmailLink(auth, email, url);
+        window.localStorage.removeItem('emailForSignIn');
+        await saveUser(result.user);
+        return result.user;
+      }
+    }
+  } catch (error) {
+    console.error("Error completing magic link sign-in", error);
+    throw error;
+  }
+  return null;
 };
 
 export const logoutUser = async () => {

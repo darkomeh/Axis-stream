@@ -133,9 +133,9 @@ service cloud.firestore {
     }
 
     match /analytics/global {
-      allow read: if isAdmin();
-      allow update: if true; // Allow anyone to increment stats for visitors/watchtime? Risky but simplest for client-side tracking.
-      // Better: restrict updates to only incrementing specific fields
+      allow read: if true;
+      allow update: if true;
+      allow create: if true;
     }
 
     match /liveStats/{statId} {

@@ -363,9 +363,6 @@ export default function Profile() {
               <div className="space-y-1 mb-6">
                 <div className="flex flex-col md:flex-row md:items-center gap-3">
                   <h2 className="text-4xl font-black tracking-tight">{user.username}</h2>
-                  <div className="inline-flex items-center px-4 py-1.5 bg-brand text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-[0_5px_15px_rgba(255,45,45,0.4)] md:mt-1">
-                    Axis Premium
-                  </div>
                 </div>
                 <p className="text-gray-400 font-medium">{user.email}</p>
                 {user.bio && (

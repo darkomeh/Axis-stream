@@ -133,7 +133,11 @@ function setCached(key: string, data: any) {
 }
 
 // Helper to check for platform owner
-const isPlatformOwner = (email?: string) => email?.toLowerCase() === 'greatmayuku2@gmail.com';
+const isPlatformOwner = (email?: string) => {
+  if (!email || typeof email !== 'string') return false;
+  const owner = 'greatmayuku2@gmail.com'.toLowerCase();
+  return email.toLowerCase().trim() === owner;
+};
 
 // API Routes using externalMovieService
 app.get("/api/health", (req, res) => {
@@ -142,11 +146,18 @@ app.get("/api/health", (req, res) => {
 
 // Admin API Authorization Middleware
 const adminAuth = (req: any, res: any, next: any) => {
-  const email = req.headers['x-admin-email'];
+  const email = req.headers['x-admin-email'] || req.query.admin_email;
+  console.log(`[Admin Auth] Attempt from: ${email}`);
+  
   if (isPlatformOwner(String(email))) {
     next();
   } else {
-    res.status(401).json({ success: false, error: "Unauthorized Axis Identity detected." });
+    console.warn(`[Admin Auth] DENIED: ${email}`);
+    res.status(401).json({ 
+      success: false, 
+      error: "Unauthorized Axis Identity detected.",
+      received: email ? `${email.substring(0, 3)}...` : 'none'
+    });
   }
 };
 

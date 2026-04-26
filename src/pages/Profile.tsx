@@ -5,7 +5,7 @@ import {
   Award, ListVideo, Trophy, Settings,
   Edit2, ChevronRight, Play, Plus, X,
   Search, Bell, Menu, Star, MoreVertical,
-  Flame, Zap, Heart, Ghost, Shield, Mail
+  Flame, Zap, Heart, Ghost, LifeBuoy, Mail
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -382,7 +382,7 @@ export default function Profile() {
                   'Horror Master': { icon: Ghost, color: 'text-purple-500', bg: 'from-purple-600/20', desc: 'Expert of the dark arts' },
                   'Romance King': { icon: Heart, color: 'text-pink-500', bg: 'from-pink-600/20', desc: 'True romantic at heart' },
                   'Weekend Binger': { icon: Zap, color: 'text-yellow-500', bg: 'from-yellow-600/20', desc: 'Marathon viewer' },
-                  'Pro Member': { icon: Shield, color: 'text-blue-500', bg: 'from-blue-600/20', desc: 'Official Axis TV Elite' }
+                  'Pro Member': { icon: Award, color: 'text-blue-500', bg: 'from-blue-600/20', desc: 'Official Axis TV Elite' }
                 }[badge] || { icon: Trophy, color: 'text-brand', bg: 'from-brand/20', desc: 'Earned milestone' };
 
                 const Icon = badgeInfo.icon;
@@ -467,7 +467,7 @@ export default function Profile() {
         <div className="bg-white/5 border border-white/10 rounded-[32px] p-6 backdrop-blur-2xl">
           <div className="w-full flex items-center justify-between mb-8 px-2 group">
             <h3 className="text-sm font-black uppercase tracking-[0.2em] flex items-center gap-3">
-              <Shield className="w-5 h-5 text-gray-400" /> Support & Bug Report
+              <LifeBuoy className="w-5 h-5 text-gray-400" /> Support & Bug Report
             </h3>
             <button 
               onClick={() => setIsSupportOpen(true)}

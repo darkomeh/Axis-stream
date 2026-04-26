@@ -123,9 +123,21 @@ export default function Admin() {
       const systemRes = await fetch(`/api/admin/system`, { headers });
       
       if (!statsRes.ok || !usersRes.ok || !systemRes.ok) {
-        const errorText = await statsRes.text().catch(() => 'Unknown error');
-        if (statsRes.status === 401) throw new Error('AUTHORIZATION_ERROR: Axis Identity rejected.');
-        throw new Error(errorText.includes('<!doctype') ? 'System route not found (404)' : 'Neural uplink failed. Server instability detected.');
+        let errorMsg = 'Neural uplink failed.';
+        try {
+          const errData = await statsRes.json();
+          errorMsg = errData.error || errorMsg;
+        } catch (e) {
+          const text = await statsRes.text().catch(() => '');
+          if (text.includes('<!doctype')) {
+            errorMsg = 'System route not found (404). Check API deployment.';
+          } else {
+            errorMsg = text || `Server responded with ${statsRes.status}`;
+          }
+        }
+        
+        if (statsRes.status === 401) throw new Error(`AUTHORIZATION_ERROR: ${errorMsg}`);
+        throw new Error(errorMsg);
       }
 
       const statsData = await statsRes.json();

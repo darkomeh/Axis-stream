@@ -139,15 +139,26 @@ const isPlatformOwner = (email?: string) => {
   return email.toLowerCase().trim() === owner;
 };
 
-// API Routes using externalMovieService
-app.get("/api/health", (req, res) => {
+// Logging middleware for debugging API routes in production
+app.use((req, res, next) => {
+  if (req.url.startsWith('/api')) {
+    console.log(`[API Request] ${req.method} ${req.url}`);
+  }
+  next();
+});
+
+// Create a router for all API routes to handle them consistently
+const apiRouter = express.Router();
+
+// Health Check
+apiRouter.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 // Admin API Authorization Middleware
 const adminAuth = (req: any, res: any, next: any) => {
   const email = req.headers['x-admin-email'] || req.query.admin_email;
-  console.log(`[Admin Auth] Attempt from: ${email}`);
+  console.log(`[Admin Auth] Attempt from: ${email} for ${req.url}`);
   
   if (isPlatformOwner(String(email))) {
     next();
@@ -161,8 +172,8 @@ const adminAuth = (req: any, res: any, next: any) => {
   }
 };
 
-// Admin API Routes (Restricted)
-app.get("/api/admin/stats", adminAuth, (req, res) => {
+// Admin API Routes
+apiRouter.get("/admin/stats", adminAuth, (req, res) => {
   res.json({
     totalUsers: getUsers().length,
     newToday: getUsers().filter(u => u.createdAt && new Date(u.createdAt).toDateString() === new Date().toDateString()).length,
@@ -172,11 +183,11 @@ app.get("/api/admin/stats", adminAuth, (req, res) => {
   });
 });
 
-app.get("/api/admin/users", adminAuth, (req, res) => {
+apiRouter.get("/admin/users", adminAuth, (req, res) => {
   res.json(getUsers());
 });
 
-app.get("/api/admin/system", adminAuth, (req, res) => {
+apiRouter.get("/admin/system", adminAuth, (req, res) => {
   res.json({
     maintenanceMode: adminState.maintenanceMode,
     broadcastMessage: adminState.broadcastMessage,
@@ -197,7 +208,7 @@ app.get("/api/admin/system", adminAuth, (req, res) => {
   });
 });
 
-app.get("/api/homepage", async (req, res) => {
+apiRouter.get("/homepage", async (req, res) => {
   const cacheKey = "homepage";
   const cachedData = getCached(cacheKey);
   if (cachedData) return res.json(cachedData);
@@ -212,7 +223,7 @@ app.get("/api/homepage", async (req, res) => {
   }
 });
 
-app.get("/api/trending", async (req, res) => {
+apiRouter.get("/trending", async (req, res) => {
   const { page, perPage } = req.query;
   const cacheKey = `trending_${page}_${perPage}`;
   const cachedData = getCached(cacheKey);
@@ -229,7 +240,7 @@ app.get("/api/trending", async (req, res) => {
 });
 
 // Aggregated endpoint to reduce client-side requests
-app.get("/api/aggregated-popular", async (req, res) => {
+apiRouter.get("/aggregated-popular", async (req, res) => {
   const cacheKey = "aggregated_popular";
   const cachedData = getCached(cacheKey);
   if (cachedData) return res.json(cachedData);
@@ -251,7 +262,7 @@ app.get("/api/aggregated-popular", async (req, res) => {
   }
 });
 
-app.get("/api/search", async (req, res) => {
+apiRouter.get("/search", async (req, res) => {
   const { keyword, page, perPage, subjectType } = req.query;
   const cacheKey = `search_${keyword}_${page}_${perPage}_${subjectType}`;
   const cachedData = getCached(cacheKey);
@@ -272,7 +283,7 @@ app.get("/api/search", async (req, res) => {
   }
 });
 
-app.get("/api/popular-search", async (req, res) => {
+apiRouter.get("/popular-search", async (req, res) => {
   try {
     const data = await externalMovieService.getPopularSearch();
     res.json(data);
@@ -282,7 +293,7 @@ app.get("/api/popular-search", async (req, res) => {
   }
 });
 
-app.get("/api/hot", async (req, res) => {
+apiRouter.get("/hot", async (req, res) => {
   const cacheKey = "hot";
   const cachedData = getCached(cacheKey);
   if (cachedData) return res.json(cachedData);
@@ -297,7 +308,7 @@ app.get("/api/hot", async (req, res) => {
   }
 });
 
-app.get("/api/search/suggest", async (req, res) => {
+apiRouter.get("/search/suggest", async (req, res) => {
   const { keyword } = req.query;
   const cacheKey = `suggest_${keyword}`;
   const cachedData = getCached(cacheKey);
@@ -313,7 +324,7 @@ app.get("/api/search/suggest", async (req, res) => {
   }
 });
 
-app.get("/api/detail", async (req, res) => {
+apiRouter.get("/detail", async (req, res) => {
   try {
     const { subjectId } = req.query;
     const data = await externalMovieService.getDetails(String(subjectId || ""));
@@ -324,7 +335,7 @@ app.get("/api/detail", async (req, res) => {
   }
 });
 
-app.get("/api/rich-detail", async (req, res) => {
+apiRouter.get("/rich-detail", async (req, res) => {
   try {
     const { subjectId } = req.query;
     const data = await externalMovieService.getRichDetails(String(subjectId || ""));
@@ -335,7 +346,7 @@ app.get("/api/rich-detail", async (req, res) => {
   }
 });
 
-app.get("/api/recommend", async (req, res) => {
+apiRouter.get("/recommend", async (req, res) => {
   try {
     const { subjectId, page, perPage } = req.query;
     const data = await externalMovieService.getRecommendations(
@@ -350,7 +361,7 @@ app.get("/api/recommend", async (req, res) => {
   }
 });
 
-app.get("/api/browse", async (req, res) => {
+apiRouter.get("/browse", async (req, res) => {
   try {
     const { genre, countryName, page, perPage, subjectType } = req.query;
     const data = await externalMovieService.browse(
@@ -367,7 +378,7 @@ app.get("/api/browse", async (req, res) => {
   }
 });
 
-app.get("/api/ranking", async (req, res) => {
+apiRouter.get("/ranking", async (req, res) => {
   const cacheKey = "ranking";
   const cachedData = getCached(cacheKey);
   if (cachedData) return res.json(cachedData);
@@ -382,7 +393,7 @@ app.get("/api/ranking", async (req, res) => {
   }
 });
 
-app.get("/api/play", async (req, res) => {
+apiRouter.get("/play", async (req, res) => {
   try {
     const { subjectId, detailPath, se, ep } = req.query;
     const data = await externalMovieService.getPlay(
@@ -398,7 +409,7 @@ app.get("/api/play", async (req, res) => {
   }
 });
 
-app.get("/api/captions", async (req, res) => {
+apiRouter.get("/captions", async (req, res) => {
   try {
     const { subjectId, streamId } = req.query;
     const data = await externalMovieService.getCaptions(String(subjectId || ""), String(streamId || ""));
@@ -409,7 +420,7 @@ app.get("/api/captions", async (req, res) => {
   }
 });
 
-app.get("/api/staff/detail", async (req, res) => {
+apiRouter.get("/staff/detail", async (req, res) => {
   try {
     const { staffId } = req.query;
     if (!staffId) return res.status(400).json({ success: false, error: "staffId is required" });
@@ -441,7 +452,7 @@ app.get("/api/staff/detail", async (req, res) => {
   }
 });
 
-app.get("/api/staff/works", async (req, res) => {
+apiRouter.get("/staff/works", async (req, res) => {
   try {
     const { staffId, page, perPage } = req.query;
     const data = await externalMovieService.getActorWorks(
@@ -460,7 +471,7 @@ app.get("/api/staff/works", async (req, res) => {
   }
 });
 
-app.get("/api/staff/related", async (req, res) => {
+apiRouter.get("/staff/related", async (req, res) => {
   try {
     const { staffId } = req.query;
     const data = await externalMovieService.getRelatedActors(String(staffId || ""));
@@ -475,7 +486,7 @@ app.get("/api/staff/related", async (req, res) => {
   }
 });
 
-app.get("/api/live", async (req, res) => {
+apiRouter.get("/live", async (req, res) => {
   try {
     const data = await externalMovieService.getLive();
     res.json(data);
@@ -486,7 +497,7 @@ app.get("/api/live", async (req, res) => {
 });
 
 // Image Proxy Route
-app.get("/api/image-proxy", async (req, res) => {
+apiRouter.get("/image-proxy", async (req, res) => {
   let imageUrl = req.query.url as string;
   if (!imageUrl) {
     return res.status(400).send("URL is required");
@@ -554,7 +565,7 @@ app.get("/api/image-proxy", async (req, res) => {
 });
 
 // Video Proxy Route
-app.get("/api/proxy", async (req, res) => {
+apiRouter.get("/proxy", async (req, res) => {
   const videoUrl = req.query.url as string;
   if (!videoUrl) {
     return res.status(400).send("URL is required");
@@ -589,7 +600,7 @@ app.get("/api/proxy", async (req, res) => {
   }
 });
 
-app.get("/api/system/status", (req, res) => {
+apiRouter.get("/system/status", (req, res) => {
   try {
     res.json({
       maintenanceMode: adminState.maintenanceMode || false,
@@ -603,7 +614,7 @@ app.get("/api/system/status", (req, res) => {
   }
 });
 
-app.post("/api/auth/sync", (req, res) => {
+apiRouter.post("/auth/sync", (req, res) => {
   const user = req.body;
   if (!user || !user.email) return res.status(400).json({ error: "Invalid user data" });
   
@@ -632,7 +643,7 @@ app.post("/api/auth/sync", (req, res) => {
   res.json({ success: true, maintenance: adminState.maintenanceMode, siteConfig: adminState.siteConfig });
 });
 
-app.post("/api/admin/broadcast", adminAuth, (req, res) => {
+apiRouter.post("/admin/broadcast", adminAuth, (req, res) => {
   const { message, level } = req.body;
   adminState.broadcastMessage = message || null;
   adminState.broadcastLevel = level || 'info';
@@ -641,7 +652,7 @@ app.post("/api/admin/broadcast", adminAuth, (req, res) => {
   res.json({ success: true });
 });
 
-app.post("/api/admin/config", adminAuth, (req, res) => {
+apiRouter.post("/admin/config", adminAuth, (req, res) => {
   const { siteConfig } = req.body;
   if (siteConfig) {
     adminState.siteConfig = { ...adminState.siteConfig, ...siteConfig };
@@ -653,7 +664,7 @@ app.post("/api/admin/config", adminAuth, (req, res) => {
   }
 });
 
-app.post("/api/admin/featured", adminAuth, (req, res) => {
+apiRouter.post("/admin/featured", adminAuth, (req, res) => {
   const { featuredMedia } = req.body;
   if (Array.isArray(featuredMedia)) {
     adminState.featuredMedia = featuredMedia;
@@ -665,7 +676,7 @@ app.post("/api/admin/featured", adminAuth, (req, res) => {
   }
 });
 
-app.post("/api/admin/logs/clear", adminAuth, (req, res) => {
+apiRouter.post("/admin/logs/clear", adminAuth, (req, res) => {
   const { type } = req.body;
   if (type === 'audit') {
     adminState.auditLogs = [];
@@ -678,7 +689,7 @@ app.post("/api/admin/logs/clear", adminAuth, (req, res) => {
   res.json({ success: true });
 });
 
-app.post("/api/admin/maintenance", adminAuth, (req, res) => {
+apiRouter.post("/admin/maintenance", adminAuth, (req, res) => {
   const { enabled } = req.body;
   adminState.maintenanceMode = !!enabled;
   logAction("MAINTENANCE", `Maintenance mode ${enabled ? "enabled" : "disabled"}`);
@@ -686,7 +697,7 @@ app.post("/api/admin/maintenance", adminAuth, (req, res) => {
   res.json({ success: true });
 });
 
-app.post("/api/admin/verify-pin", (req, res) => {
+apiRouter.post("/admin/verify-pin", (req, res) => {
   const { pin } = req.body;
   if (pin === adminState.adminPin) {
     res.json({ success: true });
@@ -695,7 +706,7 @@ app.post("/api/admin/verify-pin", (req, res) => {
   }
 });
 
-app.post("/api/admin/update-pin", adminAuth, (req, res) => {
+apiRouter.post("/admin/update-pin", adminAuth, (req, res) => {
   const { oldPin, newPin } = req.body;
   if (oldPin === adminState.adminPin) {
     if (!newPin || newPin.length < 4) return res.status(400).json({ error: "Invalid PIN" });
@@ -708,7 +719,7 @@ app.post("/api/admin/update-pin", adminAuth, (req, res) => {
   }
 });
 
-app.post("/api/admin/ban", adminAuth, (req, res) => {
+apiRouter.post("/admin/ban", adminAuth, (req, res) => {
   const { email, unban } = req.body;
   if (!email) return res.status(400).send("Email required");
   
@@ -725,7 +736,7 @@ app.post("/api/admin/ban", adminAuth, (req, res) => {
   res.json({ success: true });
 });
 
-app.post("/api/report", (req, res) => {
+apiRouter.post("/report", (req, res) => {
   const { userId, category, detail } = req.body;
   const report = {
     id: Math.random().toString(36).substr(2, 9),
@@ -740,7 +751,7 @@ app.post("/api/report", (req, res) => {
   res.json({ success: true, reportId: report.id });
 });
 
-app.post("/api/admin/reports/resolve", adminAuth, (req, res) => {
+apiRouter.post("/admin/reports/resolve", adminAuth, (req, res) => {
   const { reportId } = req.body;
   const report = adminState.reports.find(r => r.id === reportId);
   if (report) {
@@ -753,9 +764,19 @@ app.post("/api/admin/reports/resolve", adminAuth, (req, res) => {
   }
 });
 
-// Legacy fallback for any other /api/* routes (This MUST be the last API handler)
-app.use("/api/*", (req, res) => {
-  res.status(404).json({ success: false, error: "Endpoint not found" });
+// Mount the apiRouter
+app.use("/api", apiRouter);
+// Also mount on root to handle cases where the platform strips the /api prefix
+app.use("/", apiRouter);
+
+// Removed the catch-all from apiRouter to avoid interfering with static files when mounted at root
+
+// Handle cases where the platform might strip /api prefix from the routed path
+app.use((req, res, next) => {
+  // If the path doesn't start with /api but is hitting the serverless function, 
+  // we can try to re-route it to the apiRouter if it matches an admin route for example.
+  // But let's first try just /api mounting.
+  next();
 });
 
 app.get("/sitemap.xml", (req, res) => {

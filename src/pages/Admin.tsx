@@ -119,25 +119,35 @@ export default function Admin() {
       };
       
       const statsRes = await fetch(`/api/admin/stats`, { headers });
-      const usersRes = await fetch(`/api/admin/users`, { headers });
-      const systemRes = await fetch(`/api/admin/system`, { headers });
       
-      if (!statsRes.ok || !usersRes.ok || !systemRes.ok) {
-        let errorMsg = 'Neural uplink failed.';
+      if (!statsRes.ok) {
+        let errorMsg = `HTTP Error: ${statsRes.status}`;
+        console.error(`[Admin] fetch failed with status ${statsRes.status}`);
+        
         try {
-          const errData = await statsRes.json();
+          // Try to get JSON error
+          const errData = await statsRes.clone().json();
           errorMsg = errData.error || errorMsg;
         } catch (e) {
-          const text = await statsRes.text().catch(() => '');
-          if (text.includes('<!doctype')) {
-            errorMsg = 'System route not found (404). Check API deployment.';
-          } else {
-            errorMsg = text || `Server responded with ${statsRes.status}`;
+          // If not JSON, try text
+          const text = await statsRes.clone().text().catch(() => '');
+          if (text.includes('<!doctype') || text.includes('<html')) {
+            errorMsg = `Deployment Error: API route not found (404). Received HTML instead of JSON. Server might be misconfigured.`;
+          } else if (text) {
+            errorMsg = text;
           }
         }
         
         if (statsRes.status === 401) throw new Error(`AUTHORIZATION_ERROR: ${errorMsg}`);
+        if (statsRes.status === 404) throw new Error(`ENDPOINT_NOT_FOUND: ${errorMsg}`);
         throw new Error(errorMsg);
+      }
+
+      const usersRes = await fetch(`/api/admin/users`, { headers });
+      const systemRes = await fetch(`/api/admin/system`, { headers });
+      
+      if (!usersRes.ok || !systemRes.ok) {
+        throw new Error(`Satellite fetch failed: ${!usersRes.ok ? 'Users Registry ' : ''}${!systemRes.ok ? 'System Operations' : ''}`);
       }
 
       const statsData = await statsRes.json();

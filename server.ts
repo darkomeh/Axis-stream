@@ -68,7 +68,11 @@ function loadAdminState() {
 }
 
 function saveAdminState() {
-  fs.writeFileSync(ADMIN_STATE_FILE, JSON.stringify(adminState, null, 2));
+  try {
+    fs.writeFileSync(ADMIN_STATE_FILE, JSON.stringify(adminState, null, 2));
+  } catch (e) {
+    console.warn("Could not save admin state (read-only filesystem?)", e);
+  }
 }
 
 function logAction(type: string, detail: string) {
@@ -113,7 +117,11 @@ function saveUser(user: any) {
   } else {
     users.push({ ...user, createdAt: new Date().toISOString() });
   }
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+  } catch (e) {
+    console.warn("Could not save users (read-only filesystem?)", e);
+  }
 }
 
 // Simple in-memory cache

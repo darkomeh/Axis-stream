@@ -1,6 +1,6 @@
 import express from "express";
 import path from "path";
-import { externalMovieService } from "./src/services/externalMovieService";
+import { externalMovieService } from "./src/services/externalMovieService.js";
 import axios from "axios";
 import fs from "fs";
 import os from "os";

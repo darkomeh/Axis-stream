@@ -7,7 +7,7 @@ import {
   Actor, 
   LiveMatch, 
   RankingItem 
-} from '../types';
+} from '../types.js';
 
 const BASE_URL = 'https://movieapi.xcasper.space/api';
 const API_KEY = 'Godszeal';

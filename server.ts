@@ -621,11 +621,6 @@ app.post("/api/auth/sync", (req, res) => {
   res.json({ success: true, maintenance: adminState.maintenanceMode, siteConfig: adminState.siteConfig });
 });
 
-// Legacy fallback for any other /api/* routes
-app.get("/api/*", (req, res) => {
-  res.status(404).json({ success: false, error: "Endpoint not found" });
-});
-
 app.post("/api/admin/broadcast", adminAuth, (req, res) => {
   const { message, level } = req.body;
   adminState.broadcastMessage = message || null;
@@ -747,7 +742,10 @@ app.post("/api/admin/reports/resolve", adminAuth, (req, res) => {
   }
 });
 
-// End of API routes
+// Legacy fallback for any other /api/* routes (This MUST be the last API handler)
+app.use("/api/*", (req, res) => {
+  res.status(404).json({ success: false, error: "Endpoint not found" });
+});
 
 app.get("/sitemap.xml", (req, res) => {
   const SITE_URL = "https://axislabs.dpdns.org";
@@ -785,10 +783,7 @@ Allow: /
 Sitemap: https://axislabs.dpdns.org/sitemap.xml`);
 });
 
-// Legacy fallback for any other /api/* routes
-app.get("/api/*", (req, res) => {
-  res.status(404).json({ success: false, error: "Endpoint not found" });
-});
+// End of API routes
 
 async function startServer() {
   const PORT = 3000;
@@ -805,6 +800,10 @@ async function startServer() {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
+      // Prevent API calls from falling back to index.html
+      if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ success: false, error: "API Endpoint not found" });
+      }
       res.sendFile(path.join(distPath, "index.html"));
     });
   }

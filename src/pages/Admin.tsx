@@ -113,16 +113,14 @@ export default function Admin() {
     setLoading(true);
     try {
       setPageError('');
-      // Use absolute paths for production reliability
-      const apiBase = window.location.origin;
       const headers = {
         'Content-Type': 'application/json',
         'X-Admin-Email': user.email || ''
       };
       
-      const statsRes = await fetch(`${apiBase}/api/admin/stats`, { headers });
-      const usersRes = await fetch(`${apiBase}/api/admin/users`, { headers });
-      const systemRes = await fetch(`${apiBase}/api/admin/system`, { headers });
+      const statsRes = await fetch(`/api/admin/stats`, { headers });
+      const usersRes = await fetch(`/api/admin/users`, { headers });
+      const systemRes = await fetch(`/api/admin/system`, { headers });
       
       if (!statsRes.ok || !usersRes.ok || !systemRes.ok) {
         const errorText = await statsRes.text().catch(() => 'Unknown error');
@@ -204,7 +202,7 @@ export default function Admin() {
   };
 
   useEffect(() => {
-    if (isPinVerified) {
+    if (isPinVerified && user && user.email === 'greatmayuku2@gmail.com') {
       fetchData();
     }
   }, [isPinVerified, user]);
@@ -215,7 +213,10 @@ export default function Admin() {
     try {
       const res = await fetch('/api/admin/verify-pin', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Admin-Email': user?.email || ''
+        },
         body: JSON.stringify({ pin: pinInput })
       });
       if (res.ok) {
@@ -319,6 +320,34 @@ export default function Admin() {
   };
 
   /* Removed isAdmin check */
+
+  if (!user || user.email !== 'greatmayuku2@gmail.com') {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center space-y-6"
+        >
+          <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto border border-red-500/20 shadow-[0_0_30px_rgba(255,45,45,0.2)]">
+            <ShieldAlert className="w-10 h-10 text-brand" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-3xl font-black italic tracking-tighter uppercase">Access Denied</h1>
+            <p className="text-gray-500 text-xs font-black uppercase tracking-[0.2em] max-w-[300px] mx-auto leading-relaxed">
+              This terminal is restricted to the platform owner. Your identity signature has been logged.
+            </p>
+          </div>
+          <button 
+            onClick={() => navigate('/')}
+            className="px-8 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest transition-all"
+          >
+            Return to Safety
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (!isPinVerified) {
     return (

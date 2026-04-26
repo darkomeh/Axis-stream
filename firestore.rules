@@ -38,13 +38,13 @@ service cloud.firestore {
              data.addedAt == request.time;
     }
     function isValidUser(data) {
-      let requiredFields = ['uid', 'email', 'name', 'photoURL', 'createdAt', 'lastLogin', 'role', 'isBanned'];
+      let requiredFields = ['uid', 'email', 'name', 'photoURL', 'createdAt', 'lastLogin', 'role', 'isBanned', 'securityInfo'];
       return data.keys().hasAll(requiredFields) &&
              data.uid == request.auth.uid &&
              data.email is string && data.email.size() <= 256 &&
+             data.email.matches('^[a-zA-Z0-9._%+-]+@gmail\\.com$') &&
              data.name is string && data.name.size() <= 128 &&
-             data.photoURL is string && data.photoURL.size() <= 1024 &&
-             data.role in ['user', 'admin', 'moderator'] &&
+             data.role in ['user', 'admin'] &&
              data.isBanned is bool &&
              data.createdAt == request.time &&
              data.lastLogin == request.time;

@@ -261,7 +261,7 @@ export const loginWithEmail = async (email: string, pass: string) => {
   }
 };
 
-export const sendMagicLink = async (email: string) => {
+export const sendMagicLink = async (email: string, name?: string) => {
   if (!/^[a-zA-Z][a-zA-Z0-9._]*@gmail\.com$/i.test(email)) {
     throw new Error("Only valid Gmail addresses are allowed.");
   }
@@ -272,6 +272,9 @@ export const sendMagicLink = async (email: string) => {
     };
     await sendSignInLinkToEmail(auth, email, actionCodeSettings);
     window.localStorage.setItem('emailForSignIn', email);
+    if (name) {
+      window.localStorage.setItem('nameForSignIn', name);
+    }
   } catch (error) {
     console.error("Error sending magic link", error);
     throw error;
@@ -288,7 +291,9 @@ export const completeMagicLinkSignIn = async (url: string) => {
       if (email) {
         const result = await signInWithEmailLink(auth, email, url);
         window.localStorage.removeItem('emailForSignIn');
-        await saveUser(result.user);
+        const nameForSignIn = window.localStorage.getItem('nameForSignIn');
+        await saveUser(result.user, nameForSignIn || undefined);
+        window.localStorage.removeItem('nameForSignIn');
         return result.user;
       }
     }
@@ -325,10 +330,18 @@ export const saveUser = async (user: FirebaseUser, displayName?: string) => {
         isBanned: false,
         createdAt: serverTimestamp(),
         lastLogin: serverTimestamp(),
+        securityInfo: {
+          identityVerified: true,
+          securityScore: 100,
+          platform: navigator.platform,
+          browser: navigator.userAgent.split(' ')[0]
+        }
       });
     } else {
       await updateDoc(userRef, {
         lastLogin: serverTimestamp(),
+        'securityInfo.lastSession': serverTimestamp(),
+        'securityInfo.platform': navigator.platform
       });
     }
   } catch (error) {

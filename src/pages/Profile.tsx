@@ -5,7 +5,7 @@ import {
   Award, ListVideo, Trophy, Settings,
   Edit2, ChevronRight, Play, Plus, X,
   Search, Bell, Menu, Star, MoreVertical,
-  Flame, Zap, Heart, Ghost, Shield
+  Flame, Zap, Heart, Ghost, Shield, Mail
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -23,8 +23,7 @@ export default function Profile() {
   const { 
     user, 
     loginWithGoogle, 
-    loginWithEmail, 
-    signupWithEmail, 
+    sendMagicLink, 
     updateProfile,
     logout, 
     watchlist, 
@@ -34,18 +33,14 @@ export default function Profile() {
     preferences, 
     updatePreferences, 
     removeFromHistory,
-    resetPassword,
     submitSupportTicket
   } = useAuth();
   const { showToast } = useToast();
-  const [isLoginMode, setIsLoginMode] = useState(true);
-  const [isForgotPasswordMode, setIsForgotPasswordMode] = useState(false);
+  const [mode, setMode] = useState<'signin' | 'signup' | 'magic-sent'>('signin');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0].url);
-  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
   const navigate = useNavigate();
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
@@ -86,20 +81,30 @@ export default function Profile() {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
-    if (!isLoginMode && !username) return;
+    if (!email) return;
+    if (mode === 'signup' && !username) {
+      showToast("Please provide a username", "info");
+      return;
+    }
 
     setIsLoading(true);
     try {
-      if (isLoginMode) {
-        await loginWithEmail(email, password);
-        showToast("Welcome back!", "success");
-      } else {
-        await signupWithEmail(email, password, username);
-        showToast("Account created successfully!", "success");
+      if (mode === 'signin') {
+        await sendMagicLink(email);
+        setMode('magic-sent');
+        showToast("Magic link sent!", "success");
+      } else if (mode === 'signup') {
+        await sendMagicLink(email, username);
+        setMode('magic-sent');
+        showToast("Registration link sent!", "success");
       }
     } catch (error: any) {
-      showToast(error.message || "Authentication failed", "error");
+      if (error.code === 'auth/invalid-credential' || error.message?.includes('invalid-credential')) {
+        showToast("No account found. Check your email or sign up below!", "error");
+        setMode('signup');
+      } else {
+        showToast(error.message || "Authentication failed", "error");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -112,25 +117,6 @@ export default function Profile() {
       showToast("Signed in with Google", "success");
     } catch (error: any) {
       showToast(error.message || "Google sign in failed", "error");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) {
-      showToast("Please enter your email address first", "info");
-      return;
-    }
-    
-    setIsLoading(true);
-    try {
-      await resetPassword(email);
-      showToast("Password reset link sent to your email", "success");
-      setIsForgotPasswordMode(false);
-    } catch (error: any) {
-      showToast(error.message || "Failed to send reset link", "error");
     } finally {
       setIsLoading(false);
     }
@@ -183,130 +169,101 @@ export default function Profile() {
             className="w-full max-w-md bg-white/5 border border-white/10 p-8 rounded-[32px] backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/10"
           >
             <h2 className="text-3xl font-black text-center mb-8 italic tracking-tighter uppercase">
-              {isForgotPasswordMode ? 'Reset Link' : (isLoginMode ? 'Welcome Back' : 'Create Account')}
+              {mode === 'magic-sent' ? 'Check Inbox' : (mode === 'signin' ? 'Welcome Back' : 'Create Account')}
             </h2>
 
-            {!isForgotPasswordMode && (
-              <div className="flex flex-col items-center mb-10">
-                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">Choose your avatar</p>
-                <div className="flex gap-4">
-                  {AVATARS.map((av) => (
-                    <button 
-                      key={av.id}
-                      onClick={() => setSelectedAvatar(av.url)}
-                      className={`relative w-14 h-14 rounded-full overflow-hidden transition-all duration-300 ring-2 ${selectedAvatar === av.url ? 'ring-brand scale-110 shadow-[0_0_15px_rgba(255,45,45,0.4)]' : 'ring-white/10 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 hover:ring-white/30'}`}
-                    >
-                      <img src={av.url} alt="" className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
-                    </button>
-                  ))}
+            {mode === 'magic-sent' ? (
+              <div className="space-y-6 text-center">
+                <div className="w-20 h-20 bg-brand/10 rounded-full flex items-center justify-center mx-auto border border-brand/20">
+                  <Mail className="w-10 h-10 text-brand animate-pulse" />
                 </div>
-              </div>
-            )}
-            
-            <form onSubmit={isForgotPasswordMode ? handleForgotPassword : handleAuth} className="space-y-5">
-              {!isLoginMode && !isForgotPasswordMode && (
-                <div className="space-y-1">
-                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Username</label>
-                  <input 
-                    type="text" 
-                    value={username}
-                    onChange={e => setUsername(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:ring-1 focus:ring-brand transition-all text-sm font-medium"
-                    placeholder="e.g. Great"
-                    required={!isLoginMode}
-                  />
+                <div className="space-y-2">
+                  <p className="text-sm font-bold text-white">Verification Link Sent!</p>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest leading-relaxed">
+                    We sent a link to <span className="text-brand font-bold">{email}</span>. Click it to sign in.
+                  </p>
                 </div>
-              )}
-              <div className="space-y-1">
-                <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Email</label>
-                <input 
-                  type="email" 
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:ring-1 focus:ring-brand transition-all text-sm font-medium"
-                  placeholder="great@example.com"
-                  required
-                />
+                <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-2xl">
+                  <p className="text-[10px] text-yellow-500 font-black uppercase tracking-widest mb-1">Important</p>
+                  <p className="text-[11px] text-yellow-200/80 leading-relaxed">
+                    If you don't see the email, check your <span className="text-white font-bold underline">Spam</span> or <span className="text-white font-bold underline">Promotions</span> folder.
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setMode('signin')}
+                  className="text-[10px] font-black text-gray-500 uppercase tracking-widest hover:text-white transition-colors"
+                >
+                  Back to Sign In
+                </button>
               </div>
-              {!isForgotPasswordMode && (
-                <div className="space-y-1">
-                  <div className="flex justify-between px-2">
-                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest">Password</label>
-                    {isLoginMode && (
-                      <button 
-                        type="button" 
-                        onClick={() => setIsForgotPasswordMode(true)}
-                        className="text-[9px] font-black text-brand uppercase tracking-widest hover:underline"
-                      >
-                        Forgot?
-                      </button>
-                    )}
+            ) : (
+              <form onSubmit={handleAuth} className="space-y-5">
+                {mode === 'signup' && (
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Username</label>
+                    <input 
+                      type="text" 
+                      value={username}
+                      onChange={e => setUsername(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:ring-1 focus:ring-brand transition-all text-sm font-medium"
+                      placeholder="e.g. Great"
+                      required
+                    />
                   </div>
+                )}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Email</label>
                   <input 
-                    type="password" 
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
+                    type="email" 
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
                     className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:ring-1 focus:ring-brand transition-all text-sm font-medium"
-                    placeholder="••••••••"
-                    required={!isForgotPasswordMode}
+                    placeholder="great@example.com"
+                    required
                   />
                 </div>
-              )}
-              <button 
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-brand hover:bg-brand/90 disabled:opacity-50 text-white font-black py-4 rounded-2xl transition-all mt-4 shadow-[0_10px_20px_rgba(255,45,45,0.3)] uppercase tracking-widest text-sm active:scale-[0.98]"
-              >
-                {isLoading ? 'Processing...' : (isForgotPasswordMode ? 'Send Reset Link' : (isLoginMode ? 'Sign In' : 'Sign Up'))}
-              </button>
+                <button 
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-brand hover:bg-brand/90 disabled:opacity-50 text-white font-black py-4 rounded-2xl transition-all mt-4 shadow-[0_10px_20px_rgba(255,45,45,0.3)] uppercase tracking-widest text-sm active:scale-[0.98]"
+                >
+                  {isLoading ? 'Processing...' : (mode === 'signin' ? 'Send Magic Link' : 'Create Account')}
+                </button>
 
-              {isForgotPasswordMode && (
+                <div className="relative py-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-white/10"></div>
+                  </div>
+                  <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest">
+                    <span className="bg-black/20 backdrop-blur px-2 text-gray-500">Or continue with</span>
+                  </div>
+                </div>
+
                 <button 
                   type="button"
-                  onClick={() => setIsForgotPasswordMode(false)}
-                  className="w-full text-center text-xs font-black text-gray-500 uppercase tracking-widest hover:text-white transition-colors"
+                  onClick={handleGoogleLogin}
+                  disabled={isLoading}
+                  className="w-full bg-white/5 hover:bg-white/10 text-white font-black py-4 rounded-2xl transition-all border border-white/10 flex items-center justify-center gap-3 uppercase tracking-widest text-sm active:scale-[0.98]"
                 >
-                  Back to Login
+                  <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                  </svg>
+                  Google
                 </button>
-              )}
-
-              {!isForgotPasswordMode && (
-                <>
-                  <div className="relative py-4">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-white/10"></div>
-                    </div>
-                    <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest">
-                      <span className="bg-black/20 backdrop-blur px-2 text-gray-500">Or continue with</span>
-                    </div>
-                  </div>
-
-                  <button 
-                    type="button"
-                    onClick={handleGoogleLogin}
-                    disabled={isLoading}
-                    className="w-full bg-white/5 hover:bg-white/10 text-white font-black py-4 rounded-2xl transition-all border border-white/10 flex items-center justify-center gap-3 uppercase tracking-widest text-sm active:scale-[0.98]"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                    </svg>
-                    Google
-                  </button>
-                </>
-              )}
-            </form>
+              </form>
+            )}
             
-            {!isForgotPasswordMode && (
+            {mode !== 'magic-sent' && (
               <div className="mt-8 text-center text-xs text-gray-500 font-medium">
-                {isLoginMode ? "First time here?" : "Joined before?"}
+                {mode === 'signin' ? "First time here?" : "Joined before?"}
                 <button 
-                  onClick={() => setIsLoginMode(!isLoginMode)}
+                  onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
                   className="ml-2 text-brand hover:underline font-bold"
                 >
-                  {isLoginMode ? 'Create Account' : 'Sign In Now'}
+                  {mode === 'signin' ? 'Create Account' : 'Sign In Now'}
                 </button>
               </div>
             )}
@@ -475,6 +432,101 @@ export default function Profile() {
              <p className="text-[10px] text-gray-500 font-bold leading-relaxed uppercase tracking-wide">
                {stats?.currentStreak > 0 ? "You're on fire! Keep it up." : "Start your journey today. Watch any movie to start a streak!"}
              </p>
+          </div>
+        </div>
+
+        {/* High-Security Dashboard */}
+        <div className="bg-[#0c0c0c] border border-white/5 rounded-[32px] p-8 overflow-hidden relative backdrop-blur-3xl">
+          <div className="absolute top-0 right-0 p-6 opacity-10">
+            <Shield className="w-32 h-32 text-brand" />
+          </div>
+          
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-12 h-12 bg-brand/10 rounded-2xl flex items-center justify-center border border-brand/20 shadow-[0_0_20px_rgba(255,45,45,0.2)]">
+                <Shield className="w-6 h-6 text-brand" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black uppercase tracking-tighter italic">Security Shield</h3>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest leading-none">Identity Fully Verified</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Security Score Card */}
+              <div className="bg-white/5 border border-white/5 p-5 rounded-2xl group hover:border-brand/30 transition-all duration-500">
+                <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest mb-3">Trust Score</p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl font-black text-brand italic">100</span>
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-black text-brand uppercase tracking-tighter mb-1">Max Level</span>
+                      <div className="w-20 h-1 bg-white/10 rounded-full overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: "100%" }}
+                          transition={{ duration: 1, delay: 0.5 }}
+                          className="h-full bg-brand" 
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <Award className="w-5 h-5 text-brand opacity-50" />
+                </div>
+              </div>
+
+              {/* Identity Verification */}
+              <div className="bg-white/5 border border-white/5 p-5 rounded-2xl group hover:border-brand/30 transition-all duration-500">
+                <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest mb-3">Authentication</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-brand/10 rounded-lg flex items-center justify-center border border-brand/20">
+                    <Mail className="w-4 h-4 text-brand" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black uppercase text-white">Gmail Link</p>
+                    <p className="text-[10px] text-gray-500 font-medium tracking-tight">One-Time Signature Auth</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Session Info */}
+              <div className="bg-white/5 border border-white/5 p-5 rounded-2xl group hover:border-brand/30 transition-all duration-500">
+                <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest mb-3">Current Hardware</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center border border-blue-500/20">
+                    <Settings className="w-4 h-4 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black uppercase text-white truncate max-w-[100px]">{window.navigator.platform}</p>
+                    <p className="text-[10px] text-gray-500 font-medium truncate max-w-[100px]">{window.navigator.userAgent.substring(0, 15)}...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-3 h-3 bg-brand rounded-full animate-pulse shadow-[0_0_15px_rgba(255,45,45,0.5)] border border-white/20" />
+                <p className="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em] animate-pulse">
+                  Quantum Guard Protection Active
+                </p>
+              </div>
+              
+              <button 
+                onClick={() => {
+                  if (confirm("IDENTITY PURGE REQUEST: This will permanently delete your AxisTV account and all associated watch history. This cannot be undone. Proceed?")) {
+                    showToast("Security protocol initiated. Identity purge signature required.", "info");
+                  }
+                }}
+                className="group flex items-center gap-3 text-[9px] font-black text-gray-600 hover:text-brand transition-all uppercase tracking-widest bg-white/5 px-6 py-3 rounded-xl border border-white/5 hover:border-brand/30 active:scale-95"
+              >
+                <X className="w-4 h-4 bg-white/5 rounded-full p-0.5" />
+                Purge Digital Presence
+              </button>
+            </div>
           </div>
         </div>
 

@@ -98,7 +98,7 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   signupWithEmail: (email: string, pass: string, name: string) => Promise<void>;
-  sendMagicLink: (email: string) => Promise<void>;
+  sendMagicLink: (email: string, name?: string) => Promise<void>;
   updateProfile: (data: { name?: string, photoURL?: string, bio?: string, username?: string }) => Promise<void>;
   saveContinueWatching: (movieId: string, title: string, lastPosition: number, duration: number) => Promise<void>;
   sendChatMessage: (text: string) => Promise<void>;
@@ -370,8 +370,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await firebaseSignupWithEmail(email, pass, name);
   }, []);
 
-  const handleSendMagicLink = useCallback(async (email: string) => {
-    await firebaseSendMagicLink(email);
+  const handleSendMagicLink = useCallback(async (email: string, name?: string) => {
+    await firebaseSendMagicLink(email, name);
   }, []);
 
   useEffect(() => {

@@ -5,11 +5,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 
 export default function LoginPopup() {
-  const { isLoginPopupOpen, closeLoginPopup, signupWithEmail, loginWithGoogle, sendMagicLink } = useAuth();
+  const { isLoginPopupOpen, closeLoginPopup, loginWithGoogle, sendMagicLink } = useAuth();
   const { showToast } = useToast();
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'magic-sent'>('signin');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState(''); // Only for signup
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -20,12 +19,10 @@ export default function LoginPopup() {
       if (mode === 'signin') {
         // Only use Magic Link for Sign In as requested
         await sendMagicLink(email);
-        showToast('Magic link sent to your email! Check your inbox to sign in instantly.', 'success');
-        closeLoginPopup();
+        setMode('magic-sent');
       } else if (mode === 'signup') {
-        await signupWithEmail(email, password, name);
-        showToast('Account created successfully!', 'success');
-        closeLoginPopup();
+        await sendMagicLink(email, name);
+        setMode('magic-sent');
       }
     } catch (error: any) {
       console.error(error);
@@ -95,16 +92,46 @@ export default function LoginPopup() {
 
             <div className="text-center mb-8">
               <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">
-                {mode === 'signin' ? 'Welcome Back' : 'Join the Elite'}
+                {mode === 'signin' ? 'Welcome Back' : mode === 'magic-sent' ? 'Check Your Inbox' : 'Join the Elite'}
               </h2>
               <p className="text-sm text-gray-400 font-medium max-w-[280px] mx-auto">
                 {mode === 'signin' 
                   ? "We use passwordless magic links for maximum security." 
-                  : "Create your account to unlock premium features."}
+                  : mode === 'magic-sent'
+                    ? "We've sent a magic link to your email. Click it to verify your account and sign in."
+                    : "Create your account to unlock premium features."}
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === 'magic-sent' ? (
+              <div className="flex flex-col items-center justify-center space-y-6">
+                <div className="p-4 bg-brand/10 rounded-full border border-brand/20">
+                  <Mail className="w-12 h-12 text-brand animate-pulse" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-white text-center font-medium leading-tight">
+                    Verification link sent to:<br/>
+                    <span className="font-bold text-brand">{email}</span>
+                  </p>
+                </div>
+                <div className="p-4 bg-yellow-500/10 rounded-xl border border-yellow-500/20 w-full">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle className="w-4 h-4 text-yellow-500" />
+                    <span className="text-[10px] text-yellow-500 font-black uppercase tracking-widest">Check your spam</span>
+                  </div>
+                  <p className="text-[11px] text-yellow-200/70 leading-relaxed font-medium">
+                    If you don't see the email within 1 minute, please check your <span className="text-white font-bold underline">Spam</span> or <span className="text-white font-bold underline">Promotions</span> folder.
+                  </p>
+                </div>
+                <button
+                  onClick={closeLoginPopup}
+                  className="w-full bg-white/10 text-white hover:bg-white/20 py-4 rounded-xl font-bold uppercase transition-colors"
+                >
+                  Close & Wait
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
               <AnimatePresence mode="wait">
                 {mode === 'signup' && (
                   <motion.div
@@ -140,20 +167,6 @@ export default function LoginPopup() {
                 />
               </div>
 
-              {mode === 'signup' && (
-                <div className="relative group">
-                  <Lock className="absolute left-3 top-3.5 w-5 h-5 text-gray-500 group-focus-within:text-brand transition-colors" />
-                  <input
-                    type="password"
-                    placeholder="Secure Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-[#161616] text-white p-3.5 pl-10 rounded-xl border border-white/5 focus:border-brand/50 focus:bg-brand/5 outline-none transition-all"
-                    required
-                  />
-                </div>
-              )}
-
               <button
                 type="submit"
                 disabled={loading}
@@ -169,40 +182,46 @@ export default function LoginPopup() {
                 )}
               </button>
             </form>
+            )}
 
-            <div className="mt-8 flex items-center gap-4">
-              <div className="h-px bg-white/5 flex-1" />
-              <span className="text-[10px] text-gray-600 uppercase font-black tracking-widest">Digital ID Verification</span>
-              <div className="h-px bg-white/5 flex-1" />
-            </div>
-
-            <button
-              onClick={handleGoogleLogin}
-              disabled={loading}
-              className="mt-6 w-full flex items-center justify-center gap-3 bg-white text-black py-4 rounded-xl font-bold hover:bg-gray-200 transition-all active:scale-[0.98] disabled:opacity-50"
-            >
-              <LogIn className="w-5 h-5" />
-              Sync with Google
-            </button>
-
-            <div className="mt-8 text-center space-y-4">
-              <p className="text-xs text-gray-500 font-medium">
-                {mode === 'signin' ? "First time here?" : "Already have an ID?"}{' '}
-                <button
-                  onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
-                  className="text-brand font-bold hover:text-brand-hover transition-colors"
-                >
-                  {mode === 'signin' ? 'Create New Account' : 'Sign In with Link'}
-                </button>
-              </p>
-              
-              {mode === 'signin' && (
-                <div className="flex items-center justify-center gap-1.5 text-[10px] text-gray-600 uppercase tracking-widest font-bold">
-                  <Sparkles className="w-3 h-3 text-brand" />
-                  <span>Passwordless Experience</span>
+            {mode !== 'magic-sent' && (
+              <>
+                <div className="mt-8 flex items-center gap-4">
+                  <div className="h-px bg-white/5 flex-1" />
+                  <span className="text-[10px] text-gray-600 uppercase font-black tracking-widest">Digital ID Verification</span>
+                  <div className="h-px bg-white/5 flex-1" />
                 </div>
-              )}
-            </div>
+
+                <button
+                  onClick={handleGoogleLogin}
+                  disabled={loading}
+                  className="mt-6 w-full flex items-center justify-center gap-3 bg-white text-black py-4 rounded-xl font-bold hover:bg-gray-200 transition-all active:scale-[0.98] disabled:opacity-50"
+                >
+                  <LogIn className="w-5 h-5" />
+                  Sync with Google
+                </button>
+
+                <div className="mt-8 text-center space-y-4">
+                  <p className="text-xs text-gray-500 font-medium">
+                    {mode === 'signin' ? "First time here?" : "Already have an ID?"}{' '}
+                    <button
+                      onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
+                      className="text-brand font-bold hover:text-brand-hover transition-colors"
+                    >
+                      {mode === 'signin' ? 'Create New Account' : 'Sign In with Link'}
+                    </button>
+                  </p>
+                  
+                  <div className="flex flex-col items-center gap-2 pt-4 border-t border-white/5">
+                    <div className="flex items-center justify-center gap-1.5 text-[9px] text-gray-600 uppercase tracking-[0.2em] font-black">
+                      <ShieldCheck className="w-3 h-3 text-brand" />
+                      <span>Secured by AxisTV Identity</span>
+                    </div>
+                    <p className="text-[8px] text-gray-700 uppercase font-bold tracking-[0.1em]">Encrypted Magic Link Protocol V2</p>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </motion.div>
       </motion.div>

@@ -1,7 +1,6 @@
 import express from "express";
 import path from "path";
 import { externalMovieService } from "./src/services/externalMovieService";
-import { externalSportService } from "./src/services/externalSportService";
 import axios from "axios";
 import fs from "fs";
 import os from "os";
@@ -69,11 +68,7 @@ function loadAdminState() {
 }
 
 function saveAdminState() {
-  try {
-    fs.writeFileSync(ADMIN_STATE_FILE, JSON.stringify(adminState, null, 2));
-  } catch (e) {
-    console.warn("Could not save admin state (read-only filesystem?)", e);
-  }
+  fs.writeFileSync(ADMIN_STATE_FILE, JSON.stringify(adminState, null, 2));
 }
 
 function logAction(type: string, detail: string) {
@@ -118,11 +113,7 @@ function saveUser(user: any) {
   } else {
     users.push({ ...user, createdAt: new Date().toISOString() });
   }
-  try {
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-  } catch (e) {
-    console.warn("Could not save users (read-only filesystem?)", e);
-  }
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
 // Simple in-memory cache
@@ -142,90 +133,25 @@ function setCached(key: string, data: any) {
 }
 
 // Helper to check for platform owner
-const isPlatformOwner = (email?: string) => {
-  if (!email || typeof email !== 'string') return false;
-  const owner = 'greatmayuku2@gmail.com'.toLowerCase();
-  return email.toLowerCase().trim() === owner;
-};
+const isPlatformOwner = (email?: string) => email?.toLowerCase() === 'greatmayuku2@gmail.com';
 
-// Logging middleware for debugging API routes in production
-app.use((req, res, next) => {
-  if (req.url.startsWith('/api')) {
-    console.log(`[API Request] ${req.method} ${req.url}`);
-  }
-  next();
-});
-
-// Create a router for all API routes to handle them consistently
-const apiRouter = express.Router();
-
-// Health Check
-apiRouter.get("/health", (req, res) => {
+// API Routes using externalMovieService
+app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
-});
-
-apiRouter.get("/sport/trend", async (req, res) => {
-  const { page } = req.query;
-  const cacheKey = `sport_trend_${page}`;
-  const cachedData = getCached(cacheKey);
-  if (cachedData) return res.json(cachedData);
-
-  try {
-    const data = await externalSportService.getSportTrend(Number(page) || 1);
-    setCached(cacheKey, data);
-    res.json(data);
-  } catch (error: any) {
-    console.error("[API] Sport trend error:", error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-apiRouter.get("/sport/detail", async (req, res) => {
-  try {
-    const { id } = req.query;
-    if (!id) return res.status(400).json({ success: false, error: "id is required" });
-    const data = await externalSportService.getMatchDetail(String(id));
-    res.json(data);
-  } catch (error: any) {
-    console.error("[API] Sport detail error:", error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-apiRouter.get("/sport/feeds", async (req, res) => {
-  const cacheKey = "sport_feeds";
-  const cachedData = getCached(cacheKey);
-  if (cachedData) return res.json(cachedData);
-
-  try {
-    const data = await externalSportService.getSportFeeds();
-    setCached(cacheKey, data);
-    res.json(data);
-  } catch (error: any) {
-    console.error("[API] Sport feeds error:", error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
 });
 
 // Admin API Authorization Middleware
 const adminAuth = (req: any, res: any, next: any) => {
-  const email = req.headers['x-admin-email'] || req.query.admin_email;
-  console.log(`[Admin Auth] Attempt from: ${email} for ${req.url}`);
-  
+  const email = req.headers['x-admin-email'];
   if (isPlatformOwner(String(email))) {
     next();
   } else {
-    console.warn(`[Admin Auth] DENIED: ${email}`);
-    res.status(401).json({ 
-      success: false, 
-      error: "Unauthorized Axis Identity detected.",
-      received: email ? `${email.substring(0, 3)}...` : 'none'
-    });
+    res.status(401).json({ success: false, error: "Unauthorized Axis Identity detected." });
   }
 };
 
-// Admin API Routes
-apiRouter.get("/admin/stats", adminAuth, (req, res) => {
+// Admin API Routes (Restricted)
+app.get("/api/admin/stats", adminAuth, (req, res) => {
   res.json({
     totalUsers: getUsers().length,
     newToday: getUsers().filter(u => u.createdAt && new Date(u.createdAt).toDateString() === new Date().toDateString()).length,
@@ -235,11 +161,11 @@ apiRouter.get("/admin/stats", adminAuth, (req, res) => {
   });
 });
 
-apiRouter.get("/admin/users", adminAuth, (req, res) => {
+app.get("/api/admin/users", adminAuth, (req, res) => {
   res.json(getUsers());
 });
 
-apiRouter.get("/admin/system", adminAuth, (req, res) => {
+app.get("/api/admin/system", adminAuth, (req, res) => {
   res.json({
     maintenanceMode: adminState.maintenanceMode,
     broadcastMessage: adminState.broadcastMessage,
@@ -260,7 +186,7 @@ apiRouter.get("/admin/system", adminAuth, (req, res) => {
   });
 });
 
-apiRouter.get("/homepage", async (req, res) => {
+app.get("/api/homepage", async (req, res) => {
   const cacheKey = "homepage";
   const cachedData = getCached(cacheKey);
   if (cachedData) return res.json(cachedData);
@@ -275,7 +201,7 @@ apiRouter.get("/homepage", async (req, res) => {
   }
 });
 
-apiRouter.get("/trending", async (req, res) => {
+app.get("/api/trending", async (req, res) => {
   const { page, perPage } = req.query;
   const cacheKey = `trending_${page}_${perPage}`;
   const cachedData = getCached(cacheKey);
@@ -292,7 +218,7 @@ apiRouter.get("/trending", async (req, res) => {
 });
 
 // Aggregated endpoint to reduce client-side requests
-apiRouter.get("/aggregated-popular", async (req, res) => {
+app.get("/api/aggregated-popular", async (req, res) => {
   const cacheKey = "aggregated_popular";
   const cachedData = getCached(cacheKey);
   if (cachedData) return res.json(cachedData);
@@ -314,7 +240,7 @@ apiRouter.get("/aggregated-popular", async (req, res) => {
   }
 });
 
-apiRouter.get("/search", async (req, res) => {
+app.get("/api/search", async (req, res) => {
   const { keyword, page, perPage, subjectType } = req.query;
   const cacheKey = `search_${keyword}_${page}_${perPage}_${subjectType}`;
   const cachedData = getCached(cacheKey);
@@ -335,7 +261,7 @@ apiRouter.get("/search", async (req, res) => {
   }
 });
 
-apiRouter.get("/popular-search", async (req, res) => {
+app.get("/api/popular-search", async (req, res) => {
   try {
     const data = await externalMovieService.getPopularSearch();
     res.json(data);
@@ -345,7 +271,7 @@ apiRouter.get("/popular-search", async (req, res) => {
   }
 });
 
-apiRouter.get("/hot", async (req, res) => {
+app.get("/api/hot", async (req, res) => {
   const cacheKey = "hot";
   const cachedData = getCached(cacheKey);
   if (cachedData) return res.json(cachedData);
@@ -360,7 +286,7 @@ apiRouter.get("/hot", async (req, res) => {
   }
 });
 
-apiRouter.get("/search/suggest", async (req, res) => {
+app.get("/api/search/suggest", async (req, res) => {
   const { keyword } = req.query;
   const cacheKey = `suggest_${keyword}`;
   const cachedData = getCached(cacheKey);
@@ -376,7 +302,7 @@ apiRouter.get("/search/suggest", async (req, res) => {
   }
 });
 
-apiRouter.get("/detail", async (req, res) => {
+app.get("/api/detail", async (req, res) => {
   try {
     const { subjectId } = req.query;
     const data = await externalMovieService.getDetails(String(subjectId || ""));
@@ -387,7 +313,7 @@ apiRouter.get("/detail", async (req, res) => {
   }
 });
 
-apiRouter.get("/rich-detail", async (req, res) => {
+app.get("/api/rich-detail", async (req, res) => {
   try {
     const { subjectId } = req.query;
     const data = await externalMovieService.getRichDetails(String(subjectId || ""));
@@ -398,7 +324,7 @@ apiRouter.get("/rich-detail", async (req, res) => {
   }
 });
 
-apiRouter.get("/recommend", async (req, res) => {
+app.get("/api/recommend", async (req, res) => {
   try {
     const { subjectId, page, perPage } = req.query;
     const data = await externalMovieService.getRecommendations(
@@ -413,7 +339,7 @@ apiRouter.get("/recommend", async (req, res) => {
   }
 });
 
-apiRouter.get("/browse", async (req, res) => {
+app.get("/api/browse", async (req, res) => {
   try {
     const { genre, countryName, page, perPage, subjectType } = req.query;
     const data = await externalMovieService.browse(
@@ -430,7 +356,7 @@ apiRouter.get("/browse", async (req, res) => {
   }
 });
 
-apiRouter.get("/ranking", async (req, res) => {
+app.get("/api/ranking", async (req, res) => {
   const cacheKey = "ranking";
   const cachedData = getCached(cacheKey);
   if (cachedData) return res.json(cachedData);
@@ -445,7 +371,7 @@ apiRouter.get("/ranking", async (req, res) => {
   }
 });
 
-apiRouter.get("/play", async (req, res) => {
+app.get("/api/play", async (req, res) => {
   try {
     const { subjectId, detailPath, se, ep } = req.query;
     const data = await externalMovieService.getPlay(
@@ -461,7 +387,7 @@ apiRouter.get("/play", async (req, res) => {
   }
 });
 
-apiRouter.get("/captions", async (req, res) => {
+app.get("/api/captions", async (req, res) => {
   try {
     const { subjectId, streamId } = req.query;
     const data = await externalMovieService.getCaptions(String(subjectId || ""), String(streamId || ""));
@@ -472,7 +398,7 @@ apiRouter.get("/captions", async (req, res) => {
   }
 });
 
-apiRouter.get("/staff/detail", async (req, res) => {
+app.get("/api/staff/detail", async (req, res) => {
   try {
     const { staffId } = req.query;
     if (!staffId) return res.status(400).json({ success: false, error: "staffId is required" });
@@ -504,7 +430,7 @@ apiRouter.get("/staff/detail", async (req, res) => {
   }
 });
 
-apiRouter.get("/staff/works", async (req, res) => {
+app.get("/api/staff/works", async (req, res) => {
   try {
     const { staffId, page, perPage } = req.query;
     const data = await externalMovieService.getActorWorks(
@@ -523,7 +449,7 @@ apiRouter.get("/staff/works", async (req, res) => {
   }
 });
 
-apiRouter.get("/staff/related", async (req, res) => {
+app.get("/api/staff/related", async (req, res) => {
   try {
     const { staffId } = req.query;
     const data = await externalMovieService.getRelatedActors(String(staffId || ""));
@@ -538,7 +464,7 @@ apiRouter.get("/staff/related", async (req, res) => {
   }
 });
 
-apiRouter.get("/live", async (req, res) => {
+app.get("/api/live", async (req, res) => {
   try {
     const data = await externalMovieService.getLive();
     res.json(data);
@@ -549,7 +475,7 @@ apiRouter.get("/live", async (req, res) => {
 });
 
 // Image Proxy Route
-apiRouter.get("/image-proxy", async (req, res) => {
+app.get("/api/image-proxy", async (req, res) => {
   let imageUrl = req.query.url as string;
   if (!imageUrl) {
     return res.status(400).send("URL is required");
@@ -617,69 +543,32 @@ apiRouter.get("/image-proxy", async (req, res) => {
 });
 
 // Video Proxy Route
-apiRouter.get("/proxy", async (req, res) => {
+app.get("/api/proxy", async (req, res) => {
   const videoUrl = req.query.url as string;
   if (!videoUrl) {
     return res.status(400).send("URL is required");
   }
 
   try {
-    const headers: Record<string, string> = {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-      "Accept": "*/*",
-      "Accept-Language": "en-US,en;q=0.9",
-      "Connection": "keep-alive",
-    };
+    const response = await fetch(videoUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "Referer": "https://movieapi.xcasper.space/",
+        ...(req.headers.range && { "Range": req.headers.range }),
+      },
+    });
 
-    if (videoUrl.includes("movieapi.xcasper.space") || videoUrl.includes("vidsrc.me")) {
-       headers["Referer"] = "https://movieapi.xcasper.space/";
-       headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
-    } else if (videoUrl.includes("aisports.mobi")) {
-       headers["Referer"] = "https://www.aiscore.com/";
-       headers["Origin"] = "https://www.aiscore.com";
-       headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36";
-       headers["Accept"] = "*/*";
-       headers["Sec-Fetch-Site"] = "cross-site";
-       headers["Sec-Fetch-Mode"] = "cors";
-       headers["Sec-Fetch-Dest"] = "empty";
-    }
-
-    if (req.headers.range) {
-      headers["Range"] = req.headers.range;
-    }
-
-    const response = await fetch(videoUrl, { headers });
-    
-    if (response.status === 403) {
-      console.warn(`[Proxy] 403 Forbidden for ${videoUrl}`);
-      console.warn(`[Proxy] Response headers: ${JSON.stringify(Object.fromEntries(response.headers.entries()))}`);
-    }
-
-    if (!response.ok && response.status !== 206) {
-      console.warn(`[Proxy] Upstream ${response.status} for ${videoUrl}`);
-      console.warn(`[Proxy] Headers sent: ${JSON.stringify(headers)}`);
-      // Pass the 403 through so the client knows it's a permission issue, not a connection issue
-    }
+    if (!response.ok) throw new Error(`External API returned ${response.status}`);
 
     // Forward headers
-    response.headers.forEach((value, name) => {
-      // Don't forward security headers that might block us
-      if (!['content-security-policy', 'x-frame-options'].includes(name.toLowerCase())) {
-        res.setHeader(name, value);
-      }
-    });
+    response.headers.forEach((value, name) => res.setHeader(name, value));
     
-    // Add CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-
     if (response.status === 206) res.status(206);
-    else res.status(response.status);
 
-    if (!response.body) {
-      res.end();
-      return;
-    }
+    if (!response.body) throw new Error("No response body");
 
+    // Pipe the Web ReadableStream to the Express response
+    // @ts-ignore - Node 18+ fetch body is a Web ReadableStream which can be piped in newer Node versions, or we can use Readable.fromWeb
     const { Readable } = await import("stream");
     Readable.fromWeb(response.body as any).pipe(res);
 
@@ -689,52 +578,7 @@ apiRouter.get("/proxy", async (req, res) => {
   }
 });
 
-apiRouter.get("/sport/player", (req, res) => {
-  const url = req.query.url as string;
-  if (!url) return res.status(400).send("URL is required");
-
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <title>Sport Player</title>
-      <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.10/dist/hls.min.js"></script>
-      <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-        video { width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; }
-      </style>
-    </head>
-    <body>
-      <video id="video" controls autoplay playsinline crossorigin="anonymous"></video>
-      <script>
-        const video = document.getElementById('video');
-        const videoSrc = "/api/proxy?url=" + encodeURIComponent("${url}");
-        
-        if (Hls.isSupported()) {
-          const hls = new Hls({
-            xhrSetup: (xhr) => {
-              xhr.withCredentials = false;
-            }
-          });
-          hls.loadSource(videoSrc);
-          hls.attachMedia(video);
-          hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            video.play().catch(e => console.log("Autoplay blocked", e));
-          });
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          video.src = videoSrc;
-          video.addEventListener('loadedmetadata', () => {
-            video.play().catch(e => console.log("Autoplay blocked", e));
-          });
-        }
-      </script>
-    </body>
-    </html>
-  `);
-});
-
-apiRouter.get("/system/status", (req, res) => {
+app.get("/api/system/status", (req, res) => {
   try {
     res.json({
       maintenanceMode: adminState.maintenanceMode || false,
@@ -748,7 +592,7 @@ apiRouter.get("/system/status", (req, res) => {
   }
 });
 
-apiRouter.post("/auth/sync", (req, res) => {
+app.post("/api/auth/sync", (req, res) => {
   const user = req.body;
   if (!user || !user.email) return res.status(400).json({ error: "Invalid user data" });
   
@@ -777,7 +621,12 @@ apiRouter.post("/auth/sync", (req, res) => {
   res.json({ success: true, maintenance: adminState.maintenanceMode, siteConfig: adminState.siteConfig });
 });
 
-apiRouter.post("/admin/broadcast", adminAuth, (req, res) => {
+// Legacy fallback for any other /api/* routes
+app.get("/api/*", (req, res) => {
+  res.status(404).json({ success: false, error: "Endpoint not found" });
+});
+
+app.post("/api/admin/broadcast", adminAuth, (req, res) => {
   const { message, level } = req.body;
   adminState.broadcastMessage = message || null;
   adminState.broadcastLevel = level || 'info';
@@ -786,7 +635,7 @@ apiRouter.post("/admin/broadcast", adminAuth, (req, res) => {
   res.json({ success: true });
 });
 
-apiRouter.post("/admin/config", adminAuth, (req, res) => {
+app.post("/api/admin/config", adminAuth, (req, res) => {
   const { siteConfig } = req.body;
   if (siteConfig) {
     adminState.siteConfig = { ...adminState.siteConfig, ...siteConfig };
@@ -798,7 +647,7 @@ apiRouter.post("/admin/config", adminAuth, (req, res) => {
   }
 });
 
-apiRouter.post("/admin/featured", adminAuth, (req, res) => {
+app.post("/api/admin/featured", adminAuth, (req, res) => {
   const { featuredMedia } = req.body;
   if (Array.isArray(featuredMedia)) {
     adminState.featuredMedia = featuredMedia;
@@ -810,7 +659,7 @@ apiRouter.post("/admin/featured", adminAuth, (req, res) => {
   }
 });
 
-apiRouter.post("/admin/logs/clear", adminAuth, (req, res) => {
+app.post("/api/admin/logs/clear", adminAuth, (req, res) => {
   const { type } = req.body;
   if (type === 'audit') {
     adminState.auditLogs = [];
@@ -823,7 +672,7 @@ apiRouter.post("/admin/logs/clear", adminAuth, (req, res) => {
   res.json({ success: true });
 });
 
-apiRouter.post("/admin/maintenance", adminAuth, (req, res) => {
+app.post("/api/admin/maintenance", adminAuth, (req, res) => {
   const { enabled } = req.body;
   adminState.maintenanceMode = !!enabled;
   logAction("MAINTENANCE", `Maintenance mode ${enabled ? "enabled" : "disabled"}`);
@@ -831,7 +680,7 @@ apiRouter.post("/admin/maintenance", adminAuth, (req, res) => {
   res.json({ success: true });
 });
 
-apiRouter.post("/admin/verify-pin", (req, res) => {
+app.post("/api/admin/verify-pin", (req, res) => {
   const { pin } = req.body;
   if (pin === adminState.adminPin) {
     res.json({ success: true });
@@ -840,7 +689,7 @@ apiRouter.post("/admin/verify-pin", (req, res) => {
   }
 });
 
-apiRouter.post("/admin/update-pin", adminAuth, (req, res) => {
+app.post("/api/admin/update-pin", adminAuth, (req, res) => {
   const { oldPin, newPin } = req.body;
   if (oldPin === adminState.adminPin) {
     if (!newPin || newPin.length < 4) return res.status(400).json({ error: "Invalid PIN" });
@@ -853,7 +702,7 @@ apiRouter.post("/admin/update-pin", adminAuth, (req, res) => {
   }
 });
 
-apiRouter.post("/admin/ban", adminAuth, (req, res) => {
+app.post("/api/admin/ban", adminAuth, (req, res) => {
   const { email, unban } = req.body;
   if (!email) return res.status(400).send("Email required");
   
@@ -870,7 +719,7 @@ apiRouter.post("/admin/ban", adminAuth, (req, res) => {
   res.json({ success: true });
 });
 
-apiRouter.post("/report", (req, res) => {
+app.post("/api/report", (req, res) => {
   const { userId, category, detail } = req.body;
   const report = {
     id: Math.random().toString(36).substr(2, 9),
@@ -885,7 +734,7 @@ apiRouter.post("/report", (req, res) => {
   res.json({ success: true, reportId: report.id });
 });
 
-apiRouter.post("/admin/reports/resolve", adminAuth, (req, res) => {
+app.post("/api/admin/reports/resolve", adminAuth, (req, res) => {
   const { reportId } = req.body;
   const report = adminState.reports.find(r => r.id === reportId);
   if (report) {
@@ -898,20 +747,7 @@ apiRouter.post("/admin/reports/resolve", adminAuth, (req, res) => {
   }
 });
 
-// Mount the apiRouter
-app.use("/api", apiRouter);
-// Also mount on root to handle cases where the platform strips the /api prefix
-app.use("/", apiRouter);
-
-// Removed the catch-all from apiRouter to avoid interfering with static files when mounted at root
-
-// Handle cases where the platform might strip /api prefix from the routed path
-app.use((req, res, next) => {
-  // If the path doesn't start with /api but is hitting the serverless function, 
-  // we can try to re-route it to the apiRouter if it matches an admin route for example.
-  // But let's first try just /api mounting.
-  next();
-});
+// End of API routes
 
 app.get("/sitemap.xml", (req, res) => {
   const SITE_URL = "https://axislabs.dpdns.org";
@@ -949,7 +785,10 @@ Allow: /
 Sitemap: https://axislabs.dpdns.org/sitemap.xml`);
 });
 
-// End of API routes
+// Legacy fallback for any other /api/* routes
+app.get("/api/*", (req, res) => {
+  res.status(404).json({ success: false, error: "Endpoint not found" });
+});
 
 async function startServer() {
   const PORT = 3000;
@@ -966,10 +805,6 @@ async function startServer() {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
-      // Prevent API calls from falling back to index.html
-      if (req.path.startsWith('/api/')) {
-        return res.status(404).json({ success: false, error: "API Endpoint not found" });
-      }
       res.sendFile(path.join(distPath, "index.html"));
     });
   }

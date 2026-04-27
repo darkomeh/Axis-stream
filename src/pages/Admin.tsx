@@ -113,41 +113,21 @@ export default function Admin() {
     setLoading(true);
     try {
       setPageError('');
+      // Use absolute paths for production reliability
+      const apiBase = window.location.origin;
       const headers = {
         'Content-Type': 'application/json',
         'X-Admin-Email': user.email || ''
       };
       
-      const statsRes = await fetch(`/api/admin/stats`, { headers });
+      const statsRes = await fetch(`${apiBase}/api/admin/stats`, { headers });
+      const usersRes = await fetch(`${apiBase}/api/admin/users`, { headers });
+      const systemRes = await fetch(`${apiBase}/api/admin/system`, { headers });
       
-      if (!statsRes.ok) {
-        let errorMsg = `HTTP Error: ${statsRes.status}`;
-        console.error(`[Admin] fetch failed with status ${statsRes.status}`);
-        
-        try {
-          // Try to get JSON error
-          const errData = await statsRes.clone().json();
-          errorMsg = errData.error || errorMsg;
-        } catch (e) {
-          // If not JSON, try text
-          const text = await statsRes.clone().text().catch(() => '');
-          if (text.includes('<!doctype') || text.includes('<html')) {
-            errorMsg = `Deployment Error: API route not found (404). Received HTML instead of JSON. Server might be misconfigured.`;
-          } else if (text) {
-            errorMsg = text;
-          }
-        }
-        
-        if (statsRes.status === 401) throw new Error(`AUTHORIZATION_ERROR: ${errorMsg}`);
-        if (statsRes.status === 404) throw new Error(`ENDPOINT_NOT_FOUND: ${errorMsg}`);
-        throw new Error(errorMsg);
-      }
-
-      const usersRes = await fetch(`/api/admin/users`, { headers });
-      const systemRes = await fetch(`/api/admin/system`, { headers });
-      
-      if (!usersRes.ok || !systemRes.ok) {
-        throw new Error(`Satellite fetch failed: ${!usersRes.ok ? 'Users Registry ' : ''}${!systemRes.ok ? 'System Operations' : ''}`);
+      if (!statsRes.ok || !usersRes.ok || !systemRes.ok) {
+        const errorText = await statsRes.text().catch(() => 'Unknown error');
+        if (statsRes.status === 401) throw new Error('AUTHORIZATION_ERROR: Axis Identity rejected.');
+        throw new Error(errorText.includes('<!doctype') ? 'System route not found (404)' : 'Neural uplink failed. Server instability detected.');
       }
 
       const statsData = await statsRes.json();
@@ -224,7 +204,7 @@ export default function Admin() {
   };
 
   useEffect(() => {
-    if (isPinVerified && user && user.email === 'greatmayuku2@gmail.com') {
+    if (isPinVerified) {
       fetchData();
     }
   }, [isPinVerified, user]);
@@ -235,10 +215,7 @@ export default function Admin() {
     try {
       const res = await fetch('/api/admin/verify-pin', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Admin-Email': user?.email || ''
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pin: pinInput })
       });
       if (res.ok) {
@@ -342,34 +319,6 @@ export default function Admin() {
   };
 
   /* Removed isAdmin check */
-
-  if (!user || user.email !== 'greatmayuku2@gmail.com') {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center space-y-6"
-        >
-          <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto border border-red-500/20 shadow-[0_0_30px_rgba(255,45,45,0.2)]">
-            <ShieldAlert className="w-10 h-10 text-brand" />
-          </div>
-          <div className="space-y-2">
-            <h1 className="text-3xl font-black italic tracking-tighter uppercase">Access Denied</h1>
-            <p className="text-gray-500 text-xs font-black uppercase tracking-[0.2em] max-w-[300px] mx-auto leading-relaxed">
-              This terminal is restricted to the platform owner. Your identity signature has been logged.
-            </p>
-          </div>
-          <button 
-            onClick={() => navigate('/')}
-            className="px-8 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest transition-all"
-          >
-            Return to Safety
-          </button>
-        </motion.div>
-      </div>
-    );
-  }
 
   if (!isPinVerified) {
     return (

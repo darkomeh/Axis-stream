@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
-import { externalMovieService } from "./src/services/externalMovieService.js";
+import { externalMovieService } from "./src/services/externalMovieService";
+import { externalSportService } from "./src/services/externalSportService";
 import axios from "axios";
 import fs from "fs";
 import os from "os";
@@ -161,6 +162,49 @@ const apiRouter = express.Router();
 // Health Check
 apiRouter.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+apiRouter.get("/sport/trend", async (req, res) => {
+  const { page } = req.query;
+  const cacheKey = `sport_trend_${page}`;
+  const cachedData = getCached(cacheKey);
+  if (cachedData) return res.json(cachedData);
+
+  try {
+    const data = await externalSportService.getSportTrend(Number(page) || 1);
+    setCached(cacheKey, data);
+    res.json(data);
+  } catch (error: any) {
+    console.error("[API] Sport trend error:", error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+apiRouter.get("/sport/detail", async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ success: false, error: "id is required" });
+    const data = await externalSportService.getMatchDetail(String(id));
+    res.json(data);
+  } catch (error: any) {
+    console.error("[API] Sport detail error:", error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+apiRouter.get("/sport/feeds", async (req, res) => {
+  const cacheKey = "sport_feeds";
+  const cachedData = getCached(cacheKey);
+  if (cachedData) return res.json(cachedData);
+
+  try {
+    const data = await externalSportService.getSportFeeds();
+    setCached(cacheKey, data);
+    res.json(data);
+  } catch (error: any) {
+    console.error("[API] Sport feeds error:", error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // Admin API Authorization Middleware
@@ -580,25 +624,62 @@ apiRouter.get("/proxy", async (req, res) => {
   }
 
   try {
-    const response = await fetch(videoUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Referer": "https://movieapi.xcasper.space/",
-        ...(req.headers.range && { "Range": req.headers.range }),
-      },
-    });
+    const headers: Record<string, string> = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+      "Accept": "*/*",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Connection": "keep-alive",
+    };
 
-    if (!response.ok) throw new Error(`External API returned ${response.status}`);
+    if (videoUrl.includes("movieapi.xcasper.space") || videoUrl.includes("vidsrc.me")) {
+       headers["Referer"] = "https://movieapi.xcasper.space/";
+       headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
+    } else if (videoUrl.includes("aisports.mobi")) {
+       headers["Referer"] = "https://www.aiscore.com/";
+       headers["Origin"] = "https://www.aiscore.com";
+       headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36";
+       headers["Accept"] = "*/*";
+       headers["Sec-Fetch-Site"] = "cross-site";
+       headers["Sec-Fetch-Mode"] = "cors";
+       headers["Sec-Fetch-Dest"] = "empty";
+    }
+
+    if (req.headers.range) {
+      headers["Range"] = req.headers.range;
+    }
+
+    const response = await fetch(videoUrl, { headers });
+    
+    if (response.status === 403) {
+      console.warn(`[Proxy] 403 Forbidden for ${videoUrl}`);
+      console.warn(`[Proxy] Response headers: ${JSON.stringify(Object.fromEntries(response.headers.entries()))}`);
+    }
+
+    if (!response.ok && response.status !== 206) {
+      console.warn(`[Proxy] Upstream ${response.status} for ${videoUrl}`);
+      console.warn(`[Proxy] Headers sent: ${JSON.stringify(headers)}`);
+      // Pass the 403 through so the client knows it's a permission issue, not a connection issue
+    }
 
     // Forward headers
-    response.headers.forEach((value, name) => res.setHeader(name, value));
+    response.headers.forEach((value, name) => {
+      // Don't forward security headers that might block us
+      if (!['content-security-policy', 'x-frame-options'].includes(name.toLowerCase())) {
+        res.setHeader(name, value);
+      }
+    });
     
+    // Add CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
     if (response.status === 206) res.status(206);
+    else res.status(response.status);
 
-    if (!response.body) throw new Error("No response body");
+    if (!response.body) {
+      res.end();
+      return;
+    }
 
-    // Pipe the Web ReadableStream to the Express response
-    // @ts-ignore - Node 18+ fetch body is a Web ReadableStream which can be piped in newer Node versions, or we can use Readable.fromWeb
     const { Readable } = await import("stream");
     Readable.fromWeb(response.body as any).pipe(res);
 
@@ -606,6 +687,51 @@ apiRouter.get("/proxy", async (req, res) => {
     console.error("[Proxy] Error:", error.message);
     res.status(500).send(error.message);
   }
+});
+
+apiRouter.get("/sport/player", (req, res) => {
+  const url = req.query.url as string;
+  if (!url) return res.status(400).send("URL is required");
+
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <title>Sport Player</title>
+      <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.10/dist/hls.min.js"></script>
+      <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        video { width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; }
+      </style>
+    </head>
+    <body>
+      <video id="video" controls autoplay playsinline crossorigin="anonymous"></video>
+      <script>
+        const video = document.getElementById('video');
+        const videoSrc = "/api/proxy?url=" + encodeURIComponent("${url}");
+        
+        if (Hls.isSupported()) {
+          const hls = new Hls({
+            xhrSetup: (xhr) => {
+              xhr.withCredentials = false;
+            }
+          });
+          hls.loadSource(videoSrc);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            video.play().catch(e => console.log("Autoplay blocked", e));
+          });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = videoSrc;
+          video.addEventListener('loadedmetadata', () => {
+            video.play().catch(e => console.log("Autoplay blocked", e));
+          });
+        }
+      </script>
+    </body>
+    </html>
+  `);
 });
 
 apiRouter.get("/system/status", (req, res) => {

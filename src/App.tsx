@@ -51,6 +51,7 @@ const Ranking = lazyWithRetry(() => import("./pages/Ranking"));
 const Live = lazyWithRetry(() => import("./pages/Live"));
 const Admin = lazyWithRetry(() => import("./pages/Admin"));
 const Legal = lazyWithRetry(() => import("./pages/Legal"));
+const SportHub = lazyWithRetry(() => import("./pages/SportHub"));
 
 import { useAuth } from "./contexts/AuthContext";
 
@@ -110,6 +111,7 @@ function AppContent() {
                 <Route path="/profile" element={<PageWrapper><Profile /></PageWrapper>} />
                 <Route path="/ranking" element={<PageWrapper><Ranking /></PageWrapper>} />
                 <Route path="/live" element={<PageWrapper><Live /></PageWrapper>} />
+                <Route path="/sport" element={<PageWrapper><SportHub /></PageWrapper>} />
                 <Route path="/pppp" element={<PageWrapper><Admin /></PageWrapper>} />
                 <Route path="/legal/:type" element={<PageWrapper><Legal /></PageWrapper>} />
                 {/* Fallback routes for movies/series/trending to browse for now */}

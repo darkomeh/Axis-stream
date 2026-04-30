@@ -17,6 +17,7 @@ import {
   logoutUser,
   addWatchHistory,
   addFavorite,
+  removeFavorite,
   getWatchHistory,
   updateProfile as firebaseUpdateProfile,
   saveContinueWatching as firebaseSaveContinueWatching,
@@ -100,7 +101,7 @@ interface AuthContextType {
   signupWithEmail: (email: string, pass: string, name: string) => Promise<void>;
   sendMagicLink: (email: string, name?: string) => Promise<void>;
   updateProfile: (data: { name?: string, photoURL?: string, bio?: string, username?: string }) => Promise<void>;
-  saveContinueWatching: (movieId: string, title: string, lastPosition: number, duration: number) => Promise<void>;
+  saveContinueWatching: (item: ContinueWatchingItem) => Promise<void>;
   sendChatMessage: (text: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   submitSupportTicket: (subject: string, message: string) => Promise<void>;
@@ -276,9 +277,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const items = snapshot.docs.map(doc => ({
           id: doc.data().movieId,
           title: doc.data().title,
-          // We might need more data here, but for now we'll store basic info
-          // In a real app, we'd fetch full details if needed or store them in favorites
-          type: 'Movie' as const // Defaulting
+          poster: doc.data().poster || '',
+          type: doc.data().type || 'Movie',
+          rating: doc.data().rating || '',
+          year: doc.data().year || '',
         } as MediaItem));
         setWatchlist(items);
         localStorage.setItem(`axis_watchlist_${firebaseUser.uid}`, JSON.stringify(items));
@@ -303,6 +305,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } as MediaItem));
         setHistory(items);
         localStorage.setItem(`axis_history_${firebaseUser.uid}`, JSON.stringify(items));
+      });
+      return () => unsubscribe();
+    }
+  }, [firebaseUser]);
+
+  // Sync Continue Watching from Firestore
+  useEffect(() => {
+    if (firebaseUser) {
+      const q = query(
+        collection(db, `users/${firebaseUser.uid}/continueWatching`),
+        orderBy('updatedAt', 'desc'),
+        limit(20)
+      );
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const items = snapshot.docs.map(doc => ({
+          id: doc.data().movieId,
+          title: doc.data().title,
+          progress: doc.data().lastPosition || 0,
+          duration: doc.data().duration || 1,
+          type: doc.data().type || 'Movie',
+          poster: doc.data().poster || ''
+        } as ContinueWatchingItem));
+        setContinueWatching(items);
+        localStorage.setItem(`axis_continue_watching_${firebaseUser.uid}`, JSON.stringify(items));
       });
       return () => unsubscribe();
     }
@@ -390,8 +416,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await firebaseUpdateProfile(data);
   }, []);
 
-  const handleSaveContinueWatching = useCallback(async (movieId: string, title: string, lastPosition: number, duration: number) => {
-    await firebaseSaveContinueWatching(movieId, title, lastPosition, duration);
+  const handleSaveContinueWatching = useCallback(async (item: import('../types').ContinueWatchingItem) => {
+    await firebaseSaveContinueWatching(item);
   }, []);
 
   const handleSendChatMessage = useCallback(async (text: string) => {
@@ -431,7 +457,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const addToWatchlist = useCallback(async (item: MediaItem) => {
     if (!user) return;
     if (firebaseUser) {
-      await addFavorite(item.id, item.title);
+      await addFavorite(item);
     } else {
       setWatchlist(prev => {
         const updated = [...prev.filter(i => i.id !== item.id), item];
@@ -442,14 +468,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, firebaseUser]);
 
-  const removeFromWatchlist = useCallback((id: string) => {
+  const removeFromWatchlist = useCallback(async (id: string) => {
     if (!user) return;
-    setWatchlist(prev => {
-      const updated = prev.filter(i => i.id !== id);
-      localStorage.setItem(`axis_watchlist_${user.id}`, JSON.stringify(updated));
-      return updated;
-    });
-  }, [user]);
+    if (firebaseUser) {
+      await removeFavorite(id);
+    } else {
+      setWatchlist(prev => {
+        const updated = prev.filter(i => i.id !== id);
+        localStorage.setItem(`axis_watchlist_${user.id}`, JSON.stringify(updated));
+        return updated;
+      });
+    }
+  }, [user, firebaseUser]);
 
   const isInWatchlist = useCallback((id: string) => {
     return watchlist.some(i => i.id === id);
@@ -565,7 +595,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateContinueWatching = useCallback(async (item: ContinueWatchingItem) => {
     if (firebaseUser) {
-      await firebaseSaveContinueWatching(item.id, item.title, item.progress, item.duration);
+      await firebaseSaveContinueWatching(item);
     } else if (user) {
       setContinueWatching(prev => {
         const existing = prev.filter(i => i.id !== item.id);

@@ -88,7 +88,7 @@ interface AdminState {
 }
 
 export default function Admin() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { showToast } = useToast();
   const [data, setData] = useState<AdminState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -104,8 +104,8 @@ export default function Admin() {
   const navigate = useNavigate();
 
   const fetchData = async () => {
-    if (!user || user.email !== 'greatmayuku2@gmail.com') {
-      setPageError('UNAUTHORIZED: Access restricted to platform owner.');
+    if (!isAdmin) {
+      setPageError('Access Denied: Administrative privileges required.');
       setLoading(false);
       return;
     }
@@ -113,21 +113,15 @@ export default function Admin() {
     setLoading(true);
     try {
       setPageError('');
-      // Use absolute paths for production reliability
-      const apiBase = window.location.origin;
-      const headers = {
-        'Content-Type': 'application/json',
-        'X-Admin-Email': user.email || ''
-      };
-      
-      const statsRes = await fetch(`${apiBase}/api/admin/stats`, { headers });
-      const usersRes = await fetch(`${apiBase}/api/admin/users`, { headers });
-      const systemRes = await fetch(`${apiBase}/api/admin/system`, { headers });
+      // statsRes, usersRes, systemRes are from internal API
+      const [statsRes, usersRes, systemRes] = await Promise.all([
+        fetch('/api/admin/stats'),
+        fetch('/api/admin/users'),
+        fetch('/api/admin/system')
+      ]);
       
       if (!statsRes.ok || !usersRes.ok || !systemRes.ok) {
-        const errorText = await statsRes.text().catch(() => 'Unknown error');
-        if (statsRes.status === 401) throw new Error('AUTHORIZATION_ERROR: Axis Identity rejected.');
-        throw new Error(errorText.includes('<!doctype') ? 'System route not found (404)' : 'Neural uplink failed. Server instability detected.');
+        throw new Error('Neural uplink failed. Server reported an inconsistency.');
       }
 
       const statsData = await statsRes.json();
@@ -207,7 +201,7 @@ export default function Admin() {
     if (isPinVerified) {
       fetchData();
     }
-  }, [isPinVerified, user]);
+  }, [isPinVerified, user, isAdmin]);
 
   const handleVerifyPin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -229,15 +223,12 @@ export default function Admin() {
   };
 
   const handleToggleMaintenance = async () => {
-    if (!data || !user) return;
+    if (!data) return;
     setIsUpdating(true);
     try {
       await fetch('/api/admin/maintenance', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Admin-Email': user.email || ''
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: !data.maintenanceMode })
       });
       await fetchData();
@@ -247,15 +238,11 @@ export default function Admin() {
   };
 
   const handleUpdateBroadcast = async () => {
-    if (!user) return;
     setIsUpdating(true);
     try {
       await fetch('/api/admin/broadcast', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Admin-Email': user.email || ''
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: broadcastInput, level: broadcastLevel })
       });
       await fetchData();
@@ -265,15 +252,11 @@ export default function Admin() {
   };
 
   const handleUpdateConfig = async (newConfig: Partial<AdminState['siteConfig']>) => {
-    if (!user) return;
     setIsUpdating(true);
     try {
       await fetch('/api/admin/config', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Admin-Email': user.email || ''
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ siteConfig: newConfig })
       });
       await fetchData();
@@ -300,16 +283,12 @@ export default function Admin() {
   };
 
   const handleBanUser = async (email: string, unban = false) => {
-    if (!user) return;
     if (!window.confirm(`Are you sure you want to ${unban ? 'unban' : 'ban'} ${email}?`)) return;
     setIsUpdating(true);
     try {
       await fetch('/api/admin/ban', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Admin-Email': user.email || ''
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, unban })
       });
       await fetchData();

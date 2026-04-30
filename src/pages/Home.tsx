@@ -54,18 +54,24 @@ export default function Home() {
       if (!homepageData) setLoading(true);
       setError(null);
       
-      const [home, trend, hot, popular] = await Promise.all([
+      const [homeResult, trendResult, hotResult, popularResult] = await Promise.allSettled([
         movieService.getHomepage(),
         movieService.getTrending(),
         movieService.getHot(),
         movieService.getPopularSearch()
       ]);
 
-      setHomepageData(home);
-      setTrending(trend);
-      setHotMovies(hot.movies);
-      setHotSeries(hot.series);
-      setPopularSearches(popular);
+      if (homeResult.status === 'fulfilled') setHomepageData(homeResult.value);
+      if (trendResult.status === 'fulfilled') setTrending(trendResult.value);
+      if (hotResult.status === 'fulfilled') {
+        setHotMovies(hotResult.value.movies);
+        setHotSeries(hotResult.value.series);
+      }
+      if (popularResult.status === 'fulfilled') setPopularSearches(popularResult.value);
+
+      if (homeResult.status === 'rejected' && trendResult.status === 'rejected') {
+        throw new Error("Most content failed to load.");
+      }
 
       const lastViewedId = localStorage.getItem('axis_last_viewed_id');
       if (lastViewedId) {
@@ -89,7 +95,8 @@ export default function Home() {
       }
     } catch (err) {
       console.error("Error loading homepage:", err);
-      setError("Failed to load content. Please check your internet connection and try again.");
+      // Give a more user-friendly 'slow/no internet' message
+      setError("It looks like you have a slow or no internet connection. Please try again.");
     } finally {
       setLoading(false);
     }

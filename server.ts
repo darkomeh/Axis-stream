@@ -132,58 +132,9 @@ function setCached(key: string, data: any) {
   cache.set(key, { data, timestamp: Date.now() });
 }
 
-// Helper to check for platform owner
-const isPlatformOwner = (email?: string) => email?.toLowerCase() === 'greatmayuku2@gmail.com';
-
 // API Routes using externalMovieService
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
-});
-
-// Admin API Authorization Middleware
-const adminAuth = (req: any, res: any, next: any) => {
-  const email = req.headers['x-admin-email'];
-  if (isPlatformOwner(String(email))) {
-    next();
-  } else {
-    res.status(401).json({ success: false, error: "Unauthorized Axis Identity detected." });
-  }
-};
-
-// Admin API Routes (Restricted)
-app.get("/api/admin/stats", adminAuth, (req, res) => {
-  res.json({
-    totalUsers: getUsers().length,
-    newToday: getUsers().filter(u => u.createdAt && new Date(u.createdAt).toDateString() === new Date().toDateString()).length,
-    mostActive: getUsers().sort((a, b) => (b.stats?.totalViews || 0) - (a.stats?.totalViews || 0)).slice(0, 5),
-    searchVelocity: adminState.searchLogs.filter(s => new Date(s.timestamp).getTime() > Date.now() - 3600000).length,
-    openReports: adminState.reports.filter(r => r.status === 'open').length
-  });
-});
-
-app.get("/api/admin/users", adminAuth, (req, res) => {
-  res.json(getUsers());
-});
-
-app.get("/api/admin/system", adminAuth, (req, res) => {
-  res.json({
-    maintenanceMode: adminState.maintenanceMode,
-    broadcastMessage: adminState.broadcastMessage,
-    broadcastLevel: adminState.broadcastLevel,
-    bannedEmails: adminState.bannedEmails,
-    auditLogs: adminState.auditLogs,
-    searchLogs: adminState.searchLogs,
-    featuredMedia: adminState.featuredMedia,
-    siteConfig: adminState.siteConfig,
-    reports: adminState.reports,
-    serverMetrics: {
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      cpuLoad: os.loadavg(),
-      platform: os.platform(),
-      arch: os.arch()
-    }
-  });
 });
 
 app.get("/api/homepage", async (req, res) => {
@@ -621,12 +572,32 @@ app.post("/api/auth/sync", (req, res) => {
   res.json({ success: true, maintenance: adminState.maintenanceMode, siteConfig: adminState.siteConfig });
 });
 
-// Legacy fallback for any other /api/* routes
-app.get("/api/*", (req, res) => {
-  res.status(404).json({ success: false, error: "Endpoint not found" });
+app.get("/api/admin/users", (req, res) => {
+  res.json(getUsers());
 });
 
-app.post("/api/admin/broadcast", adminAuth, (req, res) => {
+app.get("/api/admin/system", (req, res) => {
+  res.json({
+    maintenanceMode: adminState.maintenanceMode,
+    broadcastMessage: adminState.broadcastMessage,
+    broadcastLevel: adminState.broadcastLevel,
+    bannedEmails: adminState.bannedEmails,
+    auditLogs: adminState.auditLogs,
+    searchLogs: adminState.searchLogs,
+    featuredMedia: adminState.featuredMedia,
+    siteConfig: adminState.siteConfig,
+    reports: adminState.reports,
+    serverMetrics: {
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      cpuLoad: os.loadavg(),
+      platform: os.platform(),
+      arch: os.arch()
+    }
+  });
+});
+
+app.post("/api/admin/broadcast", (req, res) => {
   const { message, level } = req.body;
   adminState.broadcastMessage = message || null;
   adminState.broadcastLevel = level || 'info';
@@ -635,7 +606,7 @@ app.post("/api/admin/broadcast", adminAuth, (req, res) => {
   res.json({ success: true });
 });
 
-app.post("/api/admin/config", adminAuth, (req, res) => {
+app.post("/api/admin/config", (req, res) => {
   const { siteConfig } = req.body;
   if (siteConfig) {
     adminState.siteConfig = { ...adminState.siteConfig, ...siteConfig };
@@ -647,7 +618,7 @@ app.post("/api/admin/config", adminAuth, (req, res) => {
   }
 });
 
-app.post("/api/admin/featured", adminAuth, (req, res) => {
+app.post("/api/admin/featured", (req, res) => {
   const { featuredMedia } = req.body;
   if (Array.isArray(featuredMedia)) {
     adminState.featuredMedia = featuredMedia;
@@ -659,7 +630,7 @@ app.post("/api/admin/featured", adminAuth, (req, res) => {
   }
 });
 
-app.post("/api/admin/logs/clear", adminAuth, (req, res) => {
+app.post("/api/admin/logs/clear", (req, res) => {
   const { type } = req.body;
   if (type === 'audit') {
     adminState.auditLogs = [];
@@ -672,7 +643,7 @@ app.post("/api/admin/logs/clear", adminAuth, (req, res) => {
   res.json({ success: true });
 });
 
-app.post("/api/admin/maintenance", adminAuth, (req, res) => {
+app.post("/api/admin/maintenance", (req, res) => {
   const { enabled } = req.body;
   adminState.maintenanceMode = !!enabled;
   logAction("MAINTENANCE", `Maintenance mode ${enabled ? "enabled" : "disabled"}`);
@@ -689,7 +660,7 @@ app.post("/api/admin/verify-pin", (req, res) => {
   }
 });
 
-app.post("/api/admin/update-pin", adminAuth, (req, res) => {
+app.post("/api/admin/update-pin", (req, res) => {
   const { oldPin, newPin } = req.body;
   if (oldPin === adminState.adminPin) {
     if (!newPin || newPin.length < 4) return res.status(400).json({ error: "Invalid PIN" });
@@ -702,7 +673,7 @@ app.post("/api/admin/update-pin", adminAuth, (req, res) => {
   }
 });
 
-app.post("/api/admin/ban", adminAuth, (req, res) => {
+app.post("/api/admin/ban", (req, res) => {
   const { email, unban } = req.body;
   if (!email) return res.status(400).send("Email required");
   
@@ -734,7 +705,7 @@ app.post("/api/report", (req, res) => {
   res.json({ success: true, reportId: report.id });
 });
 
-app.post("/api/admin/reports/resolve", adminAuth, (req, res) => {
+app.post("/api/admin/reports/resolve", (req, res) => {
   const { reportId } = req.body;
   const report = adminState.reports.find(r => r.id === reportId);
   if (report) {
@@ -747,7 +718,16 @@ app.post("/api/admin/reports/resolve", adminAuth, (req, res) => {
   }
 });
 
-// End of API routes
+app.get("/api/admin/stats", (req, res) => {
+  const users = getUsers();
+  res.json({
+    totalUsers: users.length,
+    newToday: users.filter(u => u.createdAt && new Date(u.createdAt).toDateString() === new Date().toDateString()).length,
+    mostActive: users.sort((a, b) => (b.stats?.totalViews || 0) - (a.stats?.totalViews || 0)).slice(0, 5),
+    searchVelocity: adminState.searchLogs.filter(s => new Date(s.timestamp).getTime() > Date.now() - 3600000).length,
+    openReports: adminState.reports.filter(r => r.status === 'open').length
+  });
+});
 
 app.get("/sitemap.xml", (req, res) => {
   const SITE_URL = "https://axislabs.dpdns.org";

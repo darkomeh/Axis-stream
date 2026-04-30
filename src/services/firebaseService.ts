@@ -28,7 +28,9 @@ import {
   getCountFromServer,
   onSnapshot,
   increment,
-  writeBatch
+  writeBatch,
+  where,
+  deleteDoc
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 
@@ -362,19 +364,21 @@ export const updateProfile = async (data: { name?: string, photoURL?: string, bi
   }
 };
 
-export const saveContinueWatching = async (movieId: string, title: string, lastPosition: number, duration: number) => {
+export const saveContinueWatching = async (item: import('../contexts/AuthContext').ContinueWatchingItem) => {
   if (!auth.currentUser) return;
-  const docRef = doc(db, `users/${auth.currentUser.uid}/continueWatching`, movieId);
+  const docRef = doc(db, `users/${auth.currentUser.uid}/continueWatching`, item.id);
   try {
     await setDoc(docRef, {
-      movieId,
-      title,
-      lastPosition,
-      duration,
+      movieId: item.id,
+      title: item.title,
+      poster: item.poster || '',
+      type: item.type || 'Movie',
+      lastPosition: item.progress || 0,
+      duration: item.duration || 1,
       updatedAt: serverTimestamp()
     });
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `users/${auth.currentUser.uid}/continueWatching/${movieId}`);
+    handleFirestoreError(error, OperationType.WRITE, `users/${auth.currentUser.uid}/continueWatching/${item.id}`);
   }
 };
 
@@ -392,13 +396,36 @@ export const addWatchHistory = async (movieId: string, title: string) => {
   }
 };
 
-export const addFavorite = async (movieId: string, title: string) => {
+export const removeFavorite = async (movieId: string) => {
   if (!auth.currentUser) return;
   const path = `users/${auth.currentUser.uid}/favorites`;
+  const q = query(collection(db, path), where("movieId", "==", movieId));
   try {
+    const snap = await getDocs(q);
+    snap.forEach(async (document) => {
+      await deleteDoc(doc(db, path, document.id));
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+};
+
+export const addFavorite = async (item: import('../types').MediaItem) => {
+  if (!auth.currentUser) return;
+  const path = `users/${auth.currentUser.uid}/favorites`;
+  // Use the item id as the document id to prevent duplicates easily, or query first
+  const q = query(collection(db, path), where("movieId", "==", item.id));
+  try {
+    const snap = await getDocs(q);
+    if (!snap.empty) return; // already in favs
+    
     await addDoc(collection(db, path), {
-      movieId,
-      title,
+      movieId: item.id,
+      title: item.title,
+      poster: item.poster || '',
+      type: item.type || 'Movie',
+      rating: item.rating || '',
+      year: item.year || '',
       addedAt: serverTimestamp(),
     });
   } catch (error) {

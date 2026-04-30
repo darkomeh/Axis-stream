@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { movieService } from "../services/movieService";
 import { ItemDetails, MediaData, MediaItem } from "../types";
@@ -13,11 +13,11 @@ import {
   ListVideo, Play, X, UserPlus, Users, 
   Copy, CheckCircle2, CornerUpLeft, Plus, Info, MoreHorizontal
 } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
 import Tray from "../components/Tray";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import { MovieImage } from "../components/MovieImage";
+import { SmartActorImage } from "../components/SmartActorImage";
 import { useMediaPreview } from "../contexts/MediaPreviewContext";
 
 export default function Details() {
@@ -639,17 +639,12 @@ export default function Details() {
                 {Array.isArray(details.cast) && details.cast.slice(0, 6).map((actor, idx) => (
                   <div key={`${actor.id}-${idx}`} className="flex-shrink-0 w-24 text-center group">
                     <div className="w-24 h-24 rounded-full overflow-hidden mb-3 bg-white/5 border border-white/10 group-hover:border-brand transition-colors">
-                      {actor.avatarUrl || actor.avatar ? (
-                        <MovieImage 
-                          src={actor.avatarUrl || actor.avatar || ""} 
-                          alt={actor.name} 
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-500">
-                          <Users className="w-8 h-8" />
-                        </div>
-                      )}
+                      <SmartActorImage 
+                        staffId={actor.id?.toString()}
+                        initialAvatar={actor.avatarUrl || actor.avatar || ""} 
+                        alt={actor.name} 
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
                     </div>
                     <p className="text-sm text-gray-300 font-medium line-clamp-2 group-hover:text-white transition-colors">{actor.name}</p>
                   </div>

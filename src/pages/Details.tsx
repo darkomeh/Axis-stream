@@ -155,7 +155,7 @@ export default function Details() {
         }
 
         const isSeries = itemDetails.type === "Series";
-        let s = isSeries ? 1 : 0;
+        let s = isSeries ? (itemDetails.seasons && itemDetails.seasons.length > 0 ? itemDetails.seasons[0].se : 1) : 0;
         let e = isSeries ? 1 : 0;
         let initialTime = 0;
 

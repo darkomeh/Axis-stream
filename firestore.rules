@@ -32,7 +32,6 @@ service cloud.firestore {
 
     function isValidFavorite(data) {
       return data.keys().hasAll(['movieId', 'title', 'addedAt']) &&
-             data.keys().size() == 3 &&
              data.movieId is string && data.movieId.size() <= 128 &&
              data.title is string && data.title.size() <= 256 &&
              data.addedAt == request.time;

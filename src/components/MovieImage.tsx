@@ -58,6 +58,7 @@ export const MovieImage: React.FC<MovieImageProps> = ({
         loading={isHero ? 'eager' : 'lazy'}
         decoding={isHero ? 'sync' : 'async'}
         fetchPriority={isHero ? 'high' : 'auto'}
+        referrerPolicy="no-referrer"
         {...props}
       />
     </div>

@@ -27,6 +27,7 @@ import {
   HelpCircle,
   Share2,
   Film,
+  ListVideo,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../contexts/AuthContext";
@@ -145,8 +146,11 @@ export default function VideoPlayer({
     | "speed"
     | "caption-settings"
     | "report"
+    | "episodes"
+    | "seasons"
     | null
   >(null);
+  const [viewingSeason, setViewingSeason] = useState<number>(selectedSeason || 1);
   const [brightness, setBrightness] = useState(1);
   const [zoom, setZoom] = useState<"contain" | "cover" | "fill">("contain");
   const [playbackSpeed, setPlaybackSpeed] = useState(
@@ -1311,6 +1315,17 @@ export default function VideoPlayer({
                         >
                           <MonitorPlay className="w-4.5 h-4.5 md:w-6 md:h-6" />
                         </button>
+                        {seasons && seasons.length > 0 && (
+                          <button
+                            onClick={() => {
+                              setViewingSeason(selectedSeason || 1);
+                              setActiveMenu("episodes");
+                            }}
+                            className="text-white/60 hover:text-white transition-colors"
+                          >
+                            <ListVideo className="w-4.5 h-4.5 md:w-6 md:h-6" />
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             if (containerRef.current?.requestFullscreen) {
@@ -1499,6 +1514,126 @@ export default function VideoPlayer({
                         <Download className="w-4 h-4 ml-1" />
                       </div>
                     </button>
+                    {seasons && seasons.length > 0 && (
+                      <button
+                        onClick={() => {
+                          setViewingSeason(selectedSeason || 1);
+                          setActiveMenu("episodes");
+                        }}
+                        className="w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      >
+                        <span className="text-[14px] font-medium opacity-80">
+                          Episodes & Seasons
+                        </span>
+                        <div className="flex items-center gap-1 opacity-70">
+                          <span>S{selectedSeason} E{selectedEpisode}</span>
+                          <ChevronDown className="w-3 h-3 -rotate-90 ml-1" />
+                        </div>
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {activeMenu === "episodes" && (
+                  <div className="flex flex-col">
+                    <button
+                      onClick={() => setActiveMenu("settings")}
+                      className="flex items-center gap-2 px-4 py-3 border-b border-white/10 hover:bg-white/5 transition-colors font-medium"
+                    >
+                      <ChevronDown className="w-4 h-4 rotate-90" />
+                      Back to Settings
+                    </button>
+                    
+                    <div className="p-3 border-b border-white/5">
+                      <button 
+                        onClick={() => setActiveMenu("seasons")}
+                        className="w-full flex items-center justify-between p-2.5 bg-white/5 rounded-lg border border-white/10 group hover:border-brand/40 transition-all"
+                      >
+                        <div className="flex flex-col items-start">
+                          <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">Current Selection</span>
+                          <span className="text-sm font-black text-white italic group-hover:text-brand transition-colors">Season {viewingSeason.toString().padStart(2, '0')}</span>
+                        </div>
+                        <ChevronDown className="w-4 h-4 text-white/30 group-hover:text-brand transition-colors" />
+                      </button>
+                    </div>
+
+                    <div className="max-h-[300px] overflow-y-auto no-scrollbar py-1">
+                      {Array.from({ length: seasons?.find(s => s.se === viewingSeason)?.maxEp || 0 }).map((_, i) => {
+                        const epNum = i + 1;
+                        const isCurrent = viewingSeason === selectedSeason && epNum === selectedEpisode;
+                        return (
+                          <button
+                            key={epNum}
+                            onClick={() => {
+                              onEpisodeChange?.(viewingSeason, epNum);
+                              setActiveMenu(null);
+                            }}
+                            className={`w-full flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 transition-colors ${isCurrent ? 'bg-brand/10 border-l-2 border-brand font-bold text-brand' : 'text-white/70'}`}
+                          >
+                            <span className={`text-[10px] tabular-nums ${isCurrent ? 'text-brand' : 'text-white/30'}`}>
+                              {epNum.toString().padStart(2, '0')}
+                            </span>
+                            <span className="text-[13px] truncate">Episode {epNum}</span>
+                            {isCurrent && <div className="ml-auto w-1.5 h-1.5 bg-brand rounded-full animate-pulse shadow-[0_0_8px_rgba(229,9,20,1)]" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {activeMenu === "seasons" && (
+                  <div className="flex flex-col">
+                    <button
+                      onClick={() => setActiveMenu("episodes")}
+                      className="flex items-center gap-2 px-4 py-3 border-b border-white/10 hover:bg-white/5 transition-colors font-medium"
+                    >
+                      <ChevronDown className="w-4 h-4 rotate-90" />
+                      Back to Episodes
+                    </button>
+                    <div className="p-4 flex flex-col gap-3">
+                      {seasons?.map((s) => {
+                        const isCurrent = s.se === viewingSeason;
+                        return (
+                          <button
+                            key={s.se}
+                            onClick={() => {
+                              setViewingSeason(s.se);
+                              setActiveMenu("episodes");
+                            }}
+                            className={`group relative w-full h-16 rounded-xl border transition-all overflow-hidden flex items-center justify-between px-5 ${
+                              isCurrent 
+                                ? 'border-brand bg-[#121212] shadow-lg shadow-brand/5' 
+                                : 'bg-[#111] border-white/5 hover:border-white/10 hover:bg-[#161616]'
+                            }`}
+                          >
+                            {/* Smaller version of the banner-style UI */}
+                            <div className="absolute inset-0 z-0">
+                               {poster && (
+                                 <img 
+                                   src={poster} 
+                                   alt="" 
+                                   className={`w-full h-full object-cover transition-opacity ${isCurrent ? 'opacity-30' : 'opacity-10 group-hover:opacity-20'}`}
+                                   referrerPolicy="no-referrer"
+                                 />
+                               )}
+                               <div className={`absolute inset-0 bg-gradient-to-r ${isCurrent ? 'from-black/80 to-transparent' : 'from-black/90 to-transparent'}`} />
+                            </div>
+
+                            <div className="relative z-10 flex items-baseline gap-2">
+                              <span className={`text-[9px] font-black uppercase tracking-widest ${isCurrent ? 'text-brand' : 'text-white/30'}`}>S</span>
+                              <span className={`text-2xl font-black italic tracking-tighter ${isCurrent ? 'text-white' : 'text-white/40'}`}>
+                                {s.se.toString().padStart(2, '0')}
+                              </span>
+                            </div>
+
+                            <div className="relative z-10">
+                               {isCurrent && <div className="px-2 py-0.5 bg-brand rounded text-[8px] font-black uppercase">Selected</div>}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 

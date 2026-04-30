@@ -117,9 +117,9 @@ const EpisodeSelectorComponent = ({
         </button>
       </div>
 
-      {/* Vertical Episode Navigator - Smaller as requested */}
+      {/* Horizontal Episode Navigator - Circular and Minimal */}
       <div className="relative group">
-        <div ref={scrollRef} className="flex items-center gap-4 overflow-x-auto no-scrollbar pb-10 -mx-1 px-1 scroll-smooth">
+        <div ref={scrollRef} className="flex items-center gap-8 overflow-x-auto no-scrollbar pb-10 -mx-fluid px-fluid scroll-smooth">
           {Array.from({ length: episodesCount }).map((_, idx) => {
             const ep = idx + 1;
             const isActive = selectedEpisode === ep;
@@ -130,27 +130,27 @@ const EpisodeSelectorComponent = ({
                 key={ep}
                 ref={isActive ? activeEpisodeRef : null}
                 onClick={() => onEpisodeChange(selectedSeason, ep)}
-                className={`flex-shrink-0 w-[110px] h-[160px] p-4 rounded-[28px] border transition-all text-center relative overflow-hidden flex flex-col justify-center items-center group/card ${
+                className={`flex-shrink-0 w-16 h-16 rounded-full border transition-all text-center relative overflow-hidden flex flex-col justify-center items-center group/card active:scale-95 ${
                   isActive
-                    ? 'bg-[#181818]/80 border-brand shadow-[0_0_50px_rgba(255,45,45,0.25)] ring-1 ring-brand/30' 
-                    : 'bg-[#121212]/40 border-white/10 hover:border-white/20 hover:bg-[#1A1A1A]/60'
+                    ? 'bg-brand border-brand shadow-[0_0_30px_rgba(229,9,20,0.4)]' 
+                    : 'bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/10 backdrop-blur-md'
                 }`}
               >
-                <div className="space-y-2">
-                  <span className={`block text-[8px] font-black uppercase tracking-[0.3em] transition-colors ${isActive ? 'text-brand' : 'text-white/20'}`}>
-                    Episode
-                  </span>
-                  <span className={`block text-[32px] font-black italic tracking-tighter transition-all leading-none ${isActive ? 'text-white scale-110 drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]' : 'text-gray-600 group-hover/card:text-white'}`}>
-                    {ep.toString().padStart(2, '0')}
-                  </span>
-                </div>
+                <span className={`block text-2xl font-black italic tracking-tighter transition-all leading-none ${isActive ? 'text-white scale-110' : 'text-white/40 group-hover/card:text-white'}`}>
+                  {ep}
+                </span>
 
-                {/* Progress Bar - Maps to real progress */}
-                {progress > 0 && (
-                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-12 h-1 bg-white/10 rounded-full overflow-hidden">
+                {/* Subtle Indicator for playing - small dot at bottom */}
+                {isActive && (
+                  <div className="absolute bottom-2 w-1 h-1 bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                )}
+
+                {/* Progress bar overlay if not active */}
+                {!isActive && progress > 0 && (
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/5">
                     <div 
-                      className="h-full bg-brand shadow-[0_0_10px_rgba(255,45,45,1)] rounded-full transition-all duration-1000" 
-                      style={{ width: `${Math.max(5, progress)}%` }}
+                      className="h-full bg-brand/60 transition-all duration-1000" 
+                      style={{ width: `${progress}%` }}
                     />
                   </div>
                 )}
@@ -197,14 +197,15 @@ const EpisodeSelectorComponent = ({
         isOpen={isSeasonTrayOpen} 
         onClose={() => setIsSeasonTrayOpen(false)} 
         title={`Select Season [${seasons.length}]`}
+        backgroundImage={poster}
       >
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-1 px-1">
+        <div className="flex flex-col gap-6 relative min-h-[40vh] py-6">
+          <div className="relative z-10 flex flex-col gap-1 px-4">
             <p className="text-gray-500 text-[10px] uppercase tracking-[0.2em] font-black opacity-40">Collection List</p>
             <p className="text-white/60 text-[11px] font-medium">Pick a volume to dive back into the story</p>
           </div>
           
-          <div ref={seasonScrollRef} className="flex flex-nowrap gap-4 overflow-x-auto no-scrollbar pb-8 -mx-1 px-1 scroll-smooth touch-pan-x w-full">
+          <div ref={seasonScrollRef} className="relative z-10 flex flex-col gap-4 max-h-[60vh] overflow-y-auto no-scrollbar pb-8 px-4 scroll-smooth">
             {seasons.map((s) => {
                const isActive = selectedSeason === s.se;
                return (
@@ -216,36 +217,46 @@ const EpisodeSelectorComponent = ({
                      onEpisodeChange(s.se, 1);
                      setIsSeasonTrayOpen(false);
                    }}
-                   className={`flex-shrink-0 w-[140px] aspect-[3/4.2] rounded-[28px] border transition-all text-center group overflow-hidden active:scale-[0.98] flex flex-col items-center justify-center hover:scale-[1.03] duration-500 ${
+                   className={`group relative w-full h-24 rounded-2xl border transition-all overflow-hidden flex items-center justify-between px-8 active:scale-[0.99] duration-300 ${
                      isActive 
-                       ? 'border-brand shadow-[0_0_40px_rgba(255,45,45,0.2)] ring-1 ring-brand/30 bg-[#121212]' 
-                       : 'bg-[#111] border-white/5 hover:border-white/20 hover:bg-[#161616]'
+                       ? 'border-brand bg-[#121212]/60 shadow-[0_0_30px_rgba(229,9,20,0.15)] shadow-brand/5' 
+                       : 'bg-white/5 border-white/5 hover:border-white/20 hover:bg-white/10 backdrop-blur-md'
                    }`}
                  >
-                   {/* Card Background Overlay - Dark Cinematic */}
-                   <div className="absolute inset-0 z-0 opacity-20 group-hover:opacity-40 transition-opacity duration-700">
-                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+                   {/* Item Background Image */}
+                   <div className="absolute inset-0 z-0 overflow-hidden">
                      {poster ? (
-                       <img src={poster} alt="" className="w-full h-full object-cover grayscale brightness-50" referrerPolicy="no-referrer" />
+                       <img 
+                          src={poster} 
+                          alt="" 
+                          className={`w-full h-full object-cover transition-all duration-700 ${isActive ? 'scale-110 grayscale-0 brightness-50' : 'grayscale brightness-[0.2] group-hover:brightness-[0.3]'}`} 
+                          referrerPolicy="no-referrer" 
+                       />
                      ) : (
                        <div className="absolute inset-0 bg-[#222]" />
                      )}
+                     <div className={`absolute inset-0 bg-gradient-to-r ${isActive ? 'from-black/80 via-black/40 to-transparent' : 'from-black/90 to-black/60'}`} />
                    </div>
-
-                   <div className="relative z-10 flex flex-col items-center gap-1 scale-90 group-hover:scale-100 transition-transform duration-500">
-                     <span className={`block text-[9px] font-black uppercase tracking-[0.4em] ${isActive ? 'text-brand' : 'text-gray-600'}`}>Season</span>
-                     <span className={`block text-[44px] font-black italic tracking-tighter transition-all leading-none ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
+ 
+                   <div className="relative z-10 flex items-baseline gap-4">
+                     <span className={`text-[12px] font-black uppercase tracking-[0.4em] ${isActive ? 'text-brand' : 'text-white/30'}`}>Season</span>
+                     <span className={`text-5xl font-black italic tracking-tighter leading-none ${isActive ? 'text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'text-white/40 group-hover:text-white'}`}>
                        {s.se.toString().padStart(2, '0')}
                      </span>
                    </div>
 
-                   {/* Red bar for active - Now with Pulse */}
-                   {isActive && (
-                     <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-16 h-1.5 bg-brand shadow-[0_0_20px_rgba(255,45,45,1)] rounded-full animate-pulse" />
-                   )}
-
-                   {/* Subtle border glow on active */}
-                   {isActive && <div className="absolute inset-0 border border-brand/20 rounded-[28px] pointer-events-none" />}
+                   <div className="relative z-10 flex flex-col items-end gap-1">
+                     <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{s.maxEp} Episodes</span>
+                     {isActive && (
+                        <div className="flex items-center gap-2 px-3 py-1 bg-brand rounded-full">
+                           <Play className="w-3 h-3 fill-white" strokeWidth={0} />
+                           <span className="text-[9px] font-black uppercase tracking-wider">Watching</span>
+                        </div>
+                     )}
+                   </div>
+ 
+                   {/* Hover/Active Highlight */}
+                   <div className={`absolute left-0 top-0 bottom-0 w-1.5 transition-all duration-500 ${isActive ? 'bg-brand shadow-[4px_0_15px_rgba(229,9,20,0.5)]' : 'bg-transparent group-hover:bg-white/10'}`} />
                  </button>
                );
             })}

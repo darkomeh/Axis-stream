@@ -69,7 +69,10 @@ export default function Home() {
       }
       if (popularResult.status === 'fulfilled') setPopularSearches(popularResult.value);
 
-      if (homeResult.status === 'rejected' && trendResult.status === 'rejected') {
+      const isHomeEmpty = homeResult.status === 'rejected' || (homeResult.status === 'fulfilled' && (!homeResult.value.topPickList || homeResult.value.topPickList.length === 0) && (!homeResult.value.homeList || homeResult.value.homeList.length === 0));
+      const isTrendEmpty = trendResult.status === 'rejected' || (trendResult.status === 'fulfilled' && (!trendResult.value || trendResult.value.length === 0));
+
+      if (isHomeEmpty && isTrendEmpty) {
         throw new Error("Most content failed to load.");
       }
 

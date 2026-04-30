@@ -7,9 +7,10 @@ interface TrayProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
+  backgroundImage?: string;
 }
 
-export default function Tray({ isOpen, onClose, title, children }: TrayProps) {
+export default function Tray({ isOpen, onClose, title, children, backgroundImage }: TrayProps) {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -26,10 +27,23 @@ export default function Tray({ isOpen, onClose, title, children }: TrayProps) {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed bottom-0 left-0 right-0 bg-black border-t border-white/10 rounded-t-3xl z-50 max-h-[85vh] flex flex-col shadow-[0_-10px_50px_rgba(0,0,0,0.5)]"
+            className="fixed bottom-0 left-0 right-0 bg-black border-t border-white/10 rounded-t-3xl z-50 max-h-[85vh] flex flex-col shadow-[0_-10px_50px_rgba(0,0,0,0.5)] overflow-hidden"
           >
-            {/* Sticky Header with solid background to prevent overlap issues */}
-            <div className="sticky top-0 bg-black flex items-center justify-between p-fluid-sm border-b border-white/5 z-20 rounded-t-3xl">
+            {/* Full Background for the whole Tray */}
+            {backgroundImage && (
+              <div className="absolute inset-0 z-0">
+                <img 
+                  src={backgroundImage} 
+                  alt="" 
+                  className="w-full h-full object-cover opacity-20 blur-sm brightness-[0.3]" 
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90" />
+              </div>
+            )}
+
+            {/* Sticky Header */}
+            <div className={`sticky top-0 ${backgroundImage ? 'bg-transparent' : 'bg-black'} flex items-center justify-between p-fluid-sm border-b border-white/5 z-20 rounded-t-3xl backdrop-blur-md`}>
               <h3 className="text-fluid-lg md:text-2xl font-black italic uppercase tracking-tighter text-white/90">{title}</h3>
               <button 
                 onClick={(e) => {

@@ -416,7 +416,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await firebaseUpdateProfile(data);
   }, []);
 
-  const handleSaveContinueWatching = useCallback(async (item: import('../types').ContinueWatchingItem) => {
+  const handleSaveContinueWatching = useCallback(async (item: ContinueWatchingItem) => {
     await firebaseSaveContinueWatching(item);
   }, []);
 

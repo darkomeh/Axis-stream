@@ -205,7 +205,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const res = await fetch('/api/system/status');
         if (!res.ok) throw new Error(`Server returned ${res.status}`);
         
-        const data = await res.json();
+        const text = await res.text();
+        if (text.startsWith('<')) throw new Error('Vercel HTML fallback');
+        
+        const data = JSON.parse(text);
         setSystemMessage(data.broadcastMessage);
         setIsMaintenance(data.maintenanceMode);
         if (data.broadcastLevel) setBroadcastLevel(data.broadcastLevel);
@@ -215,7 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Only log after 3 consecutive failures to avoid noise during server restarts
         retryCount++;
         if (retryCount >= 3) {
-          console.error("Failed to fetch system status after retries", e);
+          // console.warn("Failed to fetch system status after retries (expected on Vercel)");
         }
       }
     };
@@ -365,10 +368,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsBanned(true);
             return;
           }
+          
+          const text = await res.text();
+          if (text.startsWith('<')) {
+            // Vercel fallback
+            if (lastActionType) setLastActionType(null); // Clear after sync
+            return;
+          }
 
           if (lastActionType) setLastActionType(null); // Clear after sync
         } catch (e) {
-          console.error("Sync failed", e);
+          console.warn("Sync failed (expected on Vercel without backend)", e);
         }
       };
       syncData();

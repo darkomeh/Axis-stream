@@ -229,7 +229,11 @@ export const loginWithGoogle = async () => {
     const result = await signInWithPopup(auth, provider);
     await saveUser(result.user);
     return result.user;
-  } catch (error) {
+  } catch (error: any) {
+    if (error.code === 'auth/popup-closed-by-user') {
+      console.log("Login popup closed by user");
+      return null;
+    }
     console.error("Google Login Error", error);
     throw error;
   }

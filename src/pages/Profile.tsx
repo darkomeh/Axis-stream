@@ -12,6 +12,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { MovieImage } from '../components/MovieImage';
 import { useToast } from '../contexts/ToastContext';
 
+import Admin from './Admin';
+
 const AVATARS = [
   { id: 'f1', url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Aria', gender: 'female' },
   { id: 'f2', url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sophia', gender: 'female' },
@@ -49,6 +51,7 @@ export default function Profile() {
   const [editUsername, setEditUsername] = useState('');
   const [editBio, setEditBio] = useState('');
   const [editAvatar, setEditAvatar] = useState('');
+  const [viewAdmin, setViewAdmin] = useState(false);
 
   const openEditProfile = () => {
     if (user) {
@@ -273,6 +276,21 @@ export default function Profile() {
     );
   }
 
+  if (viewAdmin) {
+    return (
+      <div className="relative min-h-screen bg-black">
+        <button 
+          onClick={() => setViewAdmin(false)}
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 bg-brand text-white rounded-full border border-white/20 flex items-center justify-center gap-2 hover:bg-brand/80 transition-all shadow-[0_0_20px_rgba(255,45,45,0.4)] group"
+        >
+          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+          <span className="text-xs font-black uppercase tracking-widest">Exit Command Center</span>
+        </button>
+        <Admin />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-black text-white relative pb-32">
       {/* Background Gradient */}
@@ -339,6 +357,14 @@ export default function Profile() {
                 <button onClick={openEditProfile} className="flex items-center gap-2 px-8 py-3.5 bg-white/5 hover:bg-white/10 text-white border border-white/20 rounded-full transition-all text-xs font-black uppercase tracking-widest active:scale-95">
                   <Settings className="w-4 h-4" /> Edit Profile
                 </button>
+                {user?.email === 'greatmayuku2@gmail.com' && (
+                  <button 
+                    onClick={() => setViewAdmin(true)} 
+                    className="flex items-center gap-2 px-8 py-3.5 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/30 rounded-full transition-all text-xs font-black uppercase tracking-widest active:scale-95 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+                  >
+                    <Shield className="w-4 h-4" /> Command Center
+                  </button>
+                )}
               </div>
             </div>
           </div>

@@ -222,7 +222,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // Initial fetch with slight delay to ensure server is ready
     const timer = setTimeout(fetchStatus, 1000);
-    const interval = setInterval(fetchStatus, 30000); // 30s polling
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        fetchStatus();
+      }
+    }, 60000); // 60s polling only when visible
     
     return () => {
       clearTimeout(timer);

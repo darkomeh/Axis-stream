@@ -210,9 +210,11 @@ function getImageUrl(img: any): string {
 
 function sanitizeImageUrl(url: string): string {
   if (!url) return '';
-  // The backend image-proxy now handles bidirectional fallback between .jpg and .jpeg
-  // forcing it here can cause 404s if we guess wrong.
-  return url.trim();
+  let cleanUrl = url.trim();
+  if (cleanUrl.includes('image.tmdb.org') || cleanUrl.includes('/original/')) {
+    cleanUrl = cleanUrl.replace('/original/', '/w500/');
+  }
+  return cleanUrl;
 }
 
 export const movieService = {

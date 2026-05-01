@@ -14,10 +14,10 @@ service cloud.firestore {
     function existing() { return resource.data; }
     
     function isAdmin() { 
-      return request.auth != null && (
-        request.auth.token.email == 'greatmayuku2@gmail.com'
-        // Relaxing verified check for bootstrap if needed, but keeping it for production security
-        // && request.auth.token.email_verified == true
+      return isSignedIn() && (
+        request.auth.token.email == 'greatmayuku2@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
       ); 
     }
 
@@ -129,6 +129,11 @@ service cloud.firestore {
       allow read: if true;
       allow update: if true;
       allow create: if true;
+    }
+
+    match /admin/config {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     match /liveStats/{statId} {

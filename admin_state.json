@@ -3,14 +3,44 @@
   "broadcastMessage": null,
   "broadcastLevel": "info",
   "bannedEmails": [],
-  "adminPin": "0000",
-  "auditLogs": [],
+  "auditLogs": [
+    {
+      "id": "1dbfgls73",
+      "timestamp": "2026-05-01T23:24:42.647Z",
+      "type": "BROADCAST",
+      "detail": "Broadcast cleared"
+    },
+    {
+      "id": "j5duwojc7",
+      "timestamp": "2026-05-01T23:23:19.200Z",
+      "type": "BROADCAST",
+      "detail": "[info] New broadcast: Testing"
+    },
+    {
+      "id": "d4ilo0ohn",
+      "timestamp": "2026-05-01T23:23:03.920Z",
+      "type": "BROADCAST",
+      "detail": "Broadcast cleared"
+    },
+    {
+      "id": "90nr4xqsm",
+      "timestamp": "2026-05-01T23:11:46.818Z",
+      "type": "MAINTENANCE",
+      "detail": "Maintenance mode disabled"
+    },
+    {
+      "id": "c31q3rpuy",
+      "timestamp": "2026-05-01T23:11:25.762Z",
+      "type": "MAINTENANCE",
+      "detail": "Maintenance mode enabled"
+    }
+  ],
   "searchLogs": [],
   "featuredMedia": [],
   "siteConfig": {
     "siteName": "Axis TV",
     "brandColor": "#E50914",
-    "tagline": "The Ultimate Cinematic Plugin",
+    "tagline": "The Ultimate Streaming Experience",
     "logoUrl": "https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg",
     "allowGuestBrowsing": true
   },

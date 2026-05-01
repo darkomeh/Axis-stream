@@ -3,11 +3,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import Navbar from '../components/Navbar';
 import PopcornLoader from '../components/PopcornLoader';
+import ServerHealthMonitor from '../components/admin/ServerHealthMonitor';
+import ApiHealthMonitor from '../components/admin/ApiHealthMonitor';
 import { 
   Users, Activity, TrendingUp, Calendar, 
   Search, ShieldAlert, Award, Clock, 
   Trash2, Mail, ExternalLink, ChevronRight,
-  Lock, Unlock, Key
+  Lock, Unlock, Key, Database
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
@@ -23,7 +25,11 @@ import {
   getAdvancedUserStats,
   getGlobalStats,
   getSupportTickets,
-  replyToTicket as replyToSupportTicket
+  replyToTicket as replyToSupportTicket,
+  getAdminConfig,
+  updateAdminConfig,
+  updateBanStatus,
+  updateRole
 } from '../services/firebaseService';
 import { Timestamp } from 'firebase/firestore';
 
@@ -36,6 +42,8 @@ interface AdminUser {
   lastAction?: string;
   watchlistCount: number;
   historyCount: number;
+  role?: string;
+  isBanned?: boolean;
   stats: {
     totalViews: number;
     watchTimeMinutes: number;
@@ -82,6 +90,8 @@ interface AdminState {
   globalAnalytics: {
     totalVisitors: number;
     totalWatchTimeSeconds: number;
+    totalSearches?: number;
+    totalAggregatedWatchTime?: number;
     lastUpdated: any;
   } | null;
   supportTickets: any[];
@@ -92,14 +102,12 @@ export default function Admin() {
   const { showToast } = useToast();
   const [data, setData] = useState<AdminState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'system' | 'logs' | 'content' | 'branding' | 'reports' | 'support'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'system' | 'logs' | 'content' | 'branding' | 'reports' | 'support' | 'database'>('overview');
   const [broadcastInput, setBroadcastInput] = useState('');
   const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
   const [broadcastLevel, setBroadcastLevel] = useState<'info' | 'warning' | 'critical'>('info');
   const [isUpdating, setIsUpdating] = useState(false);
   const [isPinVerified, setIsPinVerified] = useState(true);
-  const [pinInput, setPinInput] = useState('');
-  const [pinError, setPinError] = useState('');
   const [pageError, setPageError] = useState('');
   const navigate = useNavigate();
 
@@ -153,53 +161,54 @@ export default function Admin() {
       let advancedStats = { total: 0, last7Days: 0, last30Days: 0, admins: 0, banned: 0 };
       let globalAnalytics = null;
       let supportTickets: any[] = [];
+      let adminConfigObj: any = null;
 
-      try {
-        const [fUsers, fCount, fActive, fAdvanced, fGlobal, fSupport] = await Promise.all([
-          getFirebaseUsers(),
-          getFirebaseUserCount(),
-          getActiveUserCount(),
-          getAdvancedUserStats(),
-          getGlobalStats() as any,
-          getSupportTickets()
-        ]);
-        firebaseUsers = fUsers || [];
-        firebaseUserCount = fCount || 0;
-        activeUserCount = fActive || 0;
-        advancedStats = fAdvanced || { total: 0, last7Days: 0, last30Days: 0, admins: 0, banned: 0 };
-        globalAnalytics = fGlobal;
-        supportTickets = fSupport || [];
-      } catch (fe) {
-        console.error("Firebase admin fetch partially failed:", fe);
-      }
+      // Use individualized error handling for each sensitive call
+      const safeFireFetch = async (fn: () => Promise<any>, fallback: any = null) => {
+        try {
+          return await fn();
+        } catch (e) {
+          console.warn(`Admin Data Fetch failed for ${fn.name}:`, e);
+          return fallback;
+        }
+      };
+
+      firebaseUsers = await safeFireFetch(getFirebaseUsers, []);
+      firebaseUserCount = await safeFireFetch(getFirebaseUserCount, 0);
+      activeUserCount = await safeFireFetch(getActiveUserCount, 0);
+      advancedStats = await safeFireFetch(getAdvancedUserStats, { total: 0, last7Days: 0, last30Days: 0, admins: 0, banned: 0 });
+      globalAnalytics = await safeFireFetch(getGlobalStats, null);
+      supportTickets = await safeFireFetch(getSupportTickets, []);
+      adminConfigObj = await safeFireFetch(getAdminConfig, {});
       
-      // Merge local users and firebase users for a complete view
-      const combinedUsers = [...usersData];
+      // Rely only on Firebase users for a complete view
+      const combinedUsers: AdminUser[] = [];
       if (firebaseUsers && firebaseUsers.length > 0) {
         firebaseUsers.forEach((fu: any) => {
-          if (!combinedUsers.some(u => u.email === fu.email)) {
-            combinedUsers.push({
-              id: fu.uid,
-              username: fu.name || fu.email.split('@')[0],
-              email: fu.email,
-              avatar: fu.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${fu.uid}`,
-              createdAt: fu.createdAt instanceof Timestamp ? fu.createdAt.toDate().toISOString() : fu.createdAt?.seconds ? new Date(fu.createdAt.seconds * 1000).toISOString() : new Date().toISOString(),
-              watchlistCount: 0,
-              historyCount: 0,
-              stats: fu.stats || {
-                totalViews: 0,
-                watchTimeMinutes: 0,
-                currentStreak: 0,
-                badges: []
-              }
-            });
-          }
+          combinedUsers.push({
+            id: fu.uid || fu.id,
+            username: fu.username || fu.name || fu.email.split('@')[0],
+            email: fu.email,
+            avatar: fu.photoURL || fu.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${fu.uid || fu.id}`,
+            createdAt: fu.createdAt instanceof Timestamp ? fu.createdAt.toDate().toISOString() : fu.createdAt?.seconds ? new Date(fu.createdAt.seconds * 1000).toISOString() : fu.createdAt || new Date().toISOString(),
+            watchlistCount: fu.watchlistCount || 0,
+            historyCount: fu.historyCount || 0,
+            isBanned: fu.isBanned,
+            role: fu.role || 'user',
+            stats: fu.stats || {
+              totalViews: 0,
+              watchTimeMinutes: 0,
+              currentStreak: 0,
+              badges: []
+            }
+          });
         });
       }
 
       setData({
         ...statsData,
         ...systemData,
+        ...adminConfigObj, // Overwrite with real firebase config
         totalUsers: firebaseUserCount || statsData.totalUsers,
         activeUsers: activeUserCount || statsData.activeUsers,
         allUsers: combinedUsers,
@@ -207,7 +216,8 @@ export default function Admin() {
         globalAnalytics,
         supportTickets
       });
-      if (systemData.broadcastMessage) setBroadcastInput(systemData.broadcastMessage);
+      if (adminConfigObj?.broadcastMessage) setBroadcastInput(adminConfigObj.broadcastMessage);
+      else if (systemData.broadcastMessage) setBroadcastInput(systemData.broadcastMessage);
     } catch (e: any) {
       console.error("Failed to load admin data:", e);
       setPageError(e.message || 'Failed to establish neural link. Reload module?');
@@ -217,52 +227,27 @@ export default function Admin() {
   };
 
   useEffect(() => {
-    if (isPinVerified) {
-      fetchData();
-    }
-  }, [isPinVerified, user, isAdmin]);
-
-  const handleVerifyPin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPinError('');
-    try {
-      const res = await fetch('/api/admin/verify-pin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: pinInput })
-      });
-      const text = await res.text();
-      if (res.ok && !text.startsWith('<')) {
-        const json = JSON.parse(text);
-        if (json.success) {
-          setIsPinVerified(true);
-        } else {
-          setPinError('Access Denied: Invalid Security Hash');
-        }
-      } else {
-        // Fallback for Vercel where API doesn't exist
-        if (pinInput === '0000' || pinInput === '1234') {
-          setIsPinVerified(true);
-        } else {
-          setPinError('Access Denied: Invalid Security Hash');
-        }
-      }
-    } catch (e) {
-      // Offline fallback
-      if (pinInput === '0000' || pinInput === '1234') setIsPinVerified(true);
-      else setPinError('Connection to Mainframe Lost');
-    }
-  };
+    fetchData();
+  }, [user, isAdmin]);
 
   const handleToggleMaintenance = async () => {
     if (!data) return;
     setIsUpdating(true);
     try {
-      await fetch('/api/admin/maintenance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: !data.maintenanceMode })
-      });
+      const newStatus = !data.maintenanceMode;
+      // Update Server State
+      try {
+        await fetch('/api/admin/maintenance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: newStatus })
+        });
+      } catch (err) {
+        console.error("Failed to update server maintenance mode:", err);
+      }
+      
+      // Update Firestore State
+      await updateAdminConfig({ maintenanceMode: newStatus });
       await fetchData();
     } finally {
       setIsUpdating(false);
@@ -272,11 +257,18 @@ export default function Admin() {
   const handleUpdateBroadcast = async () => {
     setIsUpdating(true);
     try {
-      await fetch('/api/admin/broadcast', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: broadcastInput, level: broadcastLevel })
-      });
+      // Update Server State
+      try {
+        await fetch('/api/admin/broadcast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: broadcastInput, level: broadcastLevel })
+        });
+      } catch (err) {
+        console.error("Failed to update server broadcast:", err);
+      }
+
+      await updateAdminConfig({ broadcastMessage: broadcastInput, broadcastLevel });
       await fetchData();
     } finally {
       setIsUpdating(false);
@@ -284,13 +276,23 @@ export default function Admin() {
   };
 
   const handleUpdateConfig = async (newConfig: Partial<AdminState['siteConfig']>) => {
+    if (!data) return;
     setIsUpdating(true);
     try {
-      await fetch('/api/admin/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ siteConfig: newConfig })
-      });
+      const updatedConfig = { ...data.siteConfig, ...newConfig };
+      
+      // Update Server State
+      try {
+        await fetch('/api/admin/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ siteConfig: updatedConfig })
+        });
+      } catch (err) {
+        console.error("Failed to update server config:", err);
+      }
+
+      await updateAdminConfig({ siteConfig: updatedConfig });
       await fetchData();
     } finally {
       setIsUpdating(false);
@@ -314,92 +316,35 @@ export default function Admin() {
     }
   };
 
-  const handleBanUser = async (email: string, unban = false) => {
-    if (!window.confirm(`Are you sure you want to ${unban ? 'unban' : 'ban'} ${email}?`)) return;
+  const handleBanUser = async (userEmail: string, unban = false) => {
+    const userToBan = data?.allUsers?.find(u => u.email === userEmail);
+    if (!userToBan) return;
+    if (!window.confirm(`Are you sure you want to ${unban ? 'unban' : 'ban'} ${userEmail}?`)) return;
     setIsUpdating(true);
     try {
-      await fetch('/api/admin/ban', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, unban })
-      });
+      await updateBanStatus(userToBan.id, !unban);
+      showToast(unban ? 'User unbanned' : 'User banned', 'success');
       await fetchData();
+    } catch (e: any) {
+      showToast('Failed to update user ban status', 'error');
     } finally {
       setIsUpdating(false);
     }
   };
 
-  /* Removed isAdmin check */
-
-  if (!isPinVerified) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center p-6 relative overflow-hidden">
-        {/* Background Gradients */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-brand/5 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2" />
-        
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-md bg-white/5 border border-white/10 p-10 rounded-[2.5rem] backdrop-blur-2xl relative z-10 shadow-2xl"
-        >
-          <div className="flex flex-col items-center text-center mb-10">
-            <div className="w-16 h-16 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mb-6 group">
-              <Lock className="w-8 h-8 text-brand animate-pulse" />
-            </div>
-            <h2 className="text-3xl font-black italic tracking-tighter uppercase mb-2">Restricted Access</h2>
-            <p className="text-gray-500 text-sm font-medium">Secondary authentication required to unlock the Admin Terminal.</p>
-          </div>
-
-          <form onSubmit={handleVerifyPin} className="space-y-6">
-            <div>
-              <div className="flex items-center justify-between mb-2 px-1">
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Security PIN</label>
-                <Key className="w-3 h-3 text-brand" />
-              </div>
-              <input 
-                type="password" 
-                value={pinInput}
-                onChange={e => setPinInput(e.target.value)}
-                className="w-full bg-black/50 border border-white/10 rounded-2xl px-6 py-4 focus:outline-none focus:border-brand transition-all text-center text-2xl tracking-[0.5em] font-black"
-                placeholder="••••"
-                maxLength={4}
-                autoFocus
-              />
-            </div>
-
-            <AnimatePresence>
-              {pinError && (
-                <motion.div 
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="flex items-center gap-2 p-4 bg-brand/10 border border-brand/20 rounded-2xl text-brand text-[10px] font-black uppercase tracking-widest justify-center"
-                >
-                  <ShieldAlert className="w-4 h-4" />
-                  {pinError}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <button 
-              type="submit"
-              className="w-full bg-brand hover:bg-brand-hover text-white font-black uppercase tracking-[0.2em] py-5 rounded-2xl transition-all shadow-xl shadow-brand/20 active:scale-95"
-            >
-              Initialize Unlock
-            </button>
-          </form>
-
-          <button 
-            onClick={() => navigate('/')}
-            className="w-full mt-8 text-[10px] font-black text-gray-700 hover:text-white uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
-          >
-            <ChevronRight className="w-3 h-3 rotate-180" /> Abort Mission
-          </button>
-        </motion.div>
-      </div>
-    );
-  }
+  const handleRoleChange = async (uid: string, currentRole: string) => {
+    if (!window.confirm(`Are you sure you want to change this user's role?`)) return;
+    setIsUpdating(true);
+    try {
+      await updateRole(uid, currentRole === 'admin' ? 'user' : 'admin');
+      showToast('Role updated successfully', 'success');
+      await fetchData();
+    } catch (e: any) {
+      showToast('Failed to change user role', 'error');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   if (loading || !data) {
     return (
@@ -438,6 +383,7 @@ export default function Admin() {
               { id: 'users', label: 'Directory', icon: <Users className="w-4 h-4" /> },
               { id: 'branding', label: 'Identity', icon: <Search className="w-4 h-4" /> },
               { id: 'content', label: 'Spotlight', icon: <Award className="w-4 h-4" /> },
+              { id: 'database', label: 'Data Core', icon: <Database className="w-4 h-4" /> },
               { id: 'reports', label: 'Intel', icon: <ShieldAlert className="w-4 h-4" /> },
               { id: 'system', label: 'Operations', icon: <Activity className="w-4 h-4" /> },
               { id: 'logs', label: 'Audit', icon: <Clock className="w-4 h-4" /> },
@@ -522,7 +468,7 @@ export default function Admin() {
                       />
                       <StatCard 
                         label="Total Watch Hours" 
-                        value={Math.floor((data.globalAnalytics?.totalWatchTimeSeconds || 0) / 3600)} 
+                        value={Math.floor(((data.globalAnalytics?.totalAggregatedWatchTime || 0) / 60) + ((data.globalAnalytics?.totalWatchTimeSeconds || 0) / 3600))} 
                         icon={<Clock className="w-6 h-6" />}
                         color="text-yellow-500"
                       />
@@ -681,30 +627,8 @@ export default function Admin() {
                     </div>
                  </div>
 
-                 <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] space-y-8">
-                    <div className="flex items-center gap-3">
-                       <div className="p-3 bg-blue-500/10 rounded-2xl">
-                          <TrendingUp className="w-6 h-6 text-blue-500" />
-                       </div>
-                       <h2 className="text-2xl font-black italic uppercase tracking-tighter">Server Health</h2>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                       <div className="p-6 bg-black/40 rounded-3xl border border-white/5">
-                          <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-1">Uptime</p>
-                          <p className="text-xl font-bold italic">{(data.serverMetrics?.uptime / 3600).toFixed(1)} Hours</p>
-                       </div>
-                       <div className="p-6 bg-black/40 rounded-3xl border border-white/5">
-                          <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-1">Memory</p>
-                          <p className="text-xl font-bold italic">{Math.floor((data.serverMetrics?.memory?.heapUsed || 0) / 1024 / 1024)} MB</p>
-                       </div>
-                    </div>
-                    <div className="pt-4 opacity-50">
-                       <p className="text-[10px] font-black uppercase tracking-widest flex items-center justify-between">
-                          <span>Platform: {data.serverMetrics?.platform}</span>
-                          <span>Arch: {data.serverMetrics?.arch}</span>
-                       </p>
-                    </div>
-                 </div>
+                 <ApiHealthMonitor />
+                 <ServerHealthMonitor />
               </div>
             )}
 
@@ -731,7 +655,7 @@ export default function Admin() {
                       key={`${user.id}-${idx}`} 
                       className="bg-white/5 border border-white/5 rounded-3xl p-6 hover:border-brand/30 transition-all group relative overflow-hidden"
                     >
-                      {data.bannedEmails.includes(user.email.toLowerCase()) && (
+                      {((user as any).isBanned) && (
                         <div className="absolute top-0 right-0 p-2 bg-brand text-[8px] font-black uppercase tracking-widest rotate-45 translate-x-4 -translate-y-1 w-20 text-center shadow-lg">
                           Banned
                         </div>
@@ -778,9 +702,17 @@ export default function Admin() {
                         <div className="flex items-center gap-2">
                            <button 
                             disabled={isUpdating}
-                            onClick={() => handleBanUser(user.email, data.bannedEmails.includes(user.email.toLowerCase()))}
-                            className={`p-2 transition-colors rounded-lg ${data.bannedEmails.includes(user.email.toLowerCase()) ? 'text-green-500 hover:bg-green-500/10' : 'text-gray-700 hover:text-brand hover:bg-brand/10'}`}
-                            title={data.bannedEmails.includes(user.email.toLowerCase()) ? 'Unban User' : 'Ban User'}
+                            onClick={() => handleRoleChange(user.id, (user as any).role)}
+                            className={`p-2 transition-colors rounded-lg ${(user as any).role === 'admin' ? 'text-blue-500 hover:bg-blue-500/10' : 'text-gray-700 hover:text-blue-500 hover:bg-blue-500/10'}`}
+                            title={(user as any).role === 'admin' ? 'Demote to User' : 'Promote to Admin'}
+                           >
+                            <Key className="w-5 h-5" />
+                           </button>
+                           <button 
+                            disabled={isUpdating}
+                            onClick={() => handleBanUser(user.email, (user as any).isBanned)}
+                            className={`p-2 transition-colors rounded-lg ${(user as any).isBanned ? 'text-green-500 hover:bg-green-500/10' : 'text-gray-700 hover:text-brand hover:bg-brand/10'}`}
+                            title={(user as any).isBanned ? 'Unban User' : 'Ban User'}
                            >
                             <ShieldAlert className="w-5 h-5" />
                            </button>
@@ -813,11 +745,7 @@ export default function Admin() {
                               defaultValue={data.featuredMedia?.join(', ')}
                               onBlur={(e) => {
                                  const ids = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                                 fetch('/api/admin/featured', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ featuredMedia: ids })
-                                 }).then(fetchData);
+                                 updateAdminConfig({ featuredMedia: ids }).then(fetchData);
                               }}
                               placeholder="Enter subjectIds separated by commas..."
                               className="w-full bg-black/50 border border-white/10 rounded-3xl p-8 min-h-[200px] font-bold focus:border-brand outline-none"
@@ -832,6 +760,93 @@ export default function Admin() {
                                  </div>
                               ))}
                            </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            )}
+
+            {activeTab === 'database' && (
+               <div className="space-y-8">
+                  <div className="bg-white/5 border border-white/10 p-8 rounded-[3rem]">
+                     <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center gap-4">
+                           <div className="p-4 bg-blue-500/10 rounded-2xl">
+                              <Database className="w-8 h-8 text-blue-500" />
+                           </div>
+                           <div>
+                              <h2 className="text-3xl font-black italic uppercase tracking-tighter">Data Core</h2>
+                              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Database records and deep analytics</p>
+                           </div>
+                        </div>
+                     </div>
+
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center mb-8">
+                        <div className="p-6 bg-black/40 border border-white/5 rounded-3xl">
+                           <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 flex items-center justify-center gap-2">
+                              <Users className="w-4 h-4" /> User Profiles
+                           </p>
+                           <p className="text-3xl font-black italic text-blue-500">{data.allUsers.length}</p>
+                        </div>
+                        <div className="p-6 bg-black/40 border border-white/5 rounded-3xl">
+                           <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 flex items-center justify-center gap-2">
+                              <Search className="w-4 h-4" /> Global Searches
+                           </p>
+                           <p className="text-3xl font-black italic text-purple-500">{data.globalAnalytics?.totalSearches || 0}</p>
+                        </div>
+                        <div className="p-6 bg-black/40 border border-white/5 rounded-3xl">
+                           <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 flex items-center justify-center gap-2">
+                              <Clock className="w-4 h-4" /> Total User Sessions
+                           </p>
+                           <p className="text-3xl font-black italic text-orange-500">{data.globalAnalytics?.totalVisitors || 0}</p>
+                        </div>
+                        <div className="p-6 bg-black/40 border border-white/5 rounded-3xl">
+                           <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 flex items-center justify-center gap-2">
+                              <Award className="w-4 h-4" /> Admin Roles
+                           </p>
+                           <p className="text-3xl font-black italic text-brand">{data.allUsers.filter(u => u.role === 'admin').length}</p>
+                        </div>
+                     </div>
+
+                     <div className="bg-black/50 border border-white/5 rounded-[2.5rem] p-8">
+                        <h3 className="text-xl font-bold uppercase tracking-tighter italic mb-6">Database Schema & Collections</h3>
+                        <div className="overflow-x-auto">
+                           <table className="w-full text-left">
+                              <thead>
+                                 <tr className="text-gray-500 text-[10px] uppercase font-black tracking-[0.2em] bg-white/2">
+                                    <th className="px-8 py-4">Collection</th>
+                                    <th className="px-8 py-4">Est. Doc Count</th>
+                                    <th className="px-8 py-4">Read Frequency</th>
+                                    <th className="px-8 py-4 text-right">Access Level</th>
+                                 </tr>
+                              </thead>
+                              <tbody className="divide-y divide-white/5 text-sm font-medium">
+                                 <tr className="hover:bg-white/2 transition-colors">
+                                    <td className="px-8 py-6 font-bold flex items-center gap-2"><Database className="w-4 h-4 text-blue-500" /> /users</td>
+                                    <td className="px-8 py-6">{data.allUsers.length}</td>
+                                    <td className="px-8 py-6 text-green-500">Very High</td>
+                                    <td className="px-8 py-6 text-right"><span className="bg-white/10 px-2 py-1 rounded text-xs">Auth Required</span></td>
+                                 </tr>
+                                 <tr className="hover:bg-white/2 transition-colors">
+                                    <td className="px-8 py-6 font-bold flex items-center gap-2"><Database className="w-4 h-4 text-orange-500" /> /analytics/global</td>
+                                    <td className="px-8 py-6">1</td>
+                                    <td className="px-8 py-6 text-yellow-500">Moderate</td>
+                                    <td className="px-8 py-6 text-right"><span className="bg-white/10 px-2 py-1 rounded text-xs">Public Read</span></td>
+                                 </tr>
+                                 <tr className="hover:bg-white/2 transition-colors">
+                                    <td className="px-8 py-6 font-bold flex items-center gap-2"><Database className="w-4 h-4 text-brand" /> /admin/config</td>
+                                    <td className="px-8 py-6">1</td>
+                                    <td className="px-8 py-6 text-yellow-500">Moderate</td>
+                                    <td className="px-8 py-6 text-right"><span className="bg-brand/20 text-brand px-2 py-1 rounded text-xs outline outline-1 outline-brand/30">Admin Only</span></td>
+                                 </tr>
+                                 <tr className="hover:bg-white/2 transition-colors">
+                                    <td className="px-8 py-6 font-bold flex items-center gap-2"><Database className="w-4 h-4 text-purple-500" /> /supportTickets</td>
+                                    <td className="px-8 py-6">{data.supportTickets?.length || 0}</td>
+                                    <td className="px-8 py-6 text-red-500">Low</td>
+                                    <td className="px-8 py-6 text-right"><span className="bg-white/10 px-2 py-1 rounded text-xs">Auth Required</span></td>
+                                 </tr>
+                              </tbody>
+                           </table>
                         </div>
                      </div>
                   </div>
@@ -900,79 +915,6 @@ export default function Admin() {
                       className={`mt-4 py-4 px-10 rounded-2xl font-black uppercase tracking-[0.2em] transition-all self-center ${data.maintenanceMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-brand/10 text-brand border border-brand/30 hover:bg-brand hover:text-white'}`}
                     >
                       {data.maintenanceMode ? 'Restore Normal Ops' : 'Initiate Lockdown'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* PIN Management */}
-                <div className="bg-white/5 border border-white/10 p-8 rounded-3xl h-fit lg:col-span-2">
-                  <div className="flex items-center gap-3 mb-8">
-                    <Key className="w-6 h-6 text-brand" />
-                    <h2 className="text-xl font-black italic uppercase tracking-tighter">Security Protocol Update</h2>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
-                    <div className="space-y-4">
-                      <p className="text-sm text-gray-500 font-medium">Rotate your secondary access PIN. Ensure it is known only to authorized command personnel.</p>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-600 block mb-2">Current PIN</label>
-                          <input 
-                            type="password" 
-                            id="old-pin"
-                            maxLength={4}
-                            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 focus:border-brand outline-none text-center font-black"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-600 block mb-2">New PIN</label>
-                          <input 
-                            type="password" 
-                            id="new-pin"
-                            maxLength={4}
-                            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 focus:border-brand outline-none text-center font-black"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={async () => {
-                        const oldPin = (document.getElementById('old-pin') as HTMLInputElement).value;
-                        const newPin = (document.getElementById('new-pin') as HTMLInputElement).value;
-                        if (!oldPin || !newPin) {
-                          showToast('Both PINs required', 'error');
-                          return;
-                        }
-                        setIsUpdating(true);
-                        try {
-                          const res = await fetch('/api/admin/update-pin', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ oldPin, newPin })
-                          });
-                          const text = await res.text();
-                          if (res.ok && !text.startsWith('<')) {
-                            const result = JSON.parse(text);
-                            showToast('PIN rotated successfully', 'success');
-                            (document.getElementById('old-pin') as HTMLInputElement).value = '';
-                            (document.getElementById('new-pin') as HTMLInputElement).value = '';
-                            fetchData();
-                          } else if (text.startsWith('<')) {
-                            showToast('PIN change not supported on static host', 'error');
-                          } else {
-                            try {
-                              const result = JSON.parse(text);
-                              showToast(result.error || 'Update failed', 'error');
-                            } catch (e) {
-                              showToast('System Error: Unable to complete sequence.', 'error');
-                            }
-                          }
-                        } finally {
-                          setIsUpdating(false);
-                        }
-                      }}
-                      className="py-4 bg-brand/10 text-brand border border-brand/30 hover:bg-brand hover:text-white rounded-2xl font-black uppercase tracking-widest transition-all"
-                    >
-                      Cycle Access Hash
                     </button>
                   </div>
                 </div>

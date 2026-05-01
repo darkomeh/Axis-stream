@@ -190,7 +190,22 @@ export const replyToTicket = async (ticketId: string, text: string) => {
 export const getGlobalStats = async () => {
   try {
     const snap = await getDoc(doc(db, 'analytics', 'global'));
-    return snap.exists() ? snap.data() : null;
+    let globalData = snap.exists() ? snap.data() : { totalVisitors: 0, totalWatchTimeSeconds: 0, totalSearches: 0, mostSearchedQueries: [] };
+    
+    // Attempt to get accurate user count, but don't fail if permissions are missing
+    let totalUsers = 0;
+    try {
+      const coll = collection(db, 'users');
+      const snapshot = await getCountFromServer(coll);
+      totalUsers = snapshot.data().count;
+    } catch (e) {
+      console.warn("Could not fetch user count for global stats (permissions?)");
+    }
+
+    return {
+      ...globalData,
+      totalUsers: totalUsers || globalData.totalUsers || 0
+    };
   } catch (error) {
     console.error("Failed to fetch global stats", error);
     return null;
@@ -512,6 +527,51 @@ export const getTotalWatchCount = async () => {
   } catch (error) {
     console.error("Failed to fetch total watch count", error);
     return 0;
+  }
+};
+
+export const updateAdminConfig = async (configData: any) => {
+  const path = 'admin/config';
+  try {
+    const configRef = doc(db, 'admin', 'config');
+    await setDoc(configRef, { ...configData, lastUpdated: serverTimestamp() }, { merge: true });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Missing or insufficient permissions')) {
+      console.warn("Only verified admins can update config.");
+    }
+    throw error;
+  }
+};
+
+export const getAdminConfig = async () => {
+  const path = 'admin/config';
+  try {
+    const configRef = doc(db, 'admin', 'config');
+    const snap = await getDoc(configRef);
+    if (snap.exists()) return snap.data();
+    return null;
+  } catch (error) {
+    return null; // Silent catch, non-strict config
+  }
+};
+
+export const updateBanStatus = async (uid: string, isBanned: boolean) => {
+  const path = `users/${uid}`;
+  try {
+    const userRef = doc(db, 'users', uid);
+    await updateDoc(userRef, { isBanned });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+};
+
+export const updateRole = async (uid: string, role: 'admin' | 'user') => {
+  const path = `users/${uid}`;
+  try {
+    const userRef = doc(db, 'users', uid);
+    await updateDoc(userRef, { role });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
   }
 };
 

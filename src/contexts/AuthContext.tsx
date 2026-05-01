@@ -342,7 +342,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [firebaseUser]);
 
   const isAdmin = useMemo(() => {
-    return user?.email === 'greatmayuku2@gmail.com';
+    return user?.email === 'greatmayuku2@gmail.com' || user?.role === 'admin';
   }, [user]);
 
   // Sync with server for Admin view

@@ -10,6 +10,7 @@ import { ToastProvider } from "./contexts/ToastContext";
 import { MediaPreviewProvider } from "./contexts/MediaPreviewContext";
 import BottomNav from "./components/BottomNav";
 import MediaPreviewTray from "./components/MediaPreviewTray";
+import SystemAlerts from "./components/SystemAlerts";
 import PopcornLoader from "./components/PopcornLoader";
 import LoginPopup from "./components/LoginPopup";
 import { Analytics } from "./components/Analytics";
@@ -87,6 +88,7 @@ function AppContent() {
     <div className="min-h-screen bg-black text-white selection:bg-brand/30 selection:text-white font-sans antialiased pb-20">
       <LoginPopup />
       <Analytics />
+      <SystemAlerts />
       <MediaPreviewTray />
       <main>
         <Suspense fallback={

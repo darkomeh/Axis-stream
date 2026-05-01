@@ -8,6 +8,23 @@ import os from "os";
 const app = express();
 app.use(express.json());
 
+// Diagnostic endpoint early
+app.get("/api/server-health", (req, res) => {
+  try {
+    res.json({ 
+      status: "ok", 
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      platform: process.platform,
+      arch: process.arch,
+      nodeVersion: process.version
+    });
+  } catch (err) {
+    res.status(500).json({ status: "error", error: String(err) });
+  }
+});
+
 // User Persistence (Simple JSON storage)
 const USERS_FILE = path.join(process.cwd(), "users.json");
 const ADMIN_STATE_FILE = path.join(process.cwd(), "admin_state.json");
@@ -17,7 +34,6 @@ interface AdminState {
   broadcastMessage: string | null;
   broadcastLevel: 'info' | 'warning' | 'critical';
   bannedEmails: string[];
-  adminPin: string; 
   auditLogs: { id: string, timestamp: string, type: string, detail: string }[];
   searchLogs: { query: string, timestamp: string, userId?: string }[];
   featuredMedia: string[]; // List of subjectIds to feature
@@ -36,7 +52,6 @@ let adminState: AdminState = {
   broadcastMessage: null,
   broadcastLevel: 'info',
   bannedEmails: [],
-  adminPin: "0000",
   auditLogs: [],
   searchLogs: [],
   featuredMedia: [],
@@ -60,7 +75,6 @@ function loadAdminState() {
         // Ensure nested objects default correctly if partially missing from old saves
         siteConfig: { ...adminState.siteConfig, ...(stored.siteConfig || {}) }
       };
-      if (!adminState.adminPin) adminState.adminPin = "1234";
     }
   } catch (e) {
     console.error("Error loading admin state:", e);
@@ -133,10 +147,6 @@ function setCached(key: string, data: any) {
 }
 
 // API Routes using externalMovieService
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
-});
-
 app.get("/api/homepage", async (req, res) => {
   const cacheKey = "homepage";
   const cachedData = getCached(cacheKey);
@@ -649,28 +659,6 @@ app.post("/api/admin/maintenance", (req, res) => {
   logAction("MAINTENANCE", `Maintenance mode ${enabled ? "enabled" : "disabled"}`);
   saveAdminState();
   res.json({ success: true });
-});
-
-app.post("/api/admin/verify-pin", (req, res) => {
-  const { pin } = req.body;
-  if (pin === adminState.adminPin) {
-    res.json({ success: true });
-  } else {
-    res.status(401).json({ success: false, error: "Incorrect Security PIN" });
-  }
-});
-
-app.post("/api/admin/update-pin", (req, res) => {
-  const { oldPin, newPin } = req.body;
-  if (oldPin === adminState.adminPin) {
-    if (!newPin || newPin.length < 4) return res.status(400).json({ error: "Invalid PIN" });
-    adminState.adminPin = newPin;
-    logAction("SECURITY", "Admin Security PIN updated");
-    saveAdminState();
-    res.json({ success: true });
-  } else {
-    res.status(401).json({ error: "Incorrect current PIN" });
-  }
 });
 
 app.post("/api/admin/ban", (req, res) => {

@@ -50,55 +50,69 @@ function TopTenGrid({ title, items, loading, showNumbers = true }: TopTenGridPro
             <h2 className="text-fluid-lg md:text-xl font-bold text-white tracking-wide">
               {title}
             </h2>
-            <Link to="/browse" className="text-fluid-xs font-medium text-brand hover:text-white transition-colors">
+            <Link to="/ranking" className="text-fluid-xs font-medium text-brand hover:text-white transition-colors">
               See All
             </Link>
           </div>
         )}
 
         <div className="flex overflow-x-auto gap-10 md:gap-12 pb-12 pt-8 snap-x snap-mandatory hide-scrollbar -mx-fluid px-fluid">
-          {Array.isArray(items) && items.slice(0, 10).map((item, index) => (
-            <div
-              key={`${item.id}-${index}`}
-              className="flex-none w-[clamp(140px,35vw,240px)] md:w-[240px] snap-start relative group animate-fade-in"
-              style={{ animationDelay: `${Math.min(index * 0.1, 0.6)}s`, animationFillMode: 'both' }}
-            >
-              <div 
-                role="button"
-                onClick={() => openPreview(item.id)}
-                className="block relative h-full cursor-pointer"
+          {Array.isArray(items) && items.slice(0, 10).map((item, index) => {
+            const isDoubleDigit = (index + 1) >= 10;
+            return (
+              <div
+                key={`${item.id}-${index}`}
+                className="flex-none w-[clamp(140px,35vw,240px)] md:w-[240px] snap-start relative group animate-fade-in"
+                style={{ animationDelay: `${Math.min(index * 0.1, 0.6)}s`, animationFillMode: 'both' }}
               >
-                {/* Huge Number behind card */}
-                {showNumbers && (
-                  <div className="absolute -left-10 md:-left-12 bottom-[-5px] z-0 font-black text-[clamp(120px,25vw,240px)] leading-none tracking-tighter text-transparent select-none transition-all duration-700 pointer-events-none group-hover:scale-105" style={{ WebkitTextStroke: 'clamp(1.5px, 0.5vw, 2.5px) rgba(255,255,255,0.12)', fontFamily: 'Inter' }}>
-                    {index + 1}
-                  </div>
-                )}
-                
-                {/* Card Container */}
-                <div className={`relative flex flex-col items-center z-10 ${showNumbers ? 'ml-8 md:ml-12' : ''}`}>
-                  {/* Poster */}
-                  <div className="relative w-full aspect-[2/3] rounded-[14px] md:rounded-[18px] overflow-hidden bg-[#141414] transition-all duration-500 transform hover:scale-[1.02] hover:-translate-y-2 border border-white/5 group-hover:border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
-                    {item.poster ? (
-                      <MovieImage
-                        src={item.poster}
-                        alt={item.title}
-                        avgHueDark={item.avgHueDark}
-                        className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-[#1A1A1A]" />
-                    )}
-                    
-                    {/* Dark overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent" />
-                    
-                    {/* Hover State: Play Button */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-4 group-hover:translate-y-0">
-                       <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-brand/90 premium-blur flex items-center justify-center border border-white/20 shadow-2xl">
-                          <Play className="w-5 h-5 md:w-6 md:h-6 text-white fill-current translate-x-0.5" />
-                       </div>
+                <div 
+                  role="button"
+                  onClick={() => openPreview(item.id)}
+                  className="block relative h-full cursor-pointer"
+                >
+                  {/* Huge Number behind card - Netflix Style */}
+                  {showNumbers && (
+                    <div 
+                      className={`absolute bottom-[-15px] z-0 font-black leading-none select-none transition-all duration-700 pointer-events-none group-hover:scale-105
+                        ${isDoubleDigit 
+                          ? '-left-12 md:-left-20 text-[clamp(130px,28vw,230px)] md:text-[230px] tracking-[-0.15em]' 
+                          : '-left-10 md:-left-12 text-[clamp(150px,32vw,280px)] md:text-[280px] tracking-tighter'
+                        }`} 
+                      style={{ 
+                        WebkitTextStroke: '2.5px rgba(255,255,255,0.45)', 
+                        color: 'transparent',
+                        fontFamily: 'Inter',
+                        opacity: index < 10 ? 0.7 : 0.5
+                      }}
+                    >
+                      {index + 1}
                     </div>
+                  )}
+                  
+                  {/* Card Container */}
+                  <div className={`relative flex flex-col items-center z-10 transition-all duration-500 ${showNumbers ? (isDoubleDigit ? 'ml-14 md:ml-18' : 'ml-12 md:ml-16') : ''}`}>
+                    {/* Poster */}
+                    <div className="relative w-full aspect-[2/3] rounded-[14px] md:rounded-[18px] overflow-hidden bg-[#141414] transition-all duration-500 transform hover:scale-[1.02] hover:-translate-y-2 border border-white/5 group-hover:border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
+                      {item.poster ? (
+                        <MovieImage
+                          src={item.poster}
+                          alt={item.title}
+                          avgHueDark={item.avgHueDark}
+                          className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-[#1A1A1A]" />
+                      )}
+                      
+                      {/* Dark overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent" />
+                      
+                      {/* Hover State: Play Button */}
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-4 group-hover:translate-y-0">
+                         <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-brand/90 premium-blur flex items-center justify-center border border-white/20 shadow-2xl">
+                            <Play className="w-5 h-5 md:w-6 md:h-6 text-white fill-current translate-x-0.5" />
+                         </div>
+                      </div>
 
                     {/* Poster Bottom Info */}
                     <div className="absolute inset-x-0 bottom-0 p-3 md:p-4 pb-6 md:pb-8 text-center bg-gradient-to-t from-black/98 via-black/80 to-transparent">
@@ -110,8 +124,9 @@ function TopTenGrid({ title, items, loading, showNumbers = true }: TopTenGridPro
                 </div>
               </div>
             </div>
-          ))}
-        </div>
+          );
+        })}
+      </div>
       </div>
     </section>
   );

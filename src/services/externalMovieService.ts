@@ -5,7 +5,6 @@ import {
   ItemDetails, 
   MediaData, 
   Actor, 
-  LiveMatch, 
   RankingItem 
 } from '../types';
 
@@ -451,24 +450,6 @@ export const externalMovieService = {
       popularity: details.popularity || 0,
       biography: details.biography || details.description || ''
     };
-  },
-  async getLive(): Promise<LiveMatch[]> {
-    try {
-      const response = await fetchWithRetry({ url: `/live` });
-      const list = response.data?.data || [];
-      if (!Array.isArray(list)) return [];
-      return list.map((item: any) => ({
-        id: String(item.id),
-        title: item.title,
-        cover: item.cover,
-        url: item.url,
-        status: item.status,
-        time: item.time
-      }));
-    } catch (e: any) {
-      console.error("Error in getLive:", e.message || e);
-      return [];
-    }
   },
 
   async getStaffDetails(staffId: string): Promise<Actor | null> {

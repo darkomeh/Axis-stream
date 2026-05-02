@@ -21,11 +21,13 @@ export const MovieImage: React.FC<MovieImageProps> = ({
   const bgTint = avgHueDark || '#1a1a1a';
   
   // Use raw direct URL
-  const finalSrc = React.useMemo(() => {
-    return src || fallback || '';
+  const [currentSrc, setCurrentSrc] = React.useState(src || fallback || '');
+
+  React.useEffect(() => {
+    setCurrentSrc(src || fallback || '');
   }, [src, fallback]);
 
-  if (!finalSrc) {
+  if (!currentSrc) {
     return (
       <div 
         className={`flex flex-col items-center justify-center text-gray-500 text-center p-4 ${className || ''}`}
@@ -52,13 +54,24 @@ export const MovieImage: React.FC<MovieImageProps> = ({
       style={{ backgroundColor: bgTint }}
     >
       <img
-        src={finalSrc}
+        src={currentSrc}
         alt={alt}
         className="w-full h-full object-cover transition-opacity duration-300"
         loading={isHero ? 'eager' : 'lazy'}
         decoding={isHero ? 'sync' : 'async'}
         fetchPriority={isHero ? 'high' : 'auto'}
         referrerPolicy="no-referrer"
+        onError={(e) => {
+          const target = e.currentTarget;
+          if (target.src.includes('/api/image-proxy')) {
+            if (fallback && target.src !== fallback) {
+              setCurrentSrc(fallback);
+            }
+          } else {
+            const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(target.src)}`;
+            setCurrentSrc(proxyUrl);
+          }
+        }}
         {...props}
       />
     </div>

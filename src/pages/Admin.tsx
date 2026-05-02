@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar';
 import PopcornLoader from '../components/PopcornLoader';
 import ServerHealthMonitor from '../components/admin/ServerHealthMonitor';
 import ApiHealthMonitor from '../components/admin/ApiHealthMonitor';
+import SpotlightManager from '../components/admin/SpotlightManager';
 import { 
   Users, Activity, TrendingUp, Calendar, 
   Search, ShieldAlert, Award, Clock, 
@@ -89,6 +90,7 @@ interface AdminState {
   };
   globalAnalytics: {
     totalVisitors: number;
+    todayVisitors?: number;
     totalWatchTimeSeconds: number;
     totalSearches?: number;
     totalAggregatedWatchTime?: number;
@@ -134,15 +136,9 @@ export default function Admin() {
         }
       };
 
-      const [statsDataRaw, usersDataRaw, systemDataRaw] = await Promise.all([
-        safeFetchJson('/api/admin/stats'),
-        safeFetchJson('/api/admin/users'),
-        safeFetchJson('/api/admin/system')
-      ]);
-
-      const statsData = statsDataRaw || { totalUsers: 0, newToday: 0, mostActive: [], searchVelocity: 0, openReports: 0 };
-      const usersData = usersDataRaw || [];
-      const systemData = systemDataRaw || {
+      const statsData = { totalUsers: 0, newToday: 0, mostActive: [], searchVelocity: 0, openReports: 0 };
+      const usersData = [];
+      const systemData = {
         maintenanceMode: false,
         broadcastMessage: null,
         broadcastLevel: 'info',
@@ -152,7 +148,7 @@ export default function Admin() {
         featuredMedia: [],
         siteConfig: { siteName: "Axis TV", brandColor: "#E50914", tagline: "The Ultimate Streaming Experience" },
         reports: [],
-        serverMetrics: { uptime: 0, memory: { heapUsed: 0 }, platform: 'vercel', arch: 'x64' }
+        serverMetrics: { uptime: 0, memory: { heapUsed: 0 }, platform: 'browser', arch: 'x64' }
       };
       
       let firebaseUsers: any[] = [];
@@ -195,6 +191,7 @@ export default function Admin() {
             historyCount: fu.historyCount || 0,
             isBanned: fu.isBanned,
             role: fu.role || 'user',
+            lastAction: fu.lastLogin instanceof Timestamp ? fu.lastLogin.toDate().toISOString() : fu.lastLogin?.seconds ? new Date(fu.lastLogin.seconds * 1000).toISOString() : fu.lastLogin,
             stats: fu.stats || {
               totalViews: 0,
               watchTimeMinutes: 0,
@@ -205,6 +202,11 @@ export default function Admin() {
         });
       }
 
+      // Sort by total views for most active
+      const sortedMostActive = [...combinedUsers]
+        .sort((a, b) => (b.stats?.totalViews || 0) - (a.stats?.totalViews || 0))
+        .slice(0, 5);
+
       setData({
         ...statsData,
         ...systemData,
@@ -212,6 +214,7 @@ export default function Admin() {
         totalUsers: firebaseUserCount || statsData.totalUsers,
         activeUsers: activeUserCount || statsData.activeUsers,
         allUsers: combinedUsers,
+        mostActive: sortedMostActive,
         advancedStats,
         globalAnalytics,
         supportTickets
@@ -465,6 +468,12 @@ export default function Admin() {
                         value={data.globalAnalytics?.totalVisitors || 0} 
                         icon={<TrendingUp className="w-6 h-6" />}
                         color="text-green-500"
+                      />
+                      <StatCard 
+                        label="Visitors Today" 
+                        value={data.globalAnalytics?.todayVisitors || 0} 
+                        icon={<Activity className="w-6 h-6" />}
+                        color="text-blue-500"
                       />
                       <StatCard 
                         label="Total Watch Hours" 
@@ -724,7 +733,7 @@ export default function Admin() {
               </div>
             )}
 
-            {activeTab === 'content' && (
+             {activeTab === 'content' && (
                <div className="space-y-8">
                   <div className="bg-white/5 border border-white/10 p-8 rounded-[3rem]">
                      <div className="flex items-center justify-between mb-8">
@@ -738,30 +747,7 @@ export default function Admin() {
                            </div>
                         </div>
                      </div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="space-y-4">
-                           <h3 className="text-sm font-black uppercase tracking-widest italic">Featured Media IDs</h3>
-                           <textarea 
-                              defaultValue={data.featuredMedia?.join(', ')}
-                              onBlur={(e) => {
-                                 const ids = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                                 updateAdminConfig({ featuredMedia: ids }).then(fetchData);
-                              }}
-                              placeholder="Enter subjectIds separated by commas..."
-                              className="w-full bg-black/50 border border-white/10 rounded-3xl p-8 min-h-[200px] font-bold focus:border-brand outline-none"
-                           />
-                        </div>
-                        <div className="bg-black/50 rounded-[2.5rem] p-8 border border-white/5">
-                           <h3 className="text-sm font-black uppercase tracking-widest italic mb-6">Search Intel (Top 50)</h3>
-                           <div className="flex flex-wrap gap-2">
-                              {data.searchLogs?.slice(0, 50).map((log, i) => (
-                                 <div key={i} className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest">
-                                    {log.query}
-                                 </div>
-                              ))}
-                           </div>
-                        </div>
-                     </div>
+                     <SpotlightManager currentData={data} onUpdate={fetchData} />
                   </div>
                </div>
             )}

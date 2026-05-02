@@ -101,7 +101,7 @@ const PosterGrid = memo(({ title, items, viewAllLink, loading, variant = 'scroll
                      </h3>
                      <div className="flex items-center justify-between text-[8px] md:text-[10px] font-bold tracking-widest text-gray-400 uppercase">
                         <span>{item.year || '2024'}</span>
-                        <span className="text-white/60">{item.type == 1 || item.type === 'Movie' ? 'Movie' : 'Series'}</span>
+                      <span className="text-white/60">{item.type == 2 || item.type === 'Series' ? 'Series' : 'Movie'}</span>
                      </div>
                   </div>
 

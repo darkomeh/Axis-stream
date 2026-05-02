@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { movieService } from "../services/movieService";
+import { getAdminConfig } from "../services/firebaseService";
 import { HomepageData, MediaItem } from "../types";
 import Carousel from "../components/Carousel";
 import PosterGrid from "../components/PosterGrid";
@@ -23,6 +24,7 @@ import { Link } from "react-router-dom";
 export default function Home() {
   const [homepageData, setHomepageData] = useState<HomepageData | null>(null);
   const [trending, setTrending] = useState<MediaItem[]>([]);
+  const [ranking, setRanking] = useState<MediaItem[]>([]);
   const [hotMovies, setHotMovies] = useState<MediaItem[]>([]);
   const [hotSeries, setHotSeries] = useState<MediaItem[]>([]);
   const [recommendations, setRecommendations] = useState<MediaItem[]>([]);
@@ -54,47 +56,87 @@ export default function Home() {
       if (!homepageData) setLoading(true);
       setError(null);
       
-      const [homeResult, trendResult, hotResult, popularResult] = await Promise.allSettled([
-        movieService.getHomepage(),
-        movieService.getTrending(),
-        movieService.getHot(),
-        movieService.getPopularSearch()
+      const [aggResult, popularResult, adminConfigResult] = await Promise.allSettled([
+        movieService.getAggregatedPopular(),
+        movieService.getPopularSearch(),
+        getAdminConfig(),
       ]);
 
-      if (homeResult.status === 'fulfilled') setHomepageData(homeResult.value);
-      if (trendResult.status === 'fulfilled') setTrending(trendResult.value);
-      if (hotResult.status === 'fulfilled') {
-        setHotMovies(hotResult.value.movies);
-        setHotSeries(hotResult.value.series);
+      if (aggResult.status === 'fulfilled') {
+        const { trending: t, hot, ranking: r, homepage: h } = aggResult.value;
+        
+        // Process homepage data
+        if (h.operatingList) {
+          const currentYear = new Date().getFullYear();
+          h.operatingList = h.operatingList.map((section: any) => {
+            const sectionName = (section.name || section.title || '').toLowerCase();
+            if (sectionName.includes('upcoming') || sectionName.includes('calendar')) {
+              return {
+                ...section,
+                subjects: (section.subjects || []).filter((s: MediaItem) => {
+                  const year = parseInt(s.year || '0');
+                  return year >= currentYear - 1;
+                })
+              };
+            }
+            return section;
+          });
+        }
+        setHomepageData(h);
+        setTrending(t);
+        setHotMovies(hot.movies);
+        setHotSeries(hot.series);
+        
+        // Finalize ranking (pad if < 20)
+        let finalRanking = [...r];
+        if (finalRanking.length < 20) {
+          const pool = [...hot.movies, ...hot.series, ...t];
+          const shuffledPool = pool.sort(() => 0.5 - Math.random());
+          for (const item of shuffledPool) {
+            if (finalRanking.length >= 20) break;
+            if (!finalRanking.find(itemRank => itemRank.id === item.id)) {
+              finalRanking.push({ ...item, type: 'Media' } as any);
+            }
+          }
+        }
+        setRanking(finalRanking.slice(0, 20));
       }
+      
       if (popularResult.status === 'fulfilled') setPopularSearches(popularResult.value);
-
-      const isHomeEmpty = homeResult.status === 'rejected' || (homeResult.status === 'fulfilled' && (!homeResult.value.topPickList || homeResult.value.topPickList.length === 0) && (!homeResult.value.homeList || homeResult.value.homeList.length === 0));
-      const isTrendEmpty = trendResult.status === 'rejected' || (trendResult.status === 'fulfilled' && (!trendResult.value || trendResult.value.length === 0));
-
-      if (isHomeEmpty && isTrendEmpty) {
-        throw new Error("Most content failed to load.");
+      
+      if (adminConfigResult.status === 'fulfilled') {
+        if (adminConfigResult.value?.spotlights?.carousel?.length > 0) {
+          setHomepageData(prev => ({
+            ...(prev || {}),
+            topPickList: adminConfigResult.value.spotlights.carousel
+          }) as any);
+        }
+        // Update trending with admin picks if available
+        if (adminConfigResult.value?.spotlights?.top10) {
+           const top10 = adminConfigResult.value.spotlights.top10;
+           setTrending(prev => {
+             const newTrend = [...prev];
+             for (let i = 0; i < 10; i++) {
+               if (top10[i]) {
+                 if (newTrend.length > i) newTrend[i] = top10[i];
+                 else newTrend.push(top10[i]);
+               }
+             }
+             return newTrend;
+           });
+        }
       }
 
       const lastViewedId = localStorage.getItem('axis_last_viewed_id');
       if (lastViewedId) {
-        try {
-          const recs = await movieService.getRecommendations(lastViewedId);
-          setRecommendations(recs);
-        } catch (e) {
-          console.error("Failed to load recommendations", e);
-        }
+        movieService.getRecommendations(lastViewedId).then(setRecommendations).catch(() => {});
       }
 
-      // Initial discover items
       if (discoverItems.length === 0) {
-        try {
-          const discover = await movieService.browse(undefined, undefined, 1);
+        movieService.browse(undefined, "2", 1).then(discover => {
           setDiscoverItems(discover);
           setHasMore(discover.length > 0);
-        } catch (e) {
-          console.error("Failed to load discover items", e);
-        }
+        }).catch(() => {});
       }
     } catch (err) {
       console.error("Error loading homepage:", err);
@@ -115,7 +157,8 @@ export default function Home() {
     const loadMore = async () => {
       try {
         setLoadingMore(true);
-        const data = await movieService.browse(undefined, undefined, page);
+        // Prioritize series (type 2) for discovery as requested
+        const data = await movieService.browse(undefined, "2", page);
         if (data.length === 0) {
           setHasMore(false);
         } else {
@@ -130,6 +173,41 @@ export default function Home() {
 
     loadMore();
   }, [page, hasMore]);
+
+  // Determine carousel items (20 random items prioritizing series)
+  const [carouselItems, setCarouselItems] = useState<MediaItem[]>([]);
+
+  useEffect(() => {
+    if (loading) return;
+
+    // Use strictly ranking and series for the carousel as requested
+    let pool = [...hotSeries, ...ranking];
+    
+    if (homepageData?.topPickList && homepageData.topPickList.length > 0) {
+       let items = [...homepageData.topPickList];
+       if (items.length < 20) {
+         const shuffledPool = pool.sort(() => 0.5 - Math.random());
+         for (const item of shuffledPool) {
+            if (items.length >= 20) break;
+            if (!items.find(i => i.id === item.id)) items.push(item);
+         }
+       }
+       setCarouselItems(items.slice(0, 20));
+    } else {
+       // Fully random from pool
+       const shuffledPool = pool.sort(() => 0.5 - Math.random());
+       const selection: MediaItem[] = [];
+       const seen = new Set();
+       for (const item of shuffledPool) {
+         if (selection.length >= 20) break;
+         if (!seen.has(item.id)) {
+           selection.push(item);
+           seen.add(item.id);
+         }
+       }
+       setCarouselItems(selection);
+    }
+  }, [loading, ranking, hotSeries, homepageData]);
 
   if (loading) {
     return (
@@ -153,8 +231,6 @@ export default function Home() {
     );
   }
 
-  const carouselItems = (trending.length > 0 ? trending : (homepageData?.topPickList || [])).slice(0, 6);
-
   return (
     <div className="min-h-screen bg-black text-white pb-10 md:pb-20">
       <SEO />
@@ -174,9 +250,13 @@ export default function Home() {
         {user && continueWatching.length > 0 && (
           <ContinueWatchingGrid title="Continue Watching" items={continueWatching} />
         )}
+        
+        {ranking.length > 0 && (
+          <TopTenGrid title="Top 10 on Axis TV" items={ranking.slice(0, 10)} />
+        )}
 
-        {trending.length > 0 && (
-          <TopTenGrid title="Top 10 on Axis TV" items={trending.slice(6, 16)} />
+        {trending.length > 6 && (
+          <PosterGrid title="Trending Now" items={trending.slice(6)} />
         )}
 
         {recommendations.length > 0 && (
@@ -200,20 +280,12 @@ export default function Home() {
           </div>
         )}
         
-        {homepageData?.latestMovies && homepageData.latestMovies.length > 0 && (
-          <PosterGrid title="Latest Movies" items={homepageData.latestMovies} viewAllLink="/browse?type=1" />
-        )}
-        
         {homepageData?.latestSeries && homepageData.latestSeries.length > 0 && (
-          <PosterGrid title="Latest Series" items={homepageData.latestSeries} viewAllLink="/browse?type=2" />
-        )}
-        
-        {hotMovies.length > 0 && (
-          <PosterGrid title="Hot Movies" items={hotMovies} viewAllLink="/movies" />
+          <PosterGrid title="Latest Featured" items={homepageData.latestSeries} viewAllLink="/browse?type=2" />
         )}
         
         {hotSeries.length > 0 && (
-          <PosterGrid title="Hot Series" items={hotSeries} viewAllLink="/series" />
+          <PosterGrid title="Hot Picks" items={hotSeries} viewAllLink="/series" />
         )}
 
         {homepageData?.operatingList?.map((section: any, idx: number) => (

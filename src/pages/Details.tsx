@@ -352,9 +352,16 @@ export default function Details() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white pb-20">
-      <SEO 
-        title={details.title}
+    <div className="min-h-screen bg-black text-white pb-20 relative overflow-hidden" style={{ '--theme-color': details.avgHueDark || '#E50914' } as React.CSSProperties}>
+      {/* Immersive Background Glow */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute top-0 right-0 w-[80vw] h-[80vw] bg-[var(--theme-color)] rounded-full blur-[150px] -translate-y-1/2 translate-x-1/2 opacity-20 transition-all duration-1000" />
+        <div className="absolute bottom-0 left-0 w-[50vw] h-[50vw] bg-[var(--theme-color)] rounded-full blur-[120px] translate-y-1/2 -translate-x-1/3 opacity-10 transition-all duration-1000" />
+      </div>
+
+      <div className="relative z-10">
+        <SEO 
+          title={details.title}
         description={details.description.slice(0, 160)}
         keywords={`${details.title}, watch ${details.title} online, ${details.genres?.join(', ')}, Axis TV`}
         image={details.poster}
@@ -467,35 +474,35 @@ export default function Details() {
            </div>
         </div>
 
-        {/* Action Buttons Row - Screenshot Style */}
-        <div className="flex flex-wrap gap-2 md:gap-3 py-2">
+        {/* Action Buttons Row - Scrollable on mobile to prevent stacking */}
+        <div className="flex overflow-x-auto no-scrollbar gap-2 md:gap-3 py-2 -mx-5 px-5">
            <button 
               onClick={() => setShowDetails(true)}
-              className="flex items-center gap-3 px-5 md:px-6 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all border border-white/5 active:scale-95 group"
+              className="flex items-center gap-3 px-5 md:px-6 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all border border-white/5 active:scale-95 group flex-shrink-0"
            >
               <Info className="w-4 h-4 md:w-5 md:h-5 text-gray-400 group-hover:text-white transition-colors" />
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">Details</span>
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest whitespace-nowrap">Details</span>
            </button>
            <button 
               onClick={() => setIsDownloadTrayOpen(true)}
-              className="flex items-center gap-3 px-5 md:px-6 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all border border-white/5 active:scale-95 group"
+              className="flex items-center gap-3 px-5 md:px-6 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all border border-white/5 active:scale-95 group flex-shrink-0"
            >
               <Download className="w-4 h-4 md:w-5 md:h-5 text-gray-400 group-hover:text-white transition-colors" />
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">Download</span>
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest whitespace-nowrap">Download</span>
            </button>
            <button 
               onClick={toggleWatchlist}
-              className="flex items-center gap-3 px-5 md:px-6 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all border border-white/5 active:scale-95 group"
+              className="flex items-center gap-3 px-5 md:px-6 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all border border-white/5 active:scale-95 group flex-shrink-0"
            >
               <Plus className="w-4 h-4 md:w-5 md:h-5 text-gray-400 group-hover:text-white transition-colors" />
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-center">Add to Playlist</span>
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest whitespace-nowrap">Playlist</span>
            </button>
            <button 
               onClick={() => handleShare()}
-              className="flex items-center gap-3 px-5 md:px-6 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all border border-white/5 active:scale-95 group"
+              className="flex items-center gap-3 px-5 md:px-6 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all border border-white/5 active:scale-95 group flex-shrink-0"
            >
               <Share2 className="w-4 h-4 md:w-5 md:h-5 text-gray-400 group-hover:text-white transition-colors" />
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">Share</span>
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest whitespace-nowrap">Share</span>
            </button>
         </div>
 
@@ -752,6 +759,7 @@ export default function Details() {
           })}
         </div>
       </Tray>
+      </div>
     </div>
   );
 }

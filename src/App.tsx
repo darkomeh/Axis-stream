@@ -49,8 +49,8 @@ const Toons = lazyWithRetry(() => import("./pages/Toons"));
 const Profile = lazyWithRetry(() => import("./pages/Profile"));
 const Playlist = lazyWithRetry(() => import("./pages/Playlist"));
 const Ranking = lazyWithRetry(() => import("./pages/Ranking"));
-const Live = lazyWithRetry(() => import("./pages/Live"));
 const Legal = lazyWithRetry(() => import("./pages/Legal"));
+const Admin = lazyWithRetry(() => import("./pages/Admin"));
 
 import { useAuth } from "./contexts/AuthContext";
 
@@ -96,30 +96,36 @@ function AppContent() {
             <PopcornLoader />
           </div>
         }>
-          <AnimatePresence mode="wait">
-            <motion.div key={location.pathname}>
-              <Routes location={location}>
-                <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
-                <Route path="/search" element={<PageWrapper><Search /></PageWrapper>} />
-                <Route path="/details/:id" element={<PageWrapper><Details /></PageWrapper>} />
-                <Route path="/watch/:id/:slug?" element={<PageWrapper><Details /></PageWrapper>} />
-                <Route path="/browse" element={<PageWrapper><Browse /></PageWrapper>} />
-                <Route path="/anime" element={<PageWrapper><Anime /></PageWrapper>} />
-                <Route path="/actor/:id" element={<PageWrapper><ActorPage /></PageWrapper>} />
-                <Route path="/toons" element={<PageWrapper><Toons /></PageWrapper>} />
-                <Route path="/playlist" element={<PageWrapper><Playlist /></PageWrapper>} />
-                <Route path="/profile" element={<PageWrapper><Profile /></PageWrapper>} />
-                <Route path="/ranking" element={<PageWrapper><Ranking /></PageWrapper>} />
-                <Route path="/live" element={<PageWrapper><Live /></PageWrapper>} />
-                <Route path="/legal/:type" element={<PageWrapper><Legal /></PageWrapper>} />
-                {/* Fallback routes for movies/series/trending to browse for now */}
-                <Route path="/movies" element={<PageWrapper><Browse /></PageWrapper>} />
-                <Route path="/movie" element={<PageWrapper><Browse /></PageWrapper>} />
-                <Route path="/series" element={<PageWrapper><Browse /></PageWrapper>} />
-                <Route path="/trending" element={<PageWrapper><Anime /></PageWrapper>} />
-              </Routes>
-            </motion.div>
-          </AnimatePresence>
+      <AnimatePresence mode="wait">
+        <motion.div 
+          key={location.pathname}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+        >
+          <Routes location={location}>
+            <Route path="/" element={<Home />} />
+            <Route path="/search" element={<Search />} />
+            <Route path="/details/:id" element={<Details />} />
+            <Route path="/watch/:id/:slug?" element={<Details />} />
+            <Route path="/browse" element={<Browse />} />
+            <Route path="/anime" element={<Anime />} />
+            <Route path="/actor/:id" element={<ActorPage />} />
+            <Route path="/toons" element={<Toons />} />
+            <Route path="/playlist" element={<Playlist />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/ranking" element={<Ranking />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/legal/:type" element={<Legal />} />
+            {/* Fallback routes for movies/series/trending to browse for now */}
+            <Route path="/movies" element={<Browse />} />
+            <Route path="/movie" element={<Browse />} />
+            <Route path="/series" element={<Browse />} />
+            <Route path="/trending" element={<Anime />} />
+          </Routes>
+        </motion.div>
+      </AnimatePresence>
         </Suspense>
       </main>
       {shouldShowNav && <BottomNav />}

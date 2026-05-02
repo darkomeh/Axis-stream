@@ -1,12 +1,22 @@
 import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { trackVisitor } from '../services/firebaseService';
 
 export const Analytics = () => {
   const location = useLocation();
 
   useEffect(() => {
+    // track in firebase for admin panel
+    trackVisitor();
+    
     // Replace G-XXXXXXXXXX with your actual Google Analytics ID
     const GA_ID = 'G-XXXXXXXXXX'; 
+    
+    // Only proceed if a real GA ID is provided
+    if (GA_ID === 'G-XXXXXXXXXX') {
+      console.log('Analytics is in placeholder mode. Update the GA_ID in src/components/Analytics.tsx to enable.');
+      return;
+    }
     
     if (!window.gtag) {
       const script = document.createElement('script');

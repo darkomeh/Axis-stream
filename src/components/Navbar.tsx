@@ -38,10 +38,7 @@ function Navbar() {
     { label: 'Movies', path: '/movies', icon: Film, isActive: location.pathname === '/movies' || location.search.includes('type=1') },
     { label: 'Series', path: '/series', icon: Tv, isActive: location.pathname === '/series' || location.search.includes('type=2') },
     { label: 'Rank', path: '/ranking', icon: Trophy, isActive: location.pathname === '/ranking' },
-    { label: 'Profile', path: '/profile', icon: UserIcon, isActive: location.pathname === '/profile' },
-    { label: 'Live TV', path: '/live', icon: Radio, isActive: location.pathname === '/live' },
     { label: 'Browse', path: '/browse', icon: LayoutGrid, isActive: location.pathname === '/browse' && !location.search },
-    { label: 'Categories', path: '/categories', icon: Grid2X2, isActive: location.pathname === '/categories' },
   ];
 
   const shouldHide = !!previewId;
@@ -126,10 +123,6 @@ function Navbar() {
               </form>
             </div>
             <div className="flex shrink-0 items-center gap-8">
-              <button onClick={() => showToast("No new notifications", "info")} className="relative text-gray-400 hover:text-white hover:scale-110 transition-all">
-                 <Bell className="w-6 h-6" />
-                 <div className="absolute top-0 right-0 w-3 h-3 bg-brand rounded-full border-2 border-bg-base" />
-              </button>
               <Link to="/profile" className="hover:scale-110 transition-transform">
                  {user?.avatar ? (
                    <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-brand to-transparent">

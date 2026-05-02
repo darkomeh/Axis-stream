@@ -425,15 +425,7 @@ app.get("/api/staff/related", async (req, res) => {
   }
 });
 
-app.get("/api/live", async (req, res) => {
-  try {
-    const data = await externalMovieService.getLive();
-    res.json(data);
-  } catch (error: any) {
-    console.error("[API] Live error:", error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+
 
 // Image Proxy Route
 app.get("/api/image-proxy", async (req, res) => {

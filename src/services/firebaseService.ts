@@ -93,17 +93,21 @@ export const resetPassword = async (email: string) => {
 export const trackVisitor = async () => {
   const path = 'analytics/global';
   try {
+    const today = new Date().toISOString().split('T')[0];
     const statsRef = doc(db, path);
     await updateDoc(statsRef, {
       totalVisitors: increment(1),
+      [`dailyVisitors.${today}`]: increment(1),
       lastUpdated: serverTimestamp()
     });
   } catch (error: any) {
     // If doc doesn't exist, create it (error code for missing doc is usually 404 or specific firestore error)
     try {
+      const today = new Date().toISOString().split('T')[0];
       await setDoc(doc(db, path), {
         totalVisitors: 1,
         totalWatchTimeSeconds: 0,
+        dailyVisitors: { [today]: 1 },
         lastUpdated: serverTimestamp()
       }, { merge: true });
     } catch (e) {
@@ -190,7 +194,7 @@ export const replyToTicket = async (ticketId: string, text: string) => {
 export const getGlobalStats = async () => {
   try {
     const snap = await getDoc(doc(db, 'analytics', 'global'));
-    let globalData = snap.exists() ? snap.data() : { totalVisitors: 0, totalWatchTimeSeconds: 0, totalSearches: 0, mostSearchedQueries: [] };
+    let globalData = snap.exists() ? snap.data() : { totalVisitors: 0, totalWatchTimeSeconds: 0, totalSearches: 0, mostSearchedQueries: [], dailyVisitors: {} };
     
     // Attempt to get accurate user count, but don't fail if permissions are missing
     let totalUsers = 0;
@@ -202,8 +206,12 @@ export const getGlobalStats = async () => {
       console.warn("Could not fetch user count for global stats (permissions?)");
     }
 
+    const today = new Date().toISOString().split('T')[0];
+    const todayVisitors = globalData.dailyVisitors?.[today] || 0;
+
     return {
       ...globalData,
+      todayVisitors,
       totalUsers: totalUsers || globalData.totalUsers || 0
     };
   } catch (error) {
@@ -534,7 +542,22 @@ export const updateAdminConfig = async (configData: any) => {
   const path = 'admin/config';
   try {
     const configRef = doc(db, 'admin', 'config');
-    await setDoc(configRef, { ...configData, lastUpdated: serverTimestamp() }, { merge: true });
+    // Recursively remove undefined values
+    const cleanObject = (obj: any): any => {
+      if (obj === null || obj === undefined) return null;
+      if (typeof obj !== 'object') return obj;
+      if (Array.isArray(obj)) return obj.map(cleanObject);
+      const result: any = {};
+      for (const key in obj) {
+        if (obj[key] !== undefined) {
+          result[key] = cleanObject(obj[key]);
+        }
+      }
+      return result;
+    };
+    
+    const cleanedData = cleanObject(configData);
+    await setDoc(configRef, { ...cleanedData, lastUpdated: serverTimestamp() }, { merge: true });
   } catch (error) {
     if (error instanceof Error && error.message.includes('Missing or insufficient permissions')) {
       console.warn("Only verified admins can update config.");

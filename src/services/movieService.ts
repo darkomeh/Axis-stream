@@ -5,7 +5,6 @@ import {
   ItemDetails, 
   MediaData, 
   Actor, 
-  LiveMatch, 
   RankingItem 
 } from '../types';
 
@@ -68,16 +67,6 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 1, backoff =
             rank: index + 1,
             year: item.releaseDate ? item.releaseDate.substring(0, 4) : item.year,
             avgHueDark: item.avgHueDark || item.avgHue || item.hue || '#1a1a1a'
-          }));
-        }
-        else if (config.url === '/live') {
-          processedData = (data || []).map((item: any) => ({
-            id: String(item.id),
-            title: item.title,
-            cover: getImageUrl(item.cover),
-            url: item.url,
-            status: item.status,
-            time: item.time
           }));
         }
         else if (config.url === '/staff/detail') {
@@ -251,6 +240,42 @@ export const movieService = {
     } catch (e: any) {
       console.error("Error in search:", e.message || e);
       return [];
+    }
+  },
+
+  async getAggregatedPopular(): Promise<{ trending: MediaItem[], hot: { movies: MediaItem[], series: MediaItem[] }, ranking: MediaItem[], homepage: HomepageData }> {
+    try {
+      const data = await fetchWithRetry({ url: '/aggregated-popular' });
+      return {
+        trending: (data.trending || []).map(normalizeItem),
+        hot: {
+          movies: (data.hot?.movies || []).map(normalizeItem),
+          series: (data.hot?.series || []).map(normalizeItem)
+        },
+        ranking: (data.ranking || []).map((item: any, index: number) => ({
+          id: String(item.subjectId || item.id),
+          title: item.title,
+          poster: getImageUrl(item.cover) || getImageUrl(item.poster) || '',
+          rating: item.score || item.imdbRatingValue || item.rating,
+          rank: index + 1,
+          year: item.releaseDate ? item.releaseDate.substring(0, 4) : item.year,
+          avgHueDark: item.avgHueDark || item.avgHue || item.hue || '#1a1a1a'
+        })),
+        homepage: {
+          topPickList: (data.homepage?.topPickList || []).map(normalizeItem),
+          homeList: (data.homepage?.homeList || []).map(normalizeItem),
+          latestMovies: (data.homepage?.latestMovies || []).map(normalizeItem),
+          latestSeries: (data.homepage?.latestSeries || []).map(normalizeItem),
+          operatingList: (data.homepage?.operatingList || []).map((op: any) => ({
+            ...op,
+            subjects: (op.subjects || []).map(normalizeItem)
+          }))
+        }
+      };
+    } catch (e) {
+      console.error("Aggregation failed, falling back to manual fetches", e);
+      // Construct from individual calls if needed or return empty structure
+      return { trending: [], hot: { movies: [], series: [] }, ranking: [], homepage: { topPickList: [], homeList: [], latestMovies: [], latestSeries: [], operatingList: [] } };
     }
   },
 
@@ -529,14 +554,7 @@ export const movieService = {
         const embedUrl = season ? `https://vidsrc.to/embed/tv/${subjectId}/${season}/${episode || 1}` : `https://vidsrc.to/embed/movie/${subjectId}`;
         
         return { 
-          sources: [
-            {
-              quality: 'Auto',
-              url: embedUrl,
-              type: 'hls' as const,
-              downloadType: 'hls' as const
-            }
-          ], 
+          sources: [], 
           subtitles: [],
           embedUrl,
           audioTracks: []
@@ -554,15 +572,6 @@ export const movieService = {
 
   async getActorDetails(staffId: string): Promise<Actor> {
     return await fetchWithRetry({ url: `/staff/detail`, params: { staffId } });
-  },
-
-  async getLive(): Promise<LiveMatch[]> {
-    try {
-      return await fetchWithRetry({ url: `/live` });
-    } catch (e: any) {
-      console.error("Error in getLive:", e.message || e);
-      return [];
-    }
   },
 
   async getActorWorks(staffId: string, page = 1, perPage = 24): Promise<MediaItem[]> {

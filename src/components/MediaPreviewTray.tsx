@@ -95,7 +95,6 @@ export default function MediaPreviewTray() {
   const handleClose = () => {
     if (videoRef.current) {
       videoRef.current.pause();
-      videoRef.current.src = "";
     }
     closePreview();
   };
@@ -154,8 +153,9 @@ export default function MediaPreviewTray() {
     setIsDownloadTrayOpen(false);
   };
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   const isContinueWatching = triggerSource === 'continue-watching';
-  const isTrailerSuppressed = !preferences.showTrailers;
+  const isTrailerSuppressed = !preferences.showTrailers || (isMobile && !user); // Auto-suppress for guests on mobile to save data
   const trailerUrl = details?.trailerUrl || 
                      (typeof details?.trailer === 'object' ? (details.trailer?.videoAddress?.url || (details.trailer as any)?.url) : details?.trailer) || 
                      (details as any)?.trailer_url;
@@ -185,7 +185,11 @@ export default function MediaPreviewTray() {
 
   // Ambient Backlighting Logic
   useEffect(() => {
-    let animationFrameId: number;
+    let timeoutId: NodeJS.Timeout;
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    
+    if (isMobile) return;
+
     const renderFrame = () => {
       if (videoRef.current && canvasRef.current && !videoRef.current.paused && !videoRef.current.ended) {
         const ctx = canvasRef.current.getContext('2d', { alpha: false });
@@ -196,13 +200,15 @@ export default function MediaPreviewTray() {
           ctx.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
         }
       }
-      animationFrameId = requestAnimationFrame(renderFrame);
+      timeoutId = setTimeout(renderFrame, 100);
     };
     if (trailerUrl && !isTrailerSuppressed) {
       renderFrame();
     }
-    return () => cancelAnimationFrame(animationFrameId);
+    return () => clearTimeout(timeoutId);
   }, [trailerUrl, isTrailerSuppressed]);
+
+  const isTrailerEmbed = trailerUrl?.includes('youtube.com') || trailerUrl?.includes('youtu.be') || trailerUrl?.includes('vimeo.com') || trailerUrl?.includes('/embed/');
 
   // Autoplay Unmute Logic Callback
   const handleCanPlay = () => {
@@ -252,40 +258,56 @@ export default function MediaPreviewTray() {
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin" />
                 </div>
-              ) : !user ? (
-                <div className="relative w-full h-full flex flex-col items-center justify-center bg-black/60 backdrop-blur-md px-6 text-center z-30">
-                  <div className="w-16 h-16 bg-brand/20 rounded-full flex items-center justify-center mb-4">
-                    <Play className="w-8 h-8 text-brand fill-current" />
-                  </div>
-                  <h3 className="text-xl font-black uppercase tracking-tighter text-white mb-2 italic">Login to Stream</h3>
-                  <p className="text-gray-400 text-xs font-bold uppercase tracking-widest max-w-[280px]">Access trailers, high-quality streams, and favorites by signing in.</p>
-                  <button 
-                    onClick={() => { handleClose(); navigate('/profile'); }}
-                    className="mt-6 px-8 py-3 bg-brand text-white rounded-full font-black uppercase tracking-widest text-xs hover:bg-brand-hover transition-all active:scale-95 shadow-lg"
-                  >
-                    Sign In Now
-                  </button>
-                </div>
-              ) : !isTrailerSuppressed && trailerUrl ? (
+              ) : trailerUrl ? (
                 <>
                   <canvas 
                     ref={canvasRef} 
                     className="absolute inset-x-0 bottom-0 top-1/2 w-full h-[150%] object-cover blur-[80px] opacity-70 scale-125 z-0 saturate-200 pointer-events-none origin-bottom mix-blend-screen"
                     aria-hidden="true"
                   />
-                  <video
-                    ref={videoRef}
-                    src={trailerUrl || undefined}
-                    autoPlay
-                    muted={isMuted}
-                    loop={false}
-                    playsInline
-                    onCanPlay={handleCanPlay}
-                    className="w-full h-full object-cover relative z-10 shadow-[0_0_100px_rgba(0,0,0,0.5)] bg-black"
-                    onEnded={() => setTrailerEnded(true)}
-                    onError={() => setTrailerEnded(true)}
-                  />
-                  {!trailerEnded && (
+                  {isTrailerEmbed ? (
+                    <iframe
+                      src={trailerUrl.includes('?') ? `${trailerUrl}&autoplay=${isTrailerSuppressed ? 0 : 1}&mute=1` : `${trailerUrl}?autoplay=${isTrailerSuppressed ? 0 : 1}&mute=1`}
+                      className="w-full h-full border-none relative z-10 shadow-[0_0_100px_rgba(0,0,0,0.5)] bg-black"
+                      allow="autoplay; fullscreen"
+                    />
+                  ) : (
+                    <video
+                      ref={videoRef}
+                      src={trailerUrl?.includes('youtube.com') || trailerUrl?.includes('youtu.be') ? undefined : (trailerUrl?.includes('google') || trailerUrl?.includes('m3u8') ? trailerUrl : `/api/proxy?url=${encodeURIComponent(trailerUrl || '')}`)}
+                      autoPlay={Boolean(trailerUrl) && !isTrailerSuppressed}
+                      muted={isMuted}
+                      loop={false}
+                      playsInline
+                      preload="auto"
+                      onCanPlay={handleCanPlay}
+                      className="w-full h-full object-cover relative z-10 shadow-[0_0_100px_rgba(0,0,0,0.5)] bg-black"
+                      onEnded={() => setTrailerEnded(true)}
+                      onError={(e) => {
+                        console.error("Trailer playback error", e);
+                        setTrailerEnded(true);
+                      }}
+                    />
+                  )}
+                  {isTrailerSuppressed && !trailerEnded && !isTrailerEmbed && (
+                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-none">
+                       <button 
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           if (videoRef.current) {
+                             videoRef.current.muted = false;
+                             setIsMuted(false);
+                             videoRef.current.play();
+                           }
+                         }}
+                         className="w-16 h-16 rounded-full bg-brand flex items-center justify-center text-white shadow-2xl hover:scale-110 active:scale-95 transition-all pointer-events-auto"
+                       >
+                         <Play className="w-8 h-8 fill-current ml-1" />
+                       </button>
+                       <p className="mt-4 text-xs font-black uppercase tracking-widest text-white/80">Play Trailer</p>
+                    </div>
+                  )}
+                  {!isTrailerEmbed && !trailerEnded && (
                     <button
                       onClick={() => setIsMuted(prev => !prev)}
                       className="absolute bottom-4 sm:bottom-6 right-4 sm:right-6 z-40 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/40 backdrop-blur border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all hover:scale-110"
@@ -293,7 +315,7 @@ export default function MediaPreviewTray() {
                       {isMuted ? <VolumeX className="w-5 h-5 sm:w-6 sm:h-6" /> : <Volume2 className="w-5 h-5 sm:w-6 sm:h-6" />}
                     </button>
                   )}
-                  {trailerEnded && (
+                  {!isTrailerEmbed && trailerEnded && (
                     <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-4 z-30">
                       <button 
                          onClick={() => { setTrailerEnded(false); videoRef.current?.play(); }} 
@@ -312,6 +334,18 @@ export default function MediaPreviewTray() {
                 </>
               ) : (
                 <div className="relative w-full h-full">
+                  {!user && (
+                    <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/40 backdrop-blur-md text-center p-6">
+                      <h3 className="text-xl font-black italic uppercase tracking-tighter mb-2">Member Only Content</h3>
+                      <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest max-w-[240px]">This item has restricted access. Sign in to see more or stream.</p>
+                      <button 
+                        onClick={() => { handleClose(); navigate('/profile'); }}
+                        className="mt-4 px-6 py-2 bg-brand text-white rounded-full font-black uppercase tracking-widest text-[10px]"
+                      >
+                        Sign In
+                      </button>
+                    </div>
+                  )}
                   <AnimatePresence mode="popLayout">
                     <motion.div
                       key={slideIndex}
@@ -347,7 +381,7 @@ export default function MediaPreviewTray() {
               </div>
 
               {/* Mute/Unmute Float */}
-              {!loading && trailerUrl && (
+              {!loading && trailerUrl && !isTrailerEmbed && (
                 <div className="absolute bottom-fluid-sm right-fluid-sm z-20">
                   <button 
                     onClick={() => setIsMuted(!isMuted)}
@@ -378,35 +412,44 @@ export default function MediaPreviewTray() {
             {/* Detailed Content */}
             <div className="px-fluid py-fluid-sm space-y-6 md:space-y-10">
               {/* Meta Info Row - Based on reference image */}
-              <div className="flex flex-col gap-1 md:gap-2">
-                <div className="flex flex-wrap items-center gap-1.5 md:gap-2 text-[11px] md:text-sm font-bold text-gray-300">
-                  {details?.year && <span className="hover:text-white transition-colors">{details.year}</span>}
-                  <span className="text-gray-600 font-normal">|</span>
-                  {details?.rating && (
-                    <span className="px-1 md:px-1.5 py-0.5 rounded border border-white/20 text-[9px] md:text-[10px] font-black tracking-widest text-gray-300">
-                      {details.rating}
-                    </span>
+              <div className="flex flex-col gap-1.5 md:gap-2">
+                <div className="flex flex-wrap items-center gap-2 text-[10px] md:text-sm font-bold text-gray-300">
+                  {details?.year && (
+                    <span className="hover:text-white transition-colors">{details.year}</span>
                   )}
-                  <span className="text-gray-600 font-normal">|</span>
-                  {details?.duration && <span>{details.duration}</span>}
-                  <span className="text-gray-600 font-normal">|</span>
-                  <span className="flex items-center gap-1">
-                    {(Array.isArray(details?.genres) ? details.genres : (details?.genres as any)?.split(',') || []).slice(0, 3).map((g: string, i: number, arr: string[]) => (
-                      <span key={i} className="flex items-center">
-                        {g.trim()}
-                        {i < arr.length - 1 && <span className="mr-0.5 md:mr-1">,</span>}
+                  {details?.rating && (
+                    <>
+                      <span className="text-gray-700 font-normal">|</span>
+                      <span className="px-1.5 py-0.5 rounded border border-white/20 text-[8px] md:text-[10px] font-black tracking-widest text-gray-300">
+                        {details.rating}
                       </span>
-                    ))}
-                  </span>
-                  <span className="text-gray-600 font-normal">|</span>
-                  <div className="flex items-center gap-1 md:gap-1.5 bg-[#f5c518] px-1 md:px-1.5 py-0.5 rounded overflow-hidden">
-                    <span className="text-[8px] md:text-[10px] text-black font-black uppercase tracking-tighter">IMDb</span>
-                    <span className="text-black font-black text-[10px] md:text-xs leading-none">{details?.imdbRatingValue || '8.0'}</span>
-                  </div>
+                    </>
+                  )}
+                  {details?.duration && (
+                    <>
+                      <span className="text-gray-700 font-normal">|</span>
+                      <span>{details.duration}</span>
+                    </>
+                  )}
+                  {details?.imdbRatingValue && (
+                    <>
+                      <span className="text-gray-700 font-normal">|</span>
+                      <div className="flex items-center gap-1 md:gap-1.5 bg-[#f5c518] px-1.5 py-0.5 rounded overflow-hidden">
+                        <span className="text-[7px] md:text-[10px] text-black font-black uppercase tracking-tighter">IMDb</span>
+                        <span className="text-black font-black text-[9px] md:text-xs leading-none">{details?.imdbRatingValue}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
                 
-                <div className="text-[9px] md:text-[10px] text-gray-500 font-bold uppercase tracking-[0.15em] md:tracking-[0.2em] mt-1">
-                  {playData?.subtitles?.length ? `Subtitles: ${playData.subtitles.map(s => s.language).join(', ')}` : "Standard Subtitles Available"}
+                {/* Genres row - wrapped separately for better flow */}
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-wider">
+                  {(Array.isArray(details?.genres) ? details.genres : (details?.genres as any)?.split(',') || []).slice(0, 4).map((g: string, i: number, arr: string[]) => (
+                    <span key={i} className="flex items-center">
+                      {g.trim()}
+                      {i < arr.length - 1 && <span className="ml-2 text-gray-700">•</span>}
+                    </span>
+                  ))}
                 </div>
               </div>
               

@@ -98,7 +98,7 @@ export default function VideoPlayer({
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
   const [volume, setVolume] = useState(1);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -314,13 +314,21 @@ export default function VideoPlayer({
     }
   }, [sortedSubtitles, hasAutoSelectedSubs, currentSubtitleTrack]);
 
-  // Ambient backlighting canvas loop
+  // Ambient backlighting canvas loop - Highly optimized for performance
   useEffect(() => {
-    let animationFrameId: number;
+    let timeoutId: NodeJS.Timeout;
+    const isMobile = window.innerWidth < 768;
+    
+    // Disable ambient light on mobile entirely to save battery and stop lag
+    if (isMobile) return;
+
     const renderFrame = () => {
       if (videoRef.current && canvasRef.current && !videoRef.current.paused) {
-        const ctx = canvasRef.current.getContext("2d");
+        const ctx = canvasRef.current.getContext("2d", { alpha: false });
         if (ctx) {
+          // Force tiny resolution for the blur to be performant
+          canvasRef.current.width = 100;
+          canvasRef.current.height = 56;
           ctx.drawImage(
             videoRef.current,
             0,
@@ -330,14 +338,15 @@ export default function VideoPlayer({
           );
         }
       }
-      animationFrameId = requestAnimationFrame(renderFrame);
+      // Run at ~10 FPS instead of 60 to drastically reduce lag
+      timeoutId = setTimeout(renderFrame, 100);
     };
 
     if (!useIframeFallback) {
       renderFrame();
     }
 
-    return () => cancelAnimationFrame(animationFrameId);
+    return () => clearTimeout(timeoutId);
   }, [useIframeFallback, isPlaying]);
 
   useEffect(() => {
@@ -597,11 +606,18 @@ export default function VideoPlayer({
         if (isHls) {
           const HlsClass = await loadHls();
           if (HlsClass.isSupported()) {
+            const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
             const hls = new HlsClass({
               enableWorker: true,
               capLevelToPlayerSize: true,
               startLevel: -1, // Auto
+              // DATA SAVING OPTIMIZATIONS
+              maxBufferLength: 30, // Buffer less to save data if user stops watching
+              maxMaxBufferLength: 60,
             });
+            if (isMobile) {
+              hls.autoLevelCapping = 2; // Cap auto quality on mobile
+            }
             hlsRef.current = hls;
             hls.loadSource(source.url);
             hls.attachMedia(video);
@@ -904,8 +920,8 @@ export default function VideoPlayer({
                   : "object-contain"
             }`}
             playsInline
-            autoPlay
             crossOrigin="anonymous"
+            preload="metadata"
           />
         </>
       )}
@@ -1039,18 +1055,19 @@ export default function VideoPlayer({
               stiffness: 300,
               opacity: { duration: 0.15 },
             }}
-            className="absolute inset-x-0 flex items-center justify-center pointer-events-none z-30 px-6 md:px-12 transition-all duration-500 ease-out"
+            className="absolute inset-x-0 flex items-center justify-center pointer-events-none z-30 px-4 md:px-12 transition-all duration-500 ease-out"
           >
             <div
-              className="text-center drop-shadow-2xl"
+              className={`text-center drop-shadow-2xl px-3 py-1 rounded-sm`}
               style={{
-                fontSize: `clamp(11px, 2vw, ${subtitleSettings.fontSize}px)`,
-                color: subtitleSettings.color,
-                backgroundColor: subtitleSettings.backgroundColor,
+                fontSize: `clamp(12px, 3vw, ${subtitleSettings.fontSize || 18}px)`,
+                color: subtitleSettings.color || '#FFFFFF',
+                backgroundColor: subtitleSettings.backgroundColor || 'rgba(0,0,0,0.6)',
                 fontWeight: 600,
-                maxWidth: "85%",
-                lineHeight: 1.3,
-                textShadow: "0 2px 4px rgba(0,0,0,1), 0 0 10px rgba(0,0,0,0.8)",
+                maxWidth: "90%",
+                lineHeight: 1.4,
+                wordBreak: 'break-word',
+                textShadow: "0 1px 2px rgba(0,0,0,0.8)",
               }}
             >
               {activeSubtitle.text}
@@ -1077,7 +1094,7 @@ export default function VideoPlayer({
                 >
                   <ArrowLeft className="w-6 h-6 md:w-7 md:h-7 drop-shadow-md" />
                 </button>
-                <div className="ml-2 overflow-hidden">
+                <div className="ml-2 overflow-hidden max-w-[150px] sm:max-w-none">
                   <h1 className="text-[10px] md:text-sm font-black text-white truncate drop-shadow-lg uppercase tracking-widest italic opacity-80">
                     {title}
                   </h1>
@@ -1369,26 +1386,26 @@ export default function VideoPlayer({
             onClick={() => setActiveMenu(null)}
           >
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              transition={{ duration: 0.15 }}
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
               onClick={(e) => e.stopPropagation()}
-              className="absolute bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 md:right-8 w-full max-w-[260px] bg-zinc-900/98 backdrop-blur-3xl border border-white/10 rounded-xl shadow-2xl overflow-hidden pointer-events-auto text-white ring-1 ring-white/10"
+              className="absolute bottom-4 right-4 md:bottom-24 md:right-8 w-[calc(100%-2rem)] max-w-[300px] max-h-[calc(100%-2rem)] flex flex-col bg-zinc-900/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden pointer-events-auto text-white ring-1 ring-white/10"
             >
               {activeMenu !== "settings" && (
                 <div
-                  className="flex items-center p-3 border-b border-white/10 cursor-pointer hover:bg-white/10 transition-colors"
+                  className="flex items-center p-4 border-b border-white/10 cursor-pointer hover:bg-white/10 transition-colors shrink-0"
                   onClick={() => setActiveMenu("settings")}
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  <span className="font-bold text-[10px] uppercase tracking-widest text-[#00A8E1]">
-                    {activeMenu}
+                  <span className="font-black text-[10px] uppercase tracking-[0.2em] text-[#00A8E1]">
+                    {activeMenu.replace('-', ' ')}
                   </span>
                 </div>
               )}
 
-              <div className="max-h-[40vh] md:max-h-[350px] overflow-y-auto no-scrollbar py-2">
+              <div className="overflow-y-auto no-scrollbar flex-1">
                 {activeMenu === "settings" && (
                   <div className="flex flex-col">
                     <button
@@ -1557,7 +1574,7 @@ export default function VideoPlayer({
                       </button>
                     </div>
 
-                    <div className="max-h-[300px] overflow-y-auto no-scrollbar py-1">
+                    <div className="max-h-full overflow-y-auto no-scrollbar py-1">
                       {Array.from({ length: seasons?.find(s => s.se === viewingSeason)?.maxEp || 0 }).map((_, i) => {
                         const epNum = i + 1;
                         const isCurrent = viewingSeason === selectedSeason && epNum === selectedEpisode;
@@ -1650,19 +1667,19 @@ export default function VideoPlayer({
                       Style Options
                     </div>
 
-                    <div className="p-4 space-y-5">
-                      <section className="space-y-2">
-                        <label className="text-[11px] font-black uppercase text-white/30 tracking-widest pl-1">
+                    <div className="p-4 space-y-6">
+                      <section className="space-y-3">
+                        <label className="text-[10px] font-black uppercase text-white/30 tracking-[0.2em] pl-1">
                           Size
                         </label>
-                        <div className="flex gap-2">
+                        <div className="grid grid-cols-4 gap-2">
                           {[14, 18, 22, 28].map((size) => (
                             <button
                               key={size}
                               onClick={() =>
                                 updateSubtitleSetting({ fontSize: size })
                               }
-                              className={`flex-1 py-2 rounded-lg transition-all border ${subtitleSettings.fontSize === size ? "bg-brand border-brand text-white shadow-lg" : "bg-white/5 border-white/5 text-white/60 hover:bg-white/10"}`}
+                              className={`py-2.5 rounded-xl transition-all border font-bold ${subtitleSettings.fontSize === size ? "bg-brand border-brand text-white shadow-lg" : "bg-white/5 border-white/5 text-white/60 hover:bg-white/10"}`}
                             >
                               {size === 14
                                 ? "S"
@@ -1676,17 +1693,17 @@ export default function VideoPlayer({
                         </div>
                       </section>
 
-                      <section className="space-y-2">
-                        <label className="text-[11px] font-black uppercase text-white/30 tracking-widest pl-1">
+                      <section className="space-y-3">
+                        <label className="text-[10px] font-black uppercase text-white/30 tracking-[0.2em] pl-1">
                           Color
                         </label>
-                        <div className="flex justify-between items-center bg-white/5 p-2 rounded-xl border border-white/5">
+                        <div className="flex justify-between items-center bg-white/5 p-3 rounded-2xl border border-white/5">
                           {["#ffffff", "#ffff00", "#00ffff", "#ff00ff"].map(
                             (color) => (
                               <button
                                 key={color}
                                 onClick={() => updateSubtitleSetting({ color })}
-                                className={`w-8 h-8 rounded-full border-2 transition-all ${subtitleSettings.color === color ? "scale-110 border-white ring-2 ring-white/20" : "border-transparent opacity-50 hover:opacity-100"}`}
+                                className={`w-9 h-9 rounded-full border-2 transition-all ${subtitleSettings.color === color ? "scale-110 border-white ring-4 ring-white/10" : "border-transparent opacity-50 hover:opacity-100"}`}
                                 style={{ backgroundColor: color }}
                               />
                             ),
@@ -1694,11 +1711,11 @@ export default function VideoPlayer({
                         </div>
                       </section>
 
-                      <section className="space-y-2">
-                        <label className="text-[11px] font-black uppercase text-white/30 tracking-widest pl-1">
-                          Background Opacity
+                      <section className="space-y-3">
+                        <label className="text-[10px] font-black uppercase text-white/30 tracking-[0.2em] pl-1">
+                          Opacity
                         </label>
-                        <div className="flex gap-2">
+                        <div className="grid grid-cols-4 gap-2">
                           {[0, 0.4, 0.6, 0.85].map((op) => {
                             const bg = `rgba(0,0,0,${op})`;
                             const isSelected =
@@ -1709,9 +1726,9 @@ export default function VideoPlayer({
                                 onClick={() =>
                                   updateSubtitleSetting({ backgroundColor: bg })
                                 }
-                                className={`flex-1 py-2 rounded-lg transition-all border ${isSelected ? "bg-brand border-brand text-white" : "bg-white/5 border-white/5 text-white/60"}`}
+                                className={`py-2.5 rounded-xl transition-all border font-bold text-[10px] ${isSelected ? "bg-brand border-brand text-white" : "bg-white/5 border-white/5 text-white/60"}`}
                               >
-                                {op === 0 ? "Pure" : `${Math.round(op * 100)}%`}
+                                {op === 0 ? "Off" : `${Math.round(op * 100)}%`}
                               </button>
                             );
                           })}

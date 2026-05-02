@@ -464,12 +464,11 @@ export default function Profile() {
 
         {/* PREFERENCES SECTION */}
         <div className="bg-white/5 border border-white/10 rounded-[32px] p-6 backdrop-blur-2xl">
-          <button className="w-full flex items-center justify-between mb-6 px-2 group">
+          <div className="w-full flex items-center justify-between mb-6 px-2">
             <h3 className="text-sm font-black uppercase tracking-[0.2em] flex items-center gap-3">
-              <Settings className="w-5 h-5 text-gray-400" /> Preferences
+              <Settings className="w-5 h-5 text-brand" /> Preferences
             </h3>
-            <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-brand transition-colors" />
-          </button>
+          </div>
           
           <div className="space-y-6 px-2">
             {[

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { movieService } from "../services/movieService";
+import { getAdminConfig } from "../services/firebaseService";
 import { RankingItem } from "../types";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -31,8 +32,52 @@ export default function Ranking() {
     try {
       if (rankings.length === 0) setLoading(true);
       setError(null);
-      const data = await movieService.getRanking();
-      setRankings(data.slice(0, 50));
+      const [data, adminConfig, hotResult] = await Promise.all([
+        movieService.getRanking(),
+        getAdminConfig(),
+        movieService.getHot()
+      ]);
+      
+      let baseRankings = [...data];
+      
+      // Inject admin spotlights if enabled
+      if (adminConfig?.spotlights?.top10) {
+        const top10 = adminConfig.spotlights.top10;
+        for (let i = 0; i < 10; i++) {
+          if (top10[i]) {
+            const existingIndex = baseRankings.findIndex(r => r.id === top10[i].id);
+            if (existingIndex !== -1 && existingIndex !== i) {
+                baseRankings.splice(existingIndex, 1);
+            }
+            if (baseRankings.length > i) baseRankings[i] = { ...baseRankings[i], ...top10[i] };
+            else baseRankings.push(top10[i] as any);
+          }
+        }
+      }
+
+      // Mix in Hot movies/series to ensure we have at least 30 high quality items
+      let pool: any[] = [];
+      if (hotResult) {
+        pool = [...hotResult.movies, ...hotResult.series];
+      }
+
+      let finalRankings = [...baseRankings];
+      
+      if (finalRankings.length < 30 && pool.length > 0) {
+        const shuffledPool = pool.sort(() => 0.5 - Math.random());
+        for (const item of shuffledPool) {
+          if (finalRankings.length >= 30) break;
+          if (!finalRankings.find(r => r.id === item.id)) {
+            finalRankings.push({
+              ...item,
+              score: item.score || item.rating || "9.5",
+              cover: item.cover || item.poster
+            });
+          }
+        }
+      }
+
+      setRankings(finalRankings.slice(0, 30));
     } catch (e) {
       console.error("Failed to load rankings", e);
       setError("Failed to load rankings. Please try again.");
@@ -87,7 +132,7 @@ export default function Ranking() {
           </div>
           <div>
             <h1 className="text-5xl md:text-7xl font-black mb-3 tracking-tighter uppercase italic leading-none">
-              Axis TV <span className="text-brand">Rankings</span>
+              Top 30 <span className="text-brand">Ranking</span>
             </h1>
             <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-[10px] md:text-xs">The Authoritative Guide to Global Cinematic Excellence</p>
           </div>
@@ -108,26 +153,26 @@ export default function Ranking() {
                 className="group relative"
               >
                 {/* Large Background Rank Shadow */}
-                <span className="absolute -left-10 md:-left-16 top-1/2 -translate-y-1/2 font-black text-[150px] md:text-[250px] leading-none tracking-tighter text-transparent select-none opacity-10 transition-all duration-700 pointer-events-none group-hover:opacity-20 group-hover:scale-110" style={{ WebkitTextStroke: '2px rgba(255,255,255,0.3)', fontFamily: 'Inter' }}>
+                <span className="hidden md:block absolute -left-16 top-1/2 -translate-y-1/2 font-black text-[250px] leading-none tracking-tighter text-transparent select-none opacity-10 transition-all duration-700 pointer-events-none group-hover:opacity-20 group-hover:scale-110" style={{ WebkitTextStroke: '2px rgba(255,255,255,0.3)', fontFamily: 'Inter' }}>
                    {idx + 1}
                 </span>
 
                 <div 
                   role="button"
                   onClick={() => openPreview(item.id)}
-                  className="relative block bg-white/[0.03] backdrop-blur-3xl border border-white/5 rounded-[40px] overflow-hidden hover:bg-white/[0.07] hover:border-white/20 transition-all duration-500 shadow-2xl active:scale-[0.99] cursor-pointer"
+                  className="relative block bg-white/[0.03] backdrop-blur-3xl border border-white/5 rounded-3xl md:rounded-[40px] overflow-hidden hover:bg-white/[0.07] hover:border-white/20 transition-all duration-500 shadow-2xl active:scale-[0.99] cursor-pointer"
                 >
-                  <div className="flex flex-col sm:flex-row items-center gap-4 md:gap-12 p-4 md:p-10">
+                  <div className="flex flex-row items-stretch gap-4 md:gap-12 p-4 md:p-10">
                     
-                    {/* Rank Number Circle */}
-                    <div className="flex-shrink-0 w-16 h-16 md:w-24 md:h-24 rounded-full bg-black/40 border border-white/10 flex items-center justify-center z-10 shadow-inner group-hover:border-brand/50 transition-colors">
+                    {/* Rank Number Circle - Hidden on small mobile */}
+                    <div className="hidden sm:flex flex-shrink-0 w-16 h-16 md:w-24 md:h-24 rounded-full bg-black/40 border border-white/10 items-center justify-center z-10 shadow-inner group-hover:border-brand/50 transition-colors self-center">
                       <span className={`text-2xl md:text-4xl font-black italic tracking-tighter ${idx < 3 ? 'text-brand' : 'text-white/40'}`}>
                         #{idx + 1}
                       </span>
                     </div>
 
                     {/* Poster with Glass Frame */}
-                    <div className="flex-shrink-0 w-32 sm:w-24 md:w-44 aspect-[2/3] rounded-[24px] overflow-hidden border border-white/10 shadow-2xl group-hover:scale-105 transition-transform duration-700 relative z-10">
+                    <div className="flex-shrink-0 w-24 sm:w-28 md:w-44 aspect-[2/3] rounded-xl md:rounded-[24px] overflow-hidden border border-white/10 shadow-2xl group-hover:scale-105 transition-transform duration-700 relative z-10 self-center">
                       {item.cover || item.poster ? (
                         <MovieImage 
                           src={item.cover || item.poster} 
@@ -143,34 +188,37 @@ export default function Ranking() {
                     </div>
 
                     {/* Info */}
-                    <div className="flex-1 space-y-3 md:space-y-6 z-10 text-center sm:text-left">
-                      <div className="flex items-center justify-center sm:justify-start gap-3">
-                        <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5">
+                    <div className="flex-1 space-y-2 md:space-y-6 z-10 text-left py-2 flex flex-col justify-center overflow-hidden">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="sm:hidden px-2 py-0.5 bg-black/40 border border-white/10 rounded-md text-[10px] font-black italic shadow-inner">
+                          #{idx + 1}
+                        </div>
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 md:px-3 md:py-1 bg-white/5 rounded-full border border-white/5">
                            <TrendingUp className="w-3 h-3 text-brand" />
-                           <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                             {item.type == 1 || item.type === '1' || item.type === 'Movie' || item.category === 'Movies' ? 'Film' : 'Series'}
+                           <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-gray-400">
+                             {item.type == 2 || item.type === '2' || item.type === 'Series' || item.category === 'Series' ? 'Series' : 'Movie'}
                            </span>
                         </div>
                         {idx < 3 && (
-                          <span className="px-3 py-1 bg-brand text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-[0_0_15px_rgba(255,45,45,0.4)] animate-pulse">
+                          <span className="px-2 py-0.5 md:px-3 md:py-1 bg-brand text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest rounded-full shadow-[0_0_15px_rgba(255,45,45,0.4)] animate-pulse">
                             TOP 3
                           </span>
                         )}
                       </div>
 
-                      <h3 className="text-xl md:text-5xl font-black group-hover:text-brand transition-all tracking-tighter leading-tight uppercase line-clamp-2 italic">
+                      <h3 className="text-lg sm:text-2xl md:text-5xl font-black group-hover:text-brand transition-all tracking-tighter leading-none md:leading-tight uppercase line-clamp-2 md:line-clamp-3 italic truncate sm:whitespace-normal">
                         {item.title}
                       </h3>
 
-                      <div className="flex items-center justify-center sm:justify-start gap-6">
-                        <div className="flex items-center gap-2 px-4 py-2 bg-[#f5c518]/10 rounded-xl border border-[#f5c518]/20">
-                          <Star className="w-5 h-5 text-[#f5c518] fill-[#f5c518]" />
-                          <span className="text-lg md:text-xl font-black text-[#f5c518] italic">{item.score || item.rating || '9.8'}</span>
+                      <div className="flex items-center gap-4 md:gap-6 mt-auto md:mt-0">
+                        <div className="flex items-center gap-1 md:gap-2 px-2 py-1 md:px-4 md:py-2 bg-[#f5c518]/10 rounded-lg md:rounded-xl border border-[#f5c518]/20">
+                          <Star className="w-3.5 h-3.5 md:w-5 md:h-5 text-[#f5c518] fill-[#f5c518]" />
+                          <span className="text-sm md:text-xl font-black text-[#f5c518] italic">{item.score || item.rating || '9.8'}</span>
                         </div>
                         
                         <div className="flex flex-col">
-                           <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Released</span>
-                           <span className="text-sm md:text-base font-bold text-white/60">{item.year || '2024'}</span>
+                           <span className="text-[8px] md:text-[10px] font-black text-gray-500 uppercase tracking-widest leading-none mb-1 md:mb-0">Year</span>
+                           <span className="text-xs md:text-base font-bold text-white/60 leading-none">{item.year || '2024'}</span>
                         </div>
                       </div>
                     </div>

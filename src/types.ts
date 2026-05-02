@@ -93,23 +93,6 @@ export interface Actor {
   biography?: string;
 }
 
-export interface LiveMatch {
-  id: string;
-  title: string;
-  cover: string;
-  url: string;
-  status?: string;
-  time?: string;
-  leagueName?: string;
-  homeLogo?: string;
-  homeName?: string;
-  homeScore?: string;
-  awayLogo?: string;
-  awayName?: string;
-  awayScore?: string;
-  matchTime?: string;
-}
-
 export interface RankingItem {
   id: string;
   title: string;

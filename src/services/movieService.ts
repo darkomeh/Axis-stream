@@ -30,7 +30,7 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 1, backoff =
     return cached.data;
   }
 
-  const tryDirect = false; // Force all requests through our server proxy to avoid CORS/Referer issues on production
+  const tryDirect = !config.url?.startsWith('http') && !config.url?.includes('/staff/');
   if (tryDirect) {
     try {
       const directResponse = await axios.get(`${EXTERNAL_API_URL}${config.url}`, {

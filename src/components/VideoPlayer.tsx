@@ -1410,77 +1410,88 @@ export default function VideoPlayer({
                   <div className="flex flex-col py-2">
                     <button
                       onClick={() => setActiveMenu("audio")}
-                      className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-colors border-b border-white/5"
+                      className="w-full flex items-center justify-between px-6 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
                     >
                       <div className="flex flex-col items-start">
-                        <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">Audio Tracks</span>
+                        <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">Audio</span>
                         <span className="text-[14px] font-black italic">
-                          {mediaData.audioTracks?.[currentAudioTrack]?.language || "Default"}
+                          {mediaData.audioTracks?.[currentAudioTrack]?.language || "Default Track"}
                         </span>
                       </div>
                       <ChevronDown className="w-4 h-4 -rotate-90 text-white/40" />
                     </button>
                     <button
                       onClick={() => setActiveMenu("subtitles")}
-                      className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-colors border-b border-white/5"
+                      className="w-full flex items-center justify-between px-6 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
                     >
                       <div className="flex flex-col items-start">
                         <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">Captions</span>
                         <span className="text-[14px] font-black italic">
-                          {currentSubtitleTrack === -1 ? "Off" : sortedSubtitles[currentSubtitleTrack]?.displayName || "Selected"}
-                        </span>
-                      </div>
-                      <ChevronDown className="w-4 h-4 -rotate-90 text-white/40" />
-                    </button>
-                    <button
-                      onClick={() => setActiveMenu("quality")}
-                      className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-colors border-b border-white/5"
-                    >
-                      <div className="flex flex-col items-start">
-                        <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">Quality</span>
-                        <span className="text-[14px] font-black italic">
-                          {hlsRef.current && hlsRef.current.currentLevel === -1 ? "Dynamic" : hlsRef.current ? `${hlsLevels[hlsCurrentLevel]?.height}p` : "Original"}
-                        </span>
-                      </div>
-                      <ChevronDown className="w-4 h-4 -rotate-90 text-white/40" />
-                    </button>
-                    <button
-                      onClick={() => setActiveMenu("speed")}
-                      className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-colors border-b border-white/5"
-                    >
-                      <div className="flex flex-col items-start">
-                        <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">Speed</span>
-                        <span className="text-[14px] font-black italic">
-                          {playbackSpeed === 1 ? "Normal" : `${playbackSpeed}x`}
+                          {currentSubtitleTrack === -1
+                            ? "Disabled"
+                            : sortedSubtitles[currentSubtitleTrack]?.displayName || "Selected"}
                         </span>
                       </div>
                       <ChevronDown className="w-4 h-4 -rotate-90 text-white/40" />
                     </button>
                     <button
                       onClick={() => setActiveMenu("caption-settings")}
-                      className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-colors border-b border-white/5"
+                      className="w-full flex items-center justify-between px-6 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
                     >
                       <div className="flex flex-col items-start">
-                        <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">Styles</span>
-                        <span className="text-[14px] font-black italic">Settings</span>
+                        <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">Appearance</span>
+                        <span className="text-[14px] font-black italic">Subtitle Styles</span>
                       </div>
                       <ChevronDown className="w-4 h-4 -rotate-90 text-white/40" />
                     </button>
+                    <button
+                      onClick={() => setActiveMenu("quality")}
+                      className="w-full flex items-center justify-between px-6 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
+                    >
+                      <div className="flex flex-col items-start">
+                        <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">Video Quality</span>
+                        <span className="text-[14px] font-black italic">
+                          {hlsRef.current && hlsRef.current.currentLevel === -1
+                            ? "Auto (Dynamic)"
+                            : hlsRef.current
+                              ? `${hlsLevels[hlsCurrentLevel]?.height}p`
+                              : selectedSourceIdx >= 0 &&
+                                  mediaData.sources[selectedSourceIdx]
+                                ? `${mediaData.sources[selectedSourceIdx]?.quality}p`
+                                : "Original"}
+                        </span>
+                      </div>
+                      <ChevronDown className="w-4 h-4 -rotate-90 text-white/40" />
+                    </button>
+                    <button
+                      onClick={() => setActiveMenu("speed")}
+                      className="w-full flex items-center justify-between px-6 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
+                    >
+                      <div className="flex flex-col items-start">
+                        <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">Playback Speed</span>
+                        <span className="text-[14px] font-black italic">
+                          {playbackSpeed === 1 ? "Normal Speed" : `${playbackSpeed}x`}
+                        </span>
+                      </div>
+                      <ChevronDown className="w-4 h-4 -rotate-90 text-white/40" />
+                    </button>
+                    
                     {seasons && seasons.length > 0 && (
                       <button
                         onClick={() => {
                           setViewingSeason(selectedSeason || 1);
                           setActiveMenu("episodes");
                         }}
-                        className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-colors border-b border-white/5"
+                        className="w-full flex items-center justify-between px-6 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
                       >
                         <div className="flex flex-col items-start">
-                          <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">Episodes</span>
-                          <span className="text-[14px] font-black italic">S{selectedSeason} E{selectedEpisode}</span>
+                          <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">Navigation</span>
+                          <span className="text-[14px] font-black italic">S{selectedSeason} E{selectedEpisode} Selection</span>
                         </div>
                         <ChevronDown className="w-4 h-4 -rotate-90 text-white/40" />
                       </button>
                     )}
+
                     <button
                       onClick={() => {
                         const source = mediaData.sources[selectedSourceIdx];
@@ -1502,9 +1513,9 @@ export default function VideoPlayer({
                         a.click();
                         document.body.removeChild(a);
                       }}
-                      className="w-full flex items-center justify-between px-6 py-5 hover:bg-brand/10 transition-colors text-brand group"
+                      className="w-full flex items-center justify-between px-6 py-4 hover:bg-brand/10 transition-colors text-brand group"
                     >
-                      <span className="text-[15px] font-black italic group-hover:scale-105 transition-transform">
+                      <span className="text-[14px] font-black italic group-hover:scale-105 transition-transform">
                         Download Offline
                       </span>
                       <Download className="w-5 h-5" />

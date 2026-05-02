@@ -63,14 +63,14 @@ export const MovieImage: React.FC<MovieImageProps> = ({
         referrerPolicy="no-referrer"
         onError={(e) => {
           const target = e.currentTarget;
-          if (target.src.includes('/api/image-proxy') || target.src.includes('data:image')) {
+          if (target.src.includes('/api/image-proxy')) {
             if (fallback && target.src !== fallback) {
               setCurrentSrc(fallback);
             }
-            return;
+          } else {
+            const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(target.src)}`;
+            setCurrentSrc(proxyUrl);
           }
-          const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(target.src)}`;
-          setCurrentSrc(proxyUrl);
         }}
         {...props}
       />

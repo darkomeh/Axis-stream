@@ -274,7 +274,7 @@ export default function MediaPreviewTray() {
                   ) : (
                     <video
                       ref={videoRef}
-                      src={trailerUrl?.includes('youtube.com') || trailerUrl?.includes('youtu.be') ? undefined : (trailerUrl?.includes('google') || trailerUrl?.includes('m3u8') ? trailerUrl : `/api/proxy?url=${encodeURIComponent(trailerUrl || '')}`)}
+                      src={trailerUrl?.includes('youtube.com') || trailerUrl?.includes('youtu.be') ? undefined : (trailerUrl ? `/api/proxy?url=${encodeURIComponent(trailerUrl)}` : undefined)}
                       autoPlay={Boolean(trailerUrl) && !isTrailerSuppressed}
                       muted={isMuted}
                       loop={false}
@@ -491,7 +491,7 @@ export default function MediaPreviewTray() {
                       <div className="relative">
                         <SmartActorImage 
                           staffId={actor.id}
-                          initialAvatar={actor.avatar}
+                          initialAvatar={actor.avatarUrl || actor.avatar}
                           alt={actor.name} 
                           className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-2 md:border-4 border-white/5 bg-[#1a1a1a] group-hover:border-brand/40 transition-all shadow-2xl !rounded-full" 
                         />

@@ -20,23 +20,11 @@ export const MovieImage: React.FC<MovieImageProps> = ({
   // Try to use provided tint, fallback to a dark gray
   const bgTint = avgHueDark || '#1a1a1a';
   
-  // Try to use direct URL with referrer policy first
-  // If it's http on https site, force proxy to avoid mixed content block
-  const [currentSrc, setCurrentSrc] = React.useState(() => {
-    const initial = src || fallback || '';
-    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && initial.startsWith('http:')) {
-      return `/api/image-proxy?url=${encodeURIComponent(initial)}`;
-    }
-    return initial;
-  });
+  // Use direct URL by default (no-referrer often allows Douban/external images to load)
+  const [currentSrc, setCurrentSrc] = React.useState(src || fallback || '');
 
   React.useEffect(() => {
-    const next = src || fallback || '';
-    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && next.startsWith('http:')) {
-      setCurrentSrc(`/api/image-proxy?url=${encodeURIComponent(next)}`);
-    } else {
-      setCurrentSrc(next);
-    }
+    setCurrentSrc(src || fallback || '');
   }, [src, fallback]);
 
   if (!currentSrc) {

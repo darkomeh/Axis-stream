@@ -128,9 +128,7 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 1, backoff =
             type: subject.subjectType === 2 ? 'Series' : 'Movie',
             seasons: data.resource?.seasons,
             trailer: subject.trailer,
-            trailerUrl: (typeof subject.trailerUrl === 'string' ? subject.trailerUrl : subject.trailerUrl?.url) || 
-                        (typeof subject.trailer === 'string' ? subject.trailer : (subject.trailer?.videoAddress?.url || subject.trailer?.url)) || 
-                        (typeof data.trailerUrl === 'string' ? data.trailerUrl : data.trailerUrl?.url) || '',
+            trailerUrl: sanitizeTrailerUrl(subject.trailerUrl || subject.trailer || data.trailerUrl),
             duration: subject.duration ? `${Math.floor(subject.duration / 60)}m` : undefined,
             detailPath: subject.detailPath
           };
@@ -203,6 +201,24 @@ function sanitizeImageUrl(url: string): string {
   if (cleanUrl.includes('image.tmdb.org') || cleanUrl.includes('/original/')) {
     cleanUrl = cleanUrl.replace('/original/', '/w500/');
   }
+  return cleanUrl;
+}
+
+function sanitizeTrailerUrl(url: string | any): string {
+  if (!url) return '';
+  let cleanUrl = typeof url === 'string' ? url : (url.url || '');
+  if (!cleanUrl) return '';
+
+  // Convert YouTube Watch links to Embed links
+  if (cleanUrl.includes('youtube.com/watch?v=')) {
+    const videoId = new URL(cleanUrl).searchParams.get('v');
+    if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+  }
+  if (cleanUrl.includes('youtu.be/')) {
+    const videoId = cleanUrl.split('/').pop();
+    if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+  }
+
   return cleanUrl;
 }
 

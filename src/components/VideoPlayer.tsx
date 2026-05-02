@@ -1380,30 +1380,30 @@ export default function VideoPlayer({
         )}
       </AnimatePresence>
 
-      {/* Settings Modals - Minimal Apple-style Popover */}
+      {/* Settings Modals - Minimal Netflix-style panel on the Right */}
       <AnimatePresence>
         {activeMenu && (
           <div
-            className="absolute inset-0 z-50 flex items-center justify-center p-4 sm:p-8"
+            className="absolute inset-0 z-50 flex items-center justify-end p-2 pointer-events-none"
             onClick={() => setActiveMenu(null)}
           >
-            {/* Dark backdrop blur */}
+            {/* Minimal dark backdrop - only visible on small screens or just subtle */}
             <motion.div 
                initial={{ opacity: 0 }}
                animate={{ opacity: 1 }}
                exit={{ opacity: 0 }}
-               className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+               className="absolute inset-0 bg-black/20 backdrop-blur-[2px] sm:bg-transparent pointer-events-auto" 
             />
 
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ duration: 0.3, ease: [0.2, 0, 0, 1] }}
+              initial={{ opacity: 0, x: 40, scale: 0.98 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 40, scale: 0.98 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-[340px] bg-[#141414]/95 border border-white/10 rounded-[24px] overflow-hidden shadow-2xl shadow-black/80 ring-1 ring-white/5"
+              className="relative w-full max-w-[180px] h-fit bg-black/85 backdrop-blur-2xl rounded-[8px] overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-white/5 pointer-events-auto ring-1 ring-white/5"
             >
-              <div className="flex flex-col py-2 max-h-[85vh] overflow-y-auto no-scrollbar">
+              <div className="flex flex-col py-1 max-h-[80vh] overflow-y-auto no-scrollbar">
                 {activeMenu === "settings" && (
                   <div className="flex flex-col">
                     {[
@@ -1416,12 +1416,12 @@ export default function VideoPlayer({
                       <button
                         key={item.id}
                         onClick={() => setActiveMenu(item.id as any)}
-                        className="w-full flex items-center justify-between px-8 py-5 hover:bg-white/5 active:bg-white/10 transition-colors group"
+                        className="w-full flex items-center justify-between px-4 py-2 hover:bg-white/10 active:bg-white/15 transition-all group"
                       >
-                        <span className="text-base font-medium text-white/90 group-hover:text-white transition-colors">{item.label}</span>
-                        <div className="flex items-center gap-4">
-                           <span className="text-base font-normal text-white/40">{item.value}</span>
-                           <ChevronDown className="w-5 h-5 -rotate-90 text-white/20" />
+                        <span className="text-xs font-medium text-white group-hover:text-white transition-opacity">{item.label}</span>
+                        <div className="flex items-center gap-2">
+                           <span className="text-[10px] font-normal text-[#aaa] group-hover:text-white transition-colors">{item.value}</span>
+                           <ChevronDown className="w-3 h-3 -rotate-90 text-[#aaa] group-hover:text-white transition-colors" />
                         </div>
                       </button>
                     ))}
@@ -1432,12 +1432,12 @@ export default function VideoPlayer({
                           setViewingSeason(selectedSeason || 1);
                           setActiveMenu("episodes");
                         }}
-                        className="w-full flex items-center justify-between px-8 py-5 hover:bg-white/5 active:bg-white/10 transition-colors group"
+                        className="w-full flex items-center justify-between px-4 py-2 hover:bg-white/10 active:bg-white/15 transition-all group"
                       >
-                        <span className="text-base font-medium text-white/90 group-hover:text-white transition-colors">Episodes</span>
-                        <div className="flex items-center gap-4">
-                           <span className="text-base font-normal text-white/40">S{selectedSeason} E{selectedEpisode}</span>
-                           <ChevronDown className="w-5 h-5 -rotate-90 text-white/20" />
+                        <span className="text-xs font-medium text-white">Season & Episode</span>
+                        <div className="flex items-center gap-2">
+                           <span className="text-[10px] font-normal text-[#aaa]">S{selectedSeason} E{selectedEpisode}</span>
+                           <ChevronDown className="w-3 h-3 -rotate-90 text-[#aaa]" />
                         </div>
                       </button>
                     )}
@@ -1458,36 +1458,36 @@ export default function VideoPlayer({
                         a.click();
                         document.body.removeChild(a);
                       }}
-                      className="w-full flex items-center justify-between px-8 py-6 hover:bg-white/5 active:bg-white/10 transition-all group"
+                      className="w-full flex items-center justify-between px-4 py-2 hover:bg-white/10 active:bg-white/15 transition-all group"
                     >
-                      <span className="text-base font-medium text-white/90">Download</span>
-                      <div className="text-[#FF3B30] opacity-80 group-hover:opacity-100 transition-opacity">
-                         <Download className="w-6 h-6" />
+                      <span className="text-xs font-medium text-white/90">Download</span>
+                      <div className="text-[#E50914] flex items-center">
+                         <Download className="w-4 h-4" />
                       </div>
                     </button>
                   </div>
                 )}
                     {activeMenu === "episodes" && (
                   <div className="flex flex-col">
-                    <div className="px-8 py-6 flex items-center gap-4">
-                      <button onClick={() => setActiveMenu("settings")} className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors">
-                        <ArrowLeft className="w-5 h-5 text-white/40" />
+                    <div className="px-4 py-3 flex items-center gap-2 border-b border-white/5">
+                      <button onClick={() => setActiveMenu("settings")} className="p-1 -ml-1 hover:bg-white/10 rounded-full transition-colors">
+                        <ArrowLeft className="w-3 h-3 text-white/40" />
                       </button>
-                      <span className="text-base font-bold uppercase tracking-[0.2em] text-white/30">Episodes</span>
+                      <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/30">Episodes</span>
                     </div>
 
                     <button 
                       onClick={() => setActiveMenu("seasons")}
-                      className="w-full flex items-center justify-between px-8 py-5 bg-white/5 group hover:bg-white/10 transition-colors"
+                      className="w-full flex items-center justify-between px-4 py-2 bg-white/5 group hover:bg-white/10 transition-colors"
                     >
                       <div className="flex flex-col items-start">
-                        <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Current Season</span>
-                        <span className="text-sm font-black text-white italic group-hover:text-brand transition-colors">Season {viewingSeason.toString().padStart(2, '0')}</span>
+                        <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">Season</span>
+                        <span className="text-xs font-black text-white italic group-hover:text-brand transition-colors">Season {viewingSeason.toString().padStart(2, '0')}</span>
                       </div>
-                      <ChevronDown className="w-4 h-4 text-white/30 group-hover:text-brand transition-colors" />
+                      <ChevronDown className="w-3 h-3 text-white/30 group-hover:text-brand transition-colors" />
                     </button>
 
-                    <div className="flex flex-col py-2 max-h-[40vh] overflow-y-auto no-scrollbar">
+                    <div className="flex flex-col py-1 max-h-[40vh] overflow-y-auto no-scrollbar">
                       {Array.from({ length: seasons?.find(s => s.se === viewingSeason)?.maxEp || 0 }).map((_, i) => {
                         const epNum = i + 1;
                         const isCurrent = viewingSeason === selectedSeason && epNum === selectedEpisode;
@@ -1498,15 +1498,15 @@ export default function VideoPlayer({
                               onEpisodeChange?.(viewingSeason, epNum);
                               setActiveMenu(null);
                             }}
-                            className={`w-full flex items-center justify-between px-8 py-4 hover:bg-white/5 transition-colors ${isCurrent ? 'bg-brand/10 text-brand' : 'text-white/70'}`}
+                            className={`w-full flex items-center justify-between px-4 py-2 hover:bg-white/5 transition-colors ${isCurrent ? 'bg-brand/10 text-brand' : 'text-white/70'}`}
                           >
-                            <div className="flex items-center gap-4">
-                              <span className={`text-[10px] font-mono tabular-nums ${isCurrent ? 'text-brand' : 'text-white/20'}`}>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[9px] font-mono tabular-nums ${isCurrent ? 'text-brand' : 'text-white/20'}`}>
                                 {epNum.toString().padStart(2, '0')}
                               </span>
-                              <span className="text-sm font-bold truncate">Episode {epNum}</span>
+                              <span className="text-xs font-bold truncate">Episode {epNum}</span>
                             </div>
-                            {isCurrent && <Check className="ml-auto w-4 h-4" />}
+                            {isCurrent && <Check className="ml-auto w-3 h-3" />}
                           </button>
                         );
                       })}
@@ -1599,23 +1599,23 @@ export default function VideoPlayer({
 
                 {activeMenu === "audio" && (
                   <div className="flex flex-col">
-                    <div className="px-8 py-6 flex items-center gap-4 border-b border-white/5">
-                      <button onClick={() => setActiveMenu("settings")} className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors">
-                        <ArrowLeft className="w-5 h-5 text-white/40" />
+                    <div className="px-4 py-3 flex items-center gap-2 border-b border-white/5">
+                      <button onClick={() => setActiveMenu("settings")} className="p-1 -ml-1 hover:bg-white/10 rounded-full transition-colors">
+                        <ArrowLeft className="w-3 h-3 text-white/40" />
                       </button>
-                      <span className="text-base font-bold uppercase tracking-[0.2em] text-white/30">Audio Track</span>
+                      <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/30">Audio Track</span>
                     </div>
-                    <div className="flex flex-col py-2">
+                    <div className="flex flex-col py-1">
                        {sortedAudioTracks.map((track: any, idx) => {
                          const isSelected = track.originalIdx !== undefined ? currentAudioTrack === track.originalIdx : currentAudioTrack === idx;
                          return (
                            <button
                              key={idx}
                              onClick={() => handleAudioTrackChangeInternal(track.originalIdx !== undefined ? { ...track, idx: track.originalIdx } : { ...track, idx })}
-                             className={`w-full flex items-center justify-between px-8 py-5 hover:bg-white/5 transition-colors ${isSelected ? "text-brand bg-brand/5" : "text-white/70"}`}
+                             className={`w-full flex items-center justify-between px-4 py-2 hover:bg-white/5 transition-colors ${isSelected ? "text-brand bg-brand/5" : "text-white/70"}`}
                            >
-                             <span className={`text-base ${isSelected ? 'font-black italic' : 'font-medium'}`}>{track.displayName || track.language || track.name || `Track ${idx + 1}`}</span>
-                             {isSelected && <Check className="w-5 h-5" />}
+                             <span className={`text-xs ${isSelected ? 'font-black italic' : 'font-medium'}`}>{track.displayName || track.language || track.name || `Track ${idx + 1}`}</span>
+                             {isSelected && <Check className="w-3 h-3" />}
                            </button>
                          );
                        })}
@@ -1625,23 +1625,23 @@ export default function VideoPlayer({
 
                 {activeMenu === "subtitles" && (
                   <div className="flex flex-col">
-                    <div className="px-8 py-6 flex items-center gap-4 border-b border-white/5">
-                      <button onClick={() => setActiveMenu("settings")} className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors">
-                        <ArrowLeft className="w-5 h-5 text-white/40" />
+                    <div className="px-4 py-3 flex items-center gap-2 border-b border-white/5">
+                      <button onClick={() => setActiveMenu("settings")} className="p-1 -ml-1 hover:bg-white/10 rounded-full transition-colors">
+                        <ArrowLeft className="w-3 h-3 text-white/40" />
                       </button>
-                      <span className="text-base font-bold uppercase tracking-[0.2em] text-white/30">Captions</span>
+                      <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/30">Captions</span>
                     </div>
-                    <div className="flex flex-col py-2">
+                    <div className="flex flex-col py-1">
                       <button
                         onClick={() => {
                           if (hlsRef.current) hlsRef.current.subtitleTrack = -1;
                           setCurrentSubtitleTrack(-1);
                           setActiveMenu("settings");
                         }}
-                        className={`w-full flex items-center justify-between px-8 py-5 hover:bg-white/5 transition-colors ${currentSubtitleTrack === -1 ? "text-brand bg-brand/5" : "text-white/70"}`}
+                        className={`w-full flex items-center justify-between px-4 py-2 hover:bg-white/5 transition-colors ${currentSubtitleTrack === -1 ? "text-brand bg-brand/5" : "text-white/70"}`}
                       >
-                        <span className={`text-base ${currentSubtitleTrack === -1 ? 'font-black italic' : 'font-medium'}`}>Off</span>
-                        {currentSubtitleTrack === -1 && <Check className="w-5 h-5" />}
+                        <span className={`text-xs ${currentSubtitleTrack === -1 ? 'font-black italic' : 'font-medium'}`}>Off</span>
+                        {currentSubtitleTrack === -1 && <Check className="w-3 h-3" />}
                       </button>
                       {(sortedSubtitles.length > 0 ? sortedSubtitles : subtitleTracks).map((track: any, idx) => (
                         <button
@@ -1651,10 +1651,10 @@ export default function VideoPlayer({
                             setCurrentSubtitleTrack(idx);
                             setActiveMenu("settings");
                           }}
-                          className={`w-full flex items-center justify-between px-8 py-5 hover:bg-white/5 transition-colors ${currentSubtitleTrack === idx ? "text-brand bg-brand/5" : "text-white/70"}`}
+                          className={`w-full flex items-center justify-between px-4 py-2 hover:bg-white/5 transition-colors ${currentSubtitleTrack === idx ? "text-brand bg-brand/5" : "text-white/70"}`}
                         >
-                          <span className={`text-base ${currentSubtitleTrack === idx ? 'font-black italic' : 'font-medium'}`}>{track.displayName || track.language || track.name || `Track ${idx + 1}`}</span>
-                          {currentSubtitleTrack === idx && <Check className="w-5 h-5" />}
+                          <span className={`text-xs ${currentSubtitleTrack === idx ? 'font-black italic' : 'font-medium'}`}>{track.displayName || track.language || track.name || `Track ${idx + 1}`}</span>
+                          {currentSubtitleTrack === idx && <Check className="w-3 h-3" />}
                         </button>
                       ))}
                     </div>
@@ -1663,13 +1663,13 @@ export default function VideoPlayer({
 
                 {activeMenu === "speed" && (
                   <div className="flex flex-col">
-                    <div className="px-8 py-6 flex items-center gap-4 border-b border-white/5">
-                      <button onClick={() => setActiveMenu("settings")} className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors">
-                        <ArrowLeft className="w-5 h-5 text-white/40" />
+                    <div className="px-4 py-3 flex items-center gap-2 border-b border-white/5">
+                      <button onClick={() => setActiveMenu("settings")} className="p-1 -ml-1 hover:bg-white/10 rounded-full transition-colors">
+                        <ArrowLeft className="w-3 h-3 text-white/40" />
                       </button>
-                      <span className="text-base font-bold uppercase tracking-[0.2em] text-white/30">Playback Speed</span>
+                      <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/30">Playback Speed</span>
                     </div>
-                    <div className="flex flex-col py-2">
+                    <div className="flex flex-col py-1">
                       {[0.5, 0.75, 1, 1.25, 1.5, 2].map((speed) => (
                         <button
                           key={speed}
@@ -1679,10 +1679,10 @@ export default function VideoPlayer({
                             updatePreferences({ playbackSpeed: speed });
                             setActiveMenu("settings");
                           }}
-                          className={`w-full flex items-center justify-between px-8 py-5 hover:bg-white/5 transition-colors ${playbackSpeed === speed ? "text-brand bg-brand/5" : "text-white/70"}`}
+                          className={`w-full flex items-center justify-between px-4 py-2 hover:bg-white/5 transition-colors ${playbackSpeed === speed ? "text-brand bg-brand/5" : "text-white/70"}`}
                         >
-                          <span className={`text-base ${playbackSpeed === speed ? 'font-black italic' : 'font-medium'}`}>{speed === 1 ? "Normal" : `${speed}x`}</span>
-                          {playbackSpeed === speed && <Check className="w-5 h-5" />}
+                          <span className={`text-xs ${playbackSpeed === speed ? 'font-black italic' : 'font-medium'}`}>{speed === 1 ? "Normal" : `${speed}x`}</span>
+                          {playbackSpeed === speed && <Check className="w-3 h-3" />}
                         </button>
                       ))}
                     </div>
@@ -1691,13 +1691,13 @@ export default function VideoPlayer({
 
                 {activeMenu === "quality" && (
                    <div className="flex flex-col">
-                     <div className="px-8 py-6 flex items-center gap-4 border-b border-white/5">
-                       <button onClick={() => setActiveMenu("settings")} className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors">
-                         <ArrowLeft className="w-5 h-5 text-white/40" />
+                     <div className="px-4 py-3 flex items-center gap-2 border-b border-white/5">
+                       <button onClick={() => setActiveMenu("settings")} className="p-1 -ml-1 hover:bg-white/10 rounded-full transition-colors">
+                         <ArrowLeft className="w-3 h-3 text-white/40" />
                        </button>
-                       <span className="text-base font-bold uppercase tracking-[0.2em] text-white/30">Quality</span>
+                       <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/30">Quality</span>
                      </div>
-                     <div className="flex flex-col py-2">
+                     <div className="flex flex-col py-1">
                        {hlsLevels.length > 0 ? (
                          <>
                            <button
@@ -1706,13 +1706,13 @@ export default function VideoPlayer({
                                setHlsCurrentLevel(-1);
                                setActiveMenu("settings");
                              }}
-                             className={`w-full flex items-center justify-between px-8 py-5 hover:bg-white/5 transition-colors ${hlsCurrentLevel === -1 ? "text-brand bg-brand/5" : "text-white/70"}`}
+                             className={`w-full flex items-center justify-between px-4 py-2 hover:bg-white/5 transition-colors ${hlsCurrentLevel === -1 ? "text-brand bg-brand/5" : "text-white/70"}`}
                            >
                              <div className="flex flex-col items-start">
-                               <span className={`text-base ${hlsCurrentLevel === -1 ? 'font-black italic' : 'font-medium'}`}>Auto</span>
-                               <span className="text-[10px] text-white/30 uppercase tracking-widest font-black">Recommended</span>
+                               <span className={`text-xs ${hlsCurrentLevel === -1 ? 'font-black italic' : 'font-medium'}`}>Auto</span>
+                               <span className="text-[8px] text-white/30 uppercase tracking-widest font-black">Rec</span>
                              </div>
-                             {hlsCurrentLevel === -1 && <Check className="w-5 h-5" />}
+                             {hlsCurrentLevel === -1 && <Check className="w-3 h-3" />}
                            </button>
                            {hlsLevels.map((level, idx) => (
                              <button
@@ -1722,10 +1722,10 @@ export default function VideoPlayer({
                                  setHlsCurrentLevel(idx);
                                  setActiveMenu("settings");
                                }}
-                               className={`w-full flex items-center justify-between px-8 py-5 hover:bg-white/5 transition-colors ${hlsCurrentLevel === idx ? "text-brand bg-brand/5" : "text-white/70"}`}
+                               className={`w-full flex items-center justify-between px-4 py-2 hover:bg-white/5 transition-colors ${hlsCurrentLevel === idx ? "text-brand bg-brand/5" : "text-white/70"}`}
                              >
-                               <span className={`text-base ${hlsCurrentLevel === idx ? 'font-black italic' : 'font-medium'}`}>{level.height}p</span>
-                               {hlsCurrentLevel === idx && <Check className="w-5 h-5" />}
+                               <span className={`text-xs ${hlsCurrentLevel === idx ? 'font-black italic' : 'font-medium'}`}>{level.height}p</span>
+                               {hlsCurrentLevel === idx && <Check className="w-3 h-3" />}
                              </button>
                            ))}
                          </>
@@ -1737,10 +1737,10 @@ export default function VideoPlayer({
                                setSelectedSourceIdx(idx);
                                setActiveMenu("settings");
                              }}
-                             className={`w-full flex items-center justify-between px-8 py-5 hover:bg-white/5 transition-colors ${selectedSourceIdx === idx ? "text-brand bg-brand/5" : "text-white/70"}`}
+                             className={`w-full flex items-center justify-between px-4 py-2 hover:bg-white/5 transition-colors ${selectedSourceIdx === idx ? "text-brand bg-brand/5" : "text-white/70"}`}
                            >
-                             <span className={`text-base ${selectedSourceIdx === idx ? 'font-black italic' : 'font-medium'}`}>{source.quality}p</span>
-                             {selectedSourceIdx === idx && <Check className="w-5 h-5" />}
+                             <span className={`text-xs ${selectedSourceIdx === idx ? 'font-black italic' : 'font-medium'}`}>{source.quality}p</span>
+                             {selectedSourceIdx === idx && <Check className="w-3 h-3" />}
                            </button>
                          ))
                        )}

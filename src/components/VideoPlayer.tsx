@@ -1401,7 +1401,7 @@ export default function VideoPlayer({
               exit={{ opacity: 0, x: 40, scale: 0.98 }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-[180px] h-fit bg-black/85 backdrop-blur-2xl rounded-[8px] overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-white/5 pointer-events-auto ring-1 ring-white/5"
+              className="relative w-[min(80vw,180px)] h-fit bg-black/85 backdrop-blur-2xl rounded-[8px] overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-white/5 pointer-events-auto ring-1 ring-white/5"
             >
               <div className="flex flex-col py-1 max-h-[80vh] overflow-y-auto no-scrollbar">
                 {activeMenu === "settings" && (

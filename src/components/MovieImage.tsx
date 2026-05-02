@@ -63,7 +63,11 @@ export const MovieImage: React.FC<MovieImageProps> = ({
         referrerPolicy="no-referrer"
         onError={(e) => {
           const target = e.currentTarget;
-          if (target.src.includes('/api/image-proxy')) {
+          // Try a public proxy first if direct load fails
+          if (!target.src.includes('images.weserv.nl')) {
+              const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(target.src)}`;
+              setCurrentSrc(proxyUrl);
+          } else if (target.src.includes('images.weserv.nl') && target.src.includes('/api/image-proxy')) {
             if (fallback && target.src !== fallback) {
               setCurrentSrc(fallback);
             }

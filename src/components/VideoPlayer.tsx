@@ -1420,31 +1420,26 @@ export default function VideoPlayer({
                 </button>
               </div>
 
-              <div className="overflow-y-auto no-scrollbar flex-1 py-2">
+              <div className="overflow-y-auto no-scrollbar flex-1 py-1">
                 {activeMenu === "settings" && (
                   <div className="flex flex-col">
                     {[
-                      { id: 'audio', label: 'Audio Track', icon: MonitorPlay, value: mediaData.audioTracks?.[currentAudioTrack]?.language || "Default" },
-                      { id: 'subtitles', label: 'Subtitles', icon: MessageCircle, value: currentSubtitleTrack === -1 ? "Off" : sortedSubtitles[currentSubtitleTrack]?.displayName || "Selected" },
+                      { id: 'audio', label: 'Audio', icon: MonitorPlay, value: mediaData.audioTracks?.[currentAudioTrack]?.language || "Default" },
+                      { id: 'subtitles', label: 'Captions', icon: MessageCircle, value: currentSubtitleTrack === -1 ? "Off" : sortedSubtitles[currentSubtitleTrack]?.displayName || "English" },
+                      { id: 'caption-settings', label: 'Caption Style', icon: Settings, value: '' },
                       { id: 'quality', label: 'Quality', icon: Film, value: hlsRef.current && hlsRef.current.currentLevel === -1 ? "Auto" : (hlsRef.current ? `${hlsLevels[hlsCurrentLevel]?.height}p` : `${mediaData.sources[selectedSourceIdx]?.quality || 'Original'}`) },
-                      { id: 'speed', label: 'Playback Speed', icon: Globe, value: `${playbackSpeed}x` },
-                      { id: 'caption-settings', label: 'Subtitle Styles', icon: Settings, value: 'Customize' }
+                      { id: 'speed', label: 'Speed', icon: Globe, value: playbackSpeed === 1 ? 'Normal' : `${playbackSpeed}x` },
                     ].map((item) => (
                       <button
                         key={item.id}
                         onClick={() => setActiveMenu(item.id as any)}
-                        className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0 group"
+                        className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-colors group"
                       >
-                        <div className="flex items-center gap-4">
-                          <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/40 group-hover:bg-brand/20 group-hover:text-brand transition-all">
-                            <item.icon className="w-4 h-4" />
-                          </div>
-                          <div className="flex flex-col items-start">
-                            <span className="text-[10px] font-black uppercase text-white/30 tracking-wider mb-0.5">{item.label}</span>
-                            <span className="text-sm font-bold text-white group-hover:text-brand transition-colors">{item.value}</span>
-                          </div>
+                        <span className="text-sm font-bold text-white/90 group-hover:text-white transition-colors">{item.label}</span>
+                        <div className="flex items-center gap-3">
+                           <span className="text-sm font-medium text-white/40">{item.value}</span>
+                           <ChevronDown className="w-4 h-4 -rotate-90 text-white/20" />
                         </div>
-                        <ChevronDown className="w-4 h-4 -rotate-90 text-white/20" />
                       </button>
                     ))}
                     
@@ -1454,18 +1449,13 @@ export default function VideoPlayer({
                           setViewingSeason(selectedSeason || 1);
                           setActiveMenu("episodes");
                         }}
-                        className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-colors border-b border-white/5 group"
+                        className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-colors group"
                       >
-                        <div className="flex items-center gap-4">
-                          <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/40 group-hover:bg-brand/20 group-hover:text-brand transition-all">
-                            <ListVideo className="w-4 h-4" />
-                          </div>
-                          <div className="flex flex-col items-start">
-                            <span className="text-[10px] font-black uppercase text-white/30 tracking-wider mb-0.5">Episodes</span>
-                            <span className="text-sm font-bold text-white group-hover:text-brand transition-colors">S{selectedSeason} E{selectedEpisode}</span>
-                          </div>
+                        <span className="text-sm font-bold text-white/90 group-hover:text-white transition-colors">Episodes</span>
+                        <div className="flex items-center gap-3">
+                           <span className="text-sm font-medium text-white/40">S{selectedSeason} E{selectedEpisode}</span>
+                           <ChevronDown className="w-4 h-4 -rotate-90 text-white/20" />
                         </div>
-                        <ChevronDown className="w-4 h-4 -rotate-90 text-white/20" />
                       </button>
                     )}
 
@@ -1485,13 +1475,10 @@ export default function VideoPlayer({
                         a.click();
                         document.body.removeChild(a);
                       }}
-                      className="w-full mt-4 flex items-center justify-between px-6 py-5 bg-brand/10 hover:bg-brand/20 transition-all text-brand"
+                      className="w-full flex items-center justify-between px-6 py-5 hover:bg-white/5 transition-all group"
                     >
-                      <div className="flex items-center gap-4">
-                        <Download className="w-5 h-5" />
-                        <span className="text-sm font-black uppercase tracking-widest">Download MP4</span>
-                      </div>
-                      <ChevronDown className="w-4 h-4 -rotate-90" />
+                      <span className="text-sm font-bold text-white/90">Download</span>
+                      <Download className="w-5 h-5 text-brand" />
                     </button>
                   </div>
                 )}
@@ -1734,71 +1721,6 @@ export default function VideoPlayer({
                        ))
                      )}
                    </div>
-                )}
-
-                {activeMenu === "quality" && (
-                  <div className="flex flex-col">
-                    <button
-                      onClick={() => setActiveMenu("settings")}
-                      className="flex items-center gap-2 px-4 py-3 border-b border-white/10 hover:bg-white/5 transition-colors font-medium"
-                    >
-                      <ChevronDown className="w-4 h-4 rotate-90" />
-                      Back
-                    </button>
-                    {hlsRef.current && (
-                      <>
-                        <button
-                          onClick={() => {
-                            if (hlsRef.current)
-                              hlsRef.current.currentLevel = -1;
-                            setHlsCurrentLevel(-1);
-                            setActiveMenu("settings");
-                          }}
-                          className={`w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-[14px] ${hlsCurrentLevel === -1 ? "font-bold text-[#00A8E1]" : ""}`}
-                        >
-                          <span>Auto (Adaptive)</span>
-                          {hlsCurrentLevel === -1 && (
-                            <Check className="w-4 h-4" />
-                          )}
-                        </button>
-                        {hlsLevels.map((level, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => {
-                              if (hlsRef.current)
-                                hlsRef.current.currentLevel = idx;
-                              setHlsCurrentLevel(idx);
-                              setActiveMenu("settings");
-                            }}
-                            className={`w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-[14px] ${hlsCurrentLevel === idx ? "font-bold text-[#00A8E1]" : ""}`}
-                          >
-                            <span>{level.height}p</span>
-                            {hlsCurrentLevel === idx && (
-                              <Check className="w-4 h-4" />
-                            )}
-                          </button>
-                        ))}
-                      </>
-                    )}
-
-                    {!hlsRef.current &&
-                      mediaData.sources &&
-                      mediaData.sources.map((source, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => {
-                            setSelectedSourceIdx(idx);
-                            setActiveMenu("settings");
-                          }}
-                          className={`w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-[14px] ${selectedSourceIdx === idx ? "font-bold text-[#00A8E1]" : ""}`}
-                        >
-                          <span>{source.quality}p</span>
-                          {selectedSourceIdx === idx && (
-                            <Check className="w-4 h-4" />
-                          )}
-                        </button>
-                      ))}
-                  </div>
                 )}
 
                 {activeMenu === "report" && (

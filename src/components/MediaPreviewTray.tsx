@@ -289,13 +289,7 @@ export default function MediaPreviewTray() {
                   ) : (
                     <video
                       ref={videoRef}
-                      src={
-                        trailerUrl?.includes('youtube.com') || trailerUrl?.includes('youtu.be') 
-                          ? undefined 
-                          : (trailerUrl?.startsWith('/api/proxy') 
-                              ? trailerUrl 
-                              : `/api/proxy?url=${encodeURIComponent(trailerUrl || '')}`)
-                      }
+                      src={trailerUrl?.includes('youtube.com') || trailerUrl?.includes('youtu.be') ? undefined : trailerUrl}
                       autoPlay={Boolean(trailerUrl) && !isTrailerSuppressed}
                       muted={isMuted}
                       loop={false}

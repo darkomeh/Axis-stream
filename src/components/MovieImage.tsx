@@ -21,10 +21,22 @@ export const MovieImage: React.FC<MovieImageProps> = ({
   const bgTint = avgHueDark || '#1a1a1a';
   
   // Use raw direct URL
-  const [currentSrc, setCurrentSrc] = React.useState(src || fallback || '');
+  const [currentSrc, setCurrentSrc] = React.useState(() => {
+    const initial = src || fallback || '';
+    // Force proxy for HTTP on HTTPS site to avoid mixed content blocks
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && initial.startsWith('http:')) {
+      return `/api/image-proxy?url=${encodeURIComponent(initial)}`;
+    }
+    return initial;
+  });
 
   React.useEffect(() => {
-    setCurrentSrc(src || fallback || '');
+    const next = src || fallback || '';
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && next.startsWith('http:')) {
+      setCurrentSrc(`/api/image-proxy?url=${encodeURIComponent(next)}`);
+    } else {
+      setCurrentSrc(next);
+    }
   }, [src, fallback]);
 
   if (!currentSrc) {

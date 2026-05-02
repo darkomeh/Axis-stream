@@ -1,7 +1,7 @@
 export interface MediaItem {
   id: string;
   title: string;
-  poster: string;
+  poster?: string;
   rating?: string;
   contentRating?: string;
   type?: string | number;
@@ -63,6 +63,7 @@ export interface ItemDetails {
     resolutions: { resolution: number; epNum: number }[];
   }[];
   trailerUrl?: string;
+  sources?: MediaSource[];
 }
 
 export interface MediaSource {

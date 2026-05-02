@@ -454,6 +454,10 @@ app.get("/api/image-proxy", async (req, res) => {
       method: 'GET',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://movieapi.xcasper.space/',
+        'Cache-Control': 'no-cache',
       }
     });
 
@@ -471,6 +475,7 @@ app.get("/api/image-proxy", async (req, res) => {
                 method: 'GET',
                 headers: { 
                   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+                  'Referer': 'https://movieapi.xcasper.space/',
                 }
             });
             if (fallbackResponse.ok) {
@@ -485,9 +490,18 @@ app.get("/api/image-proxy", async (req, res) => {
 
     const buffer = Buffer.from(await response.arrayBuffer());
     
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    // Auto-detect content type if upstream fails
+    let contentType = response.headers.get('content-type');
+    if (!contentType || contentType === 'application/octet-stream') {
+       if (imageUrl.endsWith('.webp')) contentType = 'image/webp';
+       else if (imageUrl.endsWith('.png')) contentType = 'image/png';
+       else if (imageUrl.endsWith('.svg')) contentType = 'image/svg+xml';
+       else contentType = 'image/jpeg';
+    }
+    
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.send(buffer);
   } catch (error: any) {
     console.error(`[Image Proxy] Error fetching ${imageUrl}:`, error.message);
@@ -503,27 +517,54 @@ app.get("/api/proxy", async (req, res) => {
   }
 
   try {
+    const range = req.headers.range;
+    
     const response = await fetch(videoUrl, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Referer": "https://movieapi.xcasper.space/",
-        ...(req.headers.range && { "Range": req.headers.range }),
+        "Accept": "*/*",
+        "Connection": "keep-alive",
+        ...(range && { "Range": range }),
       },
     });
 
-    if (!response.ok) throw new Error(`External API returned ${response.status}`);
+    if (!response.ok && response.status !== 206) {
+        // Log error but try to return what we have
+        console.warn(`[Proxy] Upstream returned status ${response.status} for ${videoUrl}`);
+    }
 
-    // Forward headers
-    response.headers.forEach((value, name) => res.setHeader(name, value));
+    // Forward crucial headers
+    const headersToForward = [
+      'content-type',
+      'content-length',
+      'content-range',
+      'accept-ranges',
+      'cache-control',
+      'last-modified',
+      'etag'
+    ];
+
+    headersToForward.forEach(h => {
+      const val = response.headers.get(h);
+      if (val) res.setHeader(h, val);
+    });
     
-    if (response.status === 206) res.status(206);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.status(response.status);
 
     if (!response.body) throw new Error("No response body");
 
-    // Pipe the Web ReadableStream to the Express response
-    // @ts-ignore - Node 18+ fetch body is a Web ReadableStream which can be piped in newer Node versions, or we can use Readable.fromWeb
+    // Optimized streaming
     const { Readable } = await import("stream");
-    Readable.fromWeb(response.body as any).pipe(res);
+    const reader = Readable.fromWeb(response.body as any);
+    
+    reader.on('error', (err) => {
+       console.error("[Proxy Stream Error]:", err);
+       if (!res.headersSent) res.status(500).end();
+    });
+
+    reader.pipe(res);
 
   } catch (error: any) {
     console.error("[Proxy] Error:", error.message);

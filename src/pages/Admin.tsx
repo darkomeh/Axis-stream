@@ -212,7 +212,7 @@ export default function Admin() {
         ...systemData,
         ...adminConfigObj, // Overwrite with real firebase config
         totalUsers: firebaseUserCount || statsData.totalUsers,
-        activeUsers: activeUserCount || statsData.activeUsers,
+        activeUserCount: activeUserCount || 0,
         allUsers: combinedUsers,
         mostActive: sortedMostActive,
         advancedStats,

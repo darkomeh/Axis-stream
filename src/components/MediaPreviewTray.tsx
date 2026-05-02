@@ -136,21 +136,36 @@ export default function MediaPreviewTray() {
   const handleDownload = (url: string) => {
     if (!details) return;
     const isSeries = details.type === 'Series';
-    const s = 1;
-    const e = 1;
+    // For series, try to get current selected from state or just default to 1-1
     const dlTitle = isSeries
-      ? `${details.title} S${s} E${e}` 
+      ? `${details.title} S1 E1` 
       : details.title;
     const cleanTitle = dlTitle.replace(/[^a-zA-Z0-9 -]/g, '');
 
+    const fileName = `[${cleanTitle}] [Axis TV].mp4`;
     const finalUrl = url.includes('download=1') ? url : (url.includes('?') ? `${url}&download=1` : `${url}?download=1`);
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = finalUrl;
-    document.body.appendChild(iframe);
-    showToast(`Starting download: ${cleanTitle}`, "success");
-    setTimeout(() => { if (document.body.contains(iframe)) document.body.removeChild(iframe); }, 60000);
+    
+    // Direct browser download prompt via <a> tag
+    const a = document.createElement("a");
+    a.href = finalUrl;
+    a.download = fileName;
+    a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    showToast(`Download started: ${cleanTitle}`, "success");
     setIsDownloadTrayOpen(false);
+  };
+
+  const autoDownload = () => {
+    if (!details || !details.sources || details.sources.length === 0) {
+      showToast("No download sources available", "error");
+      return;
+    }
+    // Try to find the best MP4 source (usually the first one)
+    const bestSource = details.sources.find(s => (s.downloadType || s.type) !== 'hls') || details.sources[0];
+    handleDownload(bestSource.downloadUrl || bestSource.url);
   };
 
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -274,7 +289,13 @@ export default function MediaPreviewTray() {
                   ) : (
                     <video
                       ref={videoRef}
-                      src={trailerUrl?.includes('youtube.com') || trailerUrl?.includes('youtu.be') ? undefined : (trailerUrl?.includes('google') || trailerUrl?.includes('m3u8') ? trailerUrl : `/api/proxy?url=${encodeURIComponent(trailerUrl || '')}`)}
+                      src={
+                        trailerUrl?.includes('youtube.com') || trailerUrl?.includes('youtu.be') 
+                          ? undefined 
+                          : (trailerUrl?.startsWith('/api/proxy') 
+                              ? trailerUrl 
+                              : `/api/proxy?url=${encodeURIComponent(trailerUrl || '')}`)
+                      }
                       autoPlay={Boolean(trailerUrl) && !isTrailerSuppressed}
                       muted={isMuted}
                       loop={false}
@@ -467,7 +488,7 @@ export default function MediaPreviewTray() {
                   Watch Now
                 </button>
                 <button 
-                  onClick={() => setIsDownloadTrayOpen(true)}
+                  onClick={autoDownload}
                   className="flex-1 flex items-center justify-center gap-2 md:gap-3 bg-white/10 hover:bg-white/20 text-white py-3.5 md:py-4 rounded-xl font-black uppercase tracking-[0.15em] md:tracking-[0.2em] border border-white/10 active:scale-[0.98] transition-all text-sm md:text-base"
                 >
                   <Download className="w-4 h-4 md:w-5 md:h-5" />

@@ -198,7 +198,7 @@ export default function Search() {
         const results = await movieService.browse(searchQuery, undefined, p, 30);
         rawData = results;
       } else {
-        rawData = await movieService.smartSearch(searchQuery, p);
+        rawData = await movieService.search(searchQuery, p);
       }
       
       const processedData = processSearchResults(rawData, searchQuery);

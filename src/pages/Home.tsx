@@ -112,7 +112,7 @@ export default function Home() {
             }
           }
         }
-        setRanking(finalRanking.slice(0, 20));
+        setRanking(finalRanking.slice(0, 20).map(item => ({ ...item, poster: item.poster || (item as any).cover || '' })));
       }
       
       if (popularResult.status === 'fulfilled') setPopularSearches(popularResult.value);

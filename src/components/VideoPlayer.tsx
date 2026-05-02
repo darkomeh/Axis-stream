@@ -1405,95 +1405,99 @@ export default function VideoPlayer({
                 </div>
               )}
 
-              <div className="overflow-y-auto no-scrollbar flex-1">
+              <div className="overflow-y-auto no-scrollbar flex-1 max-h-[60vh] md:max-h-[400px]">
                 {activeMenu === "settings" && (
-                  <div className="flex flex-col">
+                  <div className="flex flex-col py-2">
                     <button
                       onClick={() => setActiveMenu("audio")}
-                      className="w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      className="w-full flex items-center justify-between px-6 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
                     >
-                      <span className="text-[14px] font-medium opacity-80">
-                        Audio
-                      </span>
-                      <div className="flex items-center gap-1 text-[13px] opacity-70">
-                        <span>
-                          {mediaData.audioTracks?.[currentAudioTrack]
-                            ?.language || "Default"}
+                      <div className="flex flex-col items-start">
+                        <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">Audio</span>
+                        <span className="text-[14px] font-black italic">
+                          {mediaData.audioTracks?.[currentAudioTrack]?.language || "Default Track"}
                         </span>
-                        <ChevronDown className="w-3 h-3 -rotate-90 ml-1" />
                       </div>
+                      <ChevronDown className="w-4 h-4 -rotate-90 text-white/40" />
                     </button>
                     <button
                       onClick={() => setActiveMenu("subtitles")}
-                      className="w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      className="w-full flex items-center justify-between px-6 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
                     >
-                      <span className="text-[14px] font-medium opacity-80">
-                        Captions
-                      </span>
-                      <div className="flex items-center gap-1 text-[13px] opacity-70">
-                        <span>
+                      <div className="flex flex-col items-start">
+                        <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">Captions</span>
+                        <span className="text-[14px] font-black italic">
                           {currentSubtitleTrack === -1
-                            ? "Off"
-                            : sortedSubtitles[currentSubtitleTrack]
-                                ?.displayName || "Default"}
+                            ? "Disabled"
+                            : sortedSubtitles[currentSubtitleTrack]?.displayName || "Selected"}
                         </span>
-                        <ChevronDown className="w-3 h-3 -rotate-90 ml-1" />
                       </div>
+                      <ChevronDown className="w-4 h-4 -rotate-90 text-white/40" />
                     </button>
                     <button
                       onClick={() => setActiveMenu("caption-settings")}
-                      className="w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      className="w-full flex items-center justify-between px-6 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
                     >
-                      <span className="text-[14px] font-medium opacity-80">
-                        Caption Style
-                      </span>
-                      <div className="flex items-center gap-1 text-[13px] opacity-70">
-                        <ChevronDown className="w-3 h-3 -rotate-90 ml-1" />
+                      <div className="flex flex-col items-start">
+                        <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">Appearance</span>
+                        <span className="text-[14px] font-black italic">Subtitle Styles</span>
                       </div>
+                      <ChevronDown className="w-4 h-4 -rotate-90 text-white/40" />
                     </button>
                     <button
                       onClick={() => setActiveMenu("quality")}
-                      className="w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      className="w-full flex items-center justify-between px-6 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
                     >
-                      <span className="text-[14px] font-medium opacity-80">
-                        Quality
-                      </span>
-                      <div className="flex items-center gap-1 text-[13px] opacity-70">
-                        <span>
+                      <div className="flex flex-col items-start">
+                        <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">Video Quality</span>
+                        <span className="text-[14px] font-black italic">
                           {hlsRef.current && hlsRef.current.currentLevel === -1
-                            ? "Auto"
+                            ? "Auto (Dynamic)"
                             : hlsRef.current
                               ? `${hlsLevels[hlsCurrentLevel]?.height}p`
                               : selectedSourceIdx >= 0 &&
                                   mediaData.sources[selectedSourceIdx]
                                 ? `${mediaData.sources[selectedSourceIdx]?.quality}p`
-                                : "Auto"}
+                                : "Original"}
                         </span>
-                        <ChevronDown className="w-3 h-3 -rotate-90 ml-1" />
                       </div>
+                      <ChevronDown className="w-4 h-4 -rotate-90 text-white/40" />
                     </button>
                     <button
                       onClick={() => setActiveMenu("speed")}
-                      className="w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      className="w-full flex items-center justify-between px-6 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
                     >
-                      <span className="text-[14px] font-medium opacity-80">
-                        Speed
-                      </span>
-                      <div className="flex items-center gap-1 text-[13px] opacity-70">
-                        <span>
-                          {playbackSpeed === 1 ? "Normal" : `${playbackSpeed}x`}
+                      <div className="flex flex-col items-start">
+                        <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">Playback Speed</span>
+                        <span className="text-[14px] font-black italic">
+                          {playbackSpeed === 1 ? "Normal Speed" : `${playbackSpeed}x`}
                         </span>
-                        <ChevronDown className="w-3 h-3 -rotate-90 ml-1" />
                       </div>
+                      <ChevronDown className="w-4 h-4 -rotate-90 text-white/40" />
                     </button>
+                    
+                    {seasons && seasons.length > 0 && (
+                      <button
+                        onClick={() => {
+                          setViewingSeason(selectedSeason || 1);
+                          setActiveMenu("episodes");
+                        }}
+                        className="w-full flex items-center justify-between px-6 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
+                      >
+                        <div className="flex flex-col items-start">
+                          <span className="text-[10px] font-black uppercase text-white/40 tracking-wider">Navigation</span>
+                          <span className="text-[14px] font-black italic">S{selectedSeason} E{selectedEpisode} Selection</span>
+                        </div>
+                        <ChevronDown className="w-4 h-4 -rotate-90 text-white/40" />
+                      </button>
+                    )}
+
                     <button
                       onClick={() => {
                         const source = mediaData.sources[selectedSourceIdx];
+                        if (!source) return;
                         const url = source.downloadUrl || source.url;
-                        const fileName = `[${title}] [Axis TV].mp4`.replace(
-                          /[^a-zA-Z0-9 -\[\]]/g,
-                          "",
-                        );
+                        const fileName = `[${title}] [Axis TV].mp4`.replace(/[^a-zA-Z0-9 -\[\]]/g, "");
                         const finalUrl = url.includes("download=1")
                           ? url
                           : url.includes("?")
@@ -1501,53 +1505,21 @@ export default function VideoPlayer({
                             : `${url}?download=1`;
 
                         setActiveMenu(null);
-
-                        // Trigger native downloader via hidden iframe to keep it in same tab and hide URL from address bar
-                        const iframe = document.createElement("iframe");
-                        iframe.style.display = "none";
-                        iframe.src = finalUrl;
-                        document.body.appendChild(iframe);
-
-                        // Backup triggering
                         const a = document.createElement("a");
                         a.href = finalUrl;
                         a.download = fileName;
+                        a.target = "_blank";
                         document.body.appendChild(a);
                         a.click();
                         document.body.removeChild(a);
-
-                        setTimeout(() => {
-                          if (document.body.contains(iframe)) {
-                            document.body.removeChild(iframe);
-                          }
-                        }, 60000);
                       }}
-                      className="w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      className="w-full flex items-center justify-between px-6 py-4 hover:bg-brand/10 transition-colors text-brand group"
                     >
-                      <span className="text-[14px] font-medium opacity-80">
-                        Download
+                      <span className="text-[14px] font-black italic group-hover:scale-105 transition-transform">
+                        Download Offline
                       </span>
-                      <div className="flex items-center gap-1 text-brand">
-                        <Download className="w-4 h-4 ml-1" />
-                      </div>
+                      <Download className="w-5 h-5" />
                     </button>
-                    {seasons && seasons.length > 0 && (
-                      <button
-                        onClick={() => {
-                          setViewingSeason(selectedSeason || 1);
-                          setActiveMenu("episodes");
-                        }}
-                        className="w-full flex items-center justify-between px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                      >
-                        <span className="text-[14px] font-medium opacity-80">
-                          Episodes & Seasons
-                        </span>
-                        <div className="flex items-center gap-1 opacity-70">
-                          <span>S{selectedSeason} E{selectedEpisode}</span>
-                          <ChevronDown className="w-3 h-3 -rotate-90 ml-1" />
-                        </div>
-                      </button>
-                    )}
                   </div>
                 )}
 

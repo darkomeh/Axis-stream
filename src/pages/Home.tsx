@@ -56,16 +56,18 @@ export default function Home() {
       if (!homepageData) setLoading(true);
       setError(null);
       
-      const [aggResult, popularResult, adminConfigResult] = await Promise.allSettled([
-        movieService.getAggregatedPopular(),
+      const [homeResult, trendResult, hotResult, popularResult, adminConfigResult, rankingResult] = await Promise.allSettled([
+        movieService.getHomepage(),
+        movieService.getTrending(),
+        movieService.getHot(),
         movieService.getPopularSearch(),
         getAdminConfig(),
+        movieService.getRanking()
       ]);
 
-      if (aggResult.status === 'fulfilled') {
-        const { trending: t, hot, ranking: r, homepage: h } = aggResult.value;
-        
-        // Process homepage data
+      if (homeResult.status === 'fulfilled') {
+        const h = homeResult.value;
+        // Filter "Upcoming Calendar" section to only show recent films (year >= current year - 1)
         if (h.operatingList) {
           const currentYear = new Date().getFullYear();
           h.operatingList = h.operatingList.map((section: any) => {
@@ -83,14 +85,25 @@ export default function Home() {
           });
         }
         setHomepageData(h);
-        setTrending(t);
-        setHotMovies(hot.movies);
-        setHotSeries(hot.series);
-        
+      }
+      
+      if (trendResult.status === 'fulfilled') {
+        setTrending(trendResult.value);
+      }
+
+      if (hotResult.status === 'fulfilled') {
+        setHotMovies(hotResult.value.movies);
+        setHotSeries(hotResult.value.series);
+      }
+
+      if (rankingResult.status === 'fulfilled') {
         // Finalize ranking (pad if < 20)
-        let finalRanking = [...r];
+        let finalRanking = [...rankingResult.value];
         if (finalRanking.length < 20) {
-          const pool = [...hot.movies, ...hot.series, ...t];
+          const t = trendResult.status === 'fulfilled' ? trendResult.value : [];
+          const hm = hotResult.status === 'fulfilled' ? hotResult.value.movies : [];
+          const hs = hotResult.status === 'fulfilled' ? hotResult.value.series : [];
+          const pool = [...hm, ...hs, ...t];
           const shuffledPool = pool.sort(() => 0.5 - Math.random());
           for (const item of shuffledPool) {
             if (finalRanking.length >= 20) break;

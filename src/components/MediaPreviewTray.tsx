@@ -13,14 +13,16 @@ import { useMediaPreview } from "../contexts/MediaPreviewContext";
 import { MovieImage } from "./MovieImage";
 import { SmartActorImage } from "./SmartActorImage";
 import { useNavigate } from "react-router-dom";
+import SignInPromptPopup from "./SignInPromptPopup";
 import Tray from "./Tray";
 
 export default function MediaPreviewTray() {
   const { previewId, triggerSource, closePreview, openPreview } = useMediaPreview();
-  const { user, addToWatchlist, removeFromWatchlist, isInWatchlist, preferences, openLoginPopup } = useAuth();
+  const { user, addToWatchlist, removeFromWatchlist, isInWatchlist, preferences } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   
+  const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [details, setDetails] = useState<ItemDetails | null>(null);
   const [recommendations, setRecommendations] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -101,9 +103,7 @@ export default function MediaPreviewTray() {
 
   const handlePlay = () => {
     if (!user) {
-      showToast("Please sign in to watch.", "error");
-      openLoginPopup();
-      handleClose();
+      setIsPromptOpen(true);
       return;
     }
     if (!details) return;
@@ -114,7 +114,7 @@ export default function MediaPreviewTray() {
 
   const toggleWatchlist = () => {
     if (!details || !user) {
-      openLoginPopup();
+      setIsPromptOpen(true);
       return;
     }
     if (isInWatchlist(details.id)) {
@@ -159,6 +159,10 @@ export default function MediaPreviewTray() {
   };
 
   const autoDownload = () => {
+    if (!user) {
+      setIsPromptOpen(true);
+      return;
+    }
     if (!details || !details.sources || details.sources.length === 0) {
       showToast("No download sources available", "error");
       return;
@@ -180,7 +184,7 @@ export default function MediaPreviewTray() {
     if (!details) return [];
     let imgs = [...(details.images || [])];
     if (details.cast) {
-      const castAvatars = details.cast.map(c => c.avatarUrl || c.avatar).filter(url => url && url.startsWith('http'));
+      const castAvatars = (Array.isArray(details.cast) ? details.cast : []).map(c => c.avatarUrl || c.avatar).filter(url => url && url.startsWith('http'));
       imgs = [...imgs, ...castAvatars];
     }
     if (imgs.length === 0) {
@@ -304,7 +308,7 @@ export default function MediaPreviewTray() {
                       }}
                     />
                   )}
-                  {isTrailerSuppressed && !trailerEnded && !isTrailerEmbed && (
+                  {isTrailerSuppressed && !trailerEnded && !isTrailerEmbed && user && (
                     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-none">
                        <button 
                          onClick={(e) => {
@@ -494,7 +498,7 @@ export default function MediaPreviewTray() {
               <div className="space-y-4 md:space-y-6">
                 <h3 className="text-white font-black text-xs md:text-sm uppercase tracking-[3px] md:tracking-[4px]">Starring</h3>
                 <div className="flex gap-4 md:gap-6 overflow-x-auto no-scrollbar pb-2">
-                  {details?.cast?.slice(0, 10).map((actor: any, index: number) => (
+                  {Array.isArray(details?.cast) && details.cast.slice(0, 10).map((actor: any, index: number) => (
                     <div 
                       key={`${actor.id}-${index}`} 
                       className="flex flex-col items-center gap-3 md:gap-4 min-w-[100px] md:min-w-[120px] group cursor-pointer" 
@@ -580,7 +584,7 @@ export default function MediaPreviewTray() {
               <div className="space-y-4 md:space-y-6 pt-6 md:pt-10 border-t border-white/5">
                 <h3 className="text-white font-black text-xs md:text-sm uppercase tracking-[3px] md:tracking-[4px]">Recommendations</h3>
                 <div className="flex gap-3 md:gap-4 overflow-x-auto no-scrollbar pb-2">
-                  {recommendations.slice(0, 10).map((item, index) => (
+                  {Array.isArray(recommendations) && recommendations.slice(0, 10).map((item, index) => (
                     <div 
                       key={`${item.id}-${index}`} 
                       className="flex-none w-[130px] md:w-[170px] group cursor-pointer space-y-3"
@@ -607,7 +611,7 @@ export default function MediaPreviewTray() {
                 <h3 className="text-white font-black text-xs md:text-sm uppercase tracking-[3px] md:tracking-[4px]">Stills & Trailer</h3>
                 <div className="flex gap-3 md:gap-4 overflow-x-auto no-scrollbar pb-6">
                   {/* Stills */}
-                  {details?.images?.slice(0, 5).map((img, i) => (
+                  {Array.isArray(details?.images) && details.images.slice(0, 5).map((img, i) => (
                     <div 
                       key={i} 
                       className="flex-none w-[220px] md:w-[280px] aspect-video rounded-lg md:rounded-xl overflow-hidden bg-[#121212] border border-white/5 shadow-2xl cursor-pointer group"
@@ -701,6 +705,16 @@ export default function MediaPreviewTray() {
               )}
             </div>
           </Tray>
+
+          <SignInPromptPopup 
+            isOpen={isPromptOpen} 
+            onClose={() => setIsPromptOpen(false)}
+            onConfirm={() => {
+              setIsPromptOpen(false);
+              handleClose();
+              navigate("/profile");
+            }}
+          />
         </div>
       )}
     </AnimatePresence>

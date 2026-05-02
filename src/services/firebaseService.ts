@@ -129,6 +129,19 @@ export const trackWatchTime = async (seconds: number) => {
   }
 };
 
+export const logGuestCreation = async () => {
+  const path = 'analytics/global';
+  try {
+    const statsRef = doc(db, path);
+    await updateDoc(statsRef, {
+      totalGuests: increment(1),
+      activeGuests: increment(1)
+    });
+  } catch (error) {
+    console.warn("Guest tracking failed", error);
+  }
+};
+
 export const createSupportTicket = async (subject: string, message: string) => {
   const user = auth.currentUser;
   if (!user) throw new Error("Authentication required");

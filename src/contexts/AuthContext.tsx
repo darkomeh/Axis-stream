@@ -29,7 +29,8 @@ import {
   getSupportTickets,
   replyToTicket,
   getAdvancedUserStats,
-  getGlobalStats
+  getGlobalStats,
+  logGuestCreation
 } from '../services/firebaseService';
 import { 
   collection, 
@@ -49,6 +50,7 @@ interface User {
   avatar?: string;
   bio?: string;
   role?: 'user' | 'admin' | 'moderator';
+  isGuest?: boolean;
 }
 
 export interface SubtitlePreferences {
@@ -146,6 +148,8 @@ interface AuthContextType {
   isLoginPopupOpen: boolean;
   openLoginPopup: () => void;
   closeLoginPopup: () => void;
+  loginAsGuest: () => void;
+  isGuest: boolean;
 }
 
 const initialStats: UserStats = {
@@ -194,9 +198,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [siteConfig, setSiteConfig] = useState<{ siteName: string; brandColor: string; tagline: string; logoUrl?: string; }>({ siteName: 'Axis TV', brandColor: '#E50914', tagline: 'Your Movie Plug', logoUrl: 'https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg' });
   const [lastActionType, setLastActionType] = useState<string | null>(null);
   const [isLoginPopupOpen, setIsLoginPopupOpen] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
 
   const openLoginPopup = useCallback(() => setIsLoginPopupOpen(true), []);
   const closeLoginPopup = useCallback(() => setIsLoginPopupOpen(false), []);
+  const loginAsGuest = useCallback(() => {
+    logGuestCreation();
+    const guestCount = parseInt(localStorage.getItem('axis_guest_count') || '0') + 1;
+    localStorage.setItem('axis_guest_count', guestCount.toString());
+    const name = `Guest ${guestCount > 1 ? guestCount : ''}`.trim();
+    const newUser = {
+      id: `guest_${Date.now()}`,
+      username: name,
+      name,
+      email: 'guest@axis.tv',
+    };
+    setUser(newUser);
+    setIsGuest(true);
+    localStorage.setItem('axis_user', JSON.stringify({ ...newUser, isGuest: true, createdAt: Date.now() }));
+    setIsLoginPopupOpen(false);
+  }, []);
 
   useEffect(() => {
     let retryCount = 0;
@@ -708,7 +729,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLastActionType,
     isLoginPopupOpen,
     openLoginPopup,
-    closeLoginPopup
+    closeLoginPopup,
+    loginAsGuest,
+    isGuest
   }), [
     user, login, logout, isAdmin,
     systemMessage, isMaintenance, isBanned,
@@ -734,7 +757,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       trackVisitor();
       sessionStorage.setItem('axis_visitor_tracked', 'true');
     }
-  }, []);
+
+    // Guest Account Expiration Check
+    const userStr = localStorage.getItem('axis_user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      if (user.isGuest && user.createdAt) {
+        const now = Date.now();
+        const age = now - user.createdAt;
+        const week = 7 * 24 * 60 * 60 * 1000;
+        if (age > week) {
+          logout();
+        } else if (age > 6 * 24 * 60 * 60 * 1000) {
+          setSystemMessage("Your guest account will expire soon! Sign up to move your watchlist and data.");
+        }
+      }
+    }
+  }, [logout]);
 
   return (
     <AuthContext.Provider value={value}>

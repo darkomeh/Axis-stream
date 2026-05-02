@@ -10,7 +10,7 @@ import {
   Users, Activity, TrendingUp, Calendar, 
   Search, ShieldAlert, Award, Clock, 
   Trash2, Mail, ExternalLink, ChevronRight,
-  Lock, Unlock, Key, Database
+  Lock, Unlock, Key, Database, Ghost, Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
@@ -81,6 +81,8 @@ interface AdminState {
   searchVelocity?: number;
   openReports?: number;
   activeUserCount: number;
+  totalGuests: number;
+  activeGuests: number;
   advancedStats: {
     total: number;
     last7Days: number;
@@ -213,6 +215,8 @@ export default function Admin() {
         ...adminConfigObj, // Overwrite with real firebase config
         totalUsers: firebaseUserCount || statsData.totalUsers,
         activeUserCount: activeUserCount || 0,
+        totalGuests: globalAnalytics?.totalGuests || 0,
+        activeGuests: globalAnalytics?.activeGuests || 0,
         allUsers: combinedUsers,
         mostActive: sortedMostActive,
         advancedStats,
@@ -480,6 +484,18 @@ export default function Admin() {
                         value={Math.floor(((data.globalAnalytics?.totalAggregatedWatchTime || 0) / 60) + ((data.globalAnalytics?.totalWatchTimeSeconds || 0) / 3600))} 
                         icon={<Clock className="w-6 h-6" />}
                         color="text-yellow-500"
+                      />
+                      <StatCard 
+                        label="Total Guests" 
+                        value={data.totalGuests || 0} 
+                        icon={<Ghost className="w-6 h-6" />}
+                        color="text-yellow-400"
+                      />
+                      <StatCard 
+                        label="Active Guests" 
+                        value={data.activeGuests || 0} 
+                        icon={<Zap className="w-6 h-6" />}
+                        color="text-purple-400"
                       />
                    </div>
                 </div>

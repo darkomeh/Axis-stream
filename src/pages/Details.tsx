@@ -27,7 +27,7 @@ export default function Details() {
   const playerRef = useRef<HTMLDivElement>(null);
   const { 
     user, addToHistory, addToWatchlist, removeFromWatchlist, 
-    isInWatchlist, continueWatching, trackWatchActivity, openLoginPopup 
+    isInWatchlist, continueWatching, trackWatchActivity 
   } = useAuth();
   const { showToast } = useToast();
   
@@ -298,6 +298,7 @@ export default function Details() {
   const toggleWatchlist = () => {
     if (!details || !user) {
       showToast("Please sign in to use the watchlist.", "error");
+      navigate('/profile');
       return;
     }
     
@@ -397,7 +398,7 @@ export default function Details() {
             <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter text-white mb-4 italic">Stream {details.title}</h2>
             <p className="text-gray-400 text-sm md:text-base font-bold uppercase tracking-widest max-w-[400px] mb-8">Access high-quality streams, trailers and save your progress by signing in.</p>
             <button 
-              onClick={() => openLoginPopup()}
+              onClick={() => navigate('/profile')}
               className="px-12 py-4 bg-brand text-white rounded-full font-black uppercase tracking-[0.2em] text-sm hover:bg-brand-hover transition-all active:scale-95 shadow-xl glow-brand"
             >
               Sign In to Watch

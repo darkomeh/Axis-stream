@@ -338,6 +338,9 @@ export default function Profile() {
               <div className="space-y-1 mb-6">
                 <div className="flex flex-col md:flex-row md:items-center gap-3">
                   <h2 className="text-4xl font-black tracking-tight">{user.username}</h2>
+                  {user.isGuest && (
+                    <span className="px-3 py-1 bg-yellow-500/20 text-yellow-500 rounded-full text-[10px] font-black uppercase tracking-widest border border-yellow-500/20">Guest</span>
+                  )}
                 </div>
                 <p className="text-gray-400 font-medium">{user.email}</p>
                 {user.bio && (
@@ -348,12 +351,21 @@ export default function Profile() {
               </div>
 
               <div className="flex flex-wrap justify-center md:justify-start gap-4">
-                <button 
+                {user.isGuest ? (
+                  <button 
+                  onClick={handleGoogleLogin}
+                  className="flex items-center gap-2 px-8 py-3.5 bg-brand hover:bg-brand/90 text-white rounded-full transition-all text-xs font-black uppercase tracking-widest shadow-lg shadow-brand/20 active:scale-95"
+                >
+                  <Award className="w-4 h-4" /> Migrate Account to Google
+                </button>
+                ) : (
+                  <button 
                   onClick={logout}
                   className="flex items-center gap-2 px-8 py-3.5 bg-brand hover:bg-brand/90 text-white rounded-full transition-all text-xs font-black uppercase tracking-widest shadow-lg shadow-brand/20 active:scale-95"
                 >
                   <LogOut className="w-4 h-4" /> Sign Out
                 </button>
+                )}
                 <button onClick={openEditProfile} className="flex items-center gap-2 px-8 py-3.5 bg-white/5 hover:bg-white/10 text-white border border-white/20 rounded-full transition-all text-xs font-black uppercase tracking-widest active:scale-95">
                   <Settings className="w-4 h-4" /> Edit Profile
                 </button>

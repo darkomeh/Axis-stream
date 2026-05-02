@@ -21,7 +21,7 @@ const api = axios.create({
     'Cache-Control': 'no-cache',
     'Pragma': 'no-cache'
   },
-  timeout: 8000 // Slightly shorter timeout to react faster
+  timeout: 15000 // Increased timeout for stability
 });
 
 // Server-side cache for external data
@@ -59,7 +59,7 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 2, backoff =
     
     return response;
   } catch (error: any) {
-    const isRetryable = !error.response || (error.response.status >= 500 && error.response.status <= 504);
+    const isRetryable = !error.response || (error.response.status >= 500 && error.response.status <= 504) || error.response.status === 429;
     
     if (retries > 0 && isRetryable) {
       // Exponential backoff with jitter

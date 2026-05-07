@@ -30,7 +30,10 @@ import {
   getAdminConfig,
   updateAdminConfig,
   updateBanStatus,
-  updateRole
+  updateRole,
+  getPlatformErrors,
+  resolvePlatformError,
+  getReports
 } from '../services/firebaseService';
 import { Timestamp } from 'firebase/firestore';
 
@@ -94,11 +97,14 @@ interface AdminState {
     totalVisitors: number;
     todayVisitors?: number;
     totalWatchTimeSeconds: number;
+    totalSessionSeconds?: number;
+    countries?: Record<string, number>;
     totalSearches?: number;
     totalAggregatedWatchTime?: number;
     lastUpdated: any;
   } | null;
   supportTickets: any[];
+  platformErrors: any[];
 }
 
 export default function Admin() {
@@ -106,7 +112,7 @@ export default function Admin() {
   const { showToast } = useToast();
   const [data, setData] = useState<AdminState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'system' | 'logs' | 'content' | 'branding' | 'reports' | 'support' | 'database'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'system' | 'logs' | 'content' | 'branding' | 'reports' | 'support' | 'database' | 'errors'>('overview');
   const [broadcastInput, setBroadcastInput] = useState('');
   const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
   const [broadcastLevel, setBroadcastLevel] = useState<'info' | 'warning' | 'critical'>('info');
@@ -159,7 +165,9 @@ export default function Admin() {
       let advancedStats = { total: 0, last7Days: 0, last30Days: 0, admins: 0, banned: 0 };
       let globalAnalytics = null;
       let supportTickets: any[] = [];
+      let platformErrors: any[] = [];
       let adminConfigObj: any = null;
+      let realReports: any[] = [];
 
       // Use individualized error handling for each sensitive call
       const safeFireFetch = async (fn: () => Promise<any>, fallback: any = null) => {
@@ -177,7 +185,9 @@ export default function Admin() {
       advancedStats = await safeFireFetch(getAdvancedUserStats, { total: 0, last7Days: 0, last30Days: 0, admins: 0, banned: 0 });
       globalAnalytics = await safeFireFetch(getGlobalStats, null);
       supportTickets = await safeFireFetch(getSupportTickets, []);
+      platformErrors = await safeFireFetch(getPlatformErrors, []);
       adminConfigObj = await safeFireFetch(getAdminConfig, {});
+      realReports = await safeFireFetch(getReports, []);
       
       // Rely only on Firebase users for a complete view
       const combinedUsers: AdminUser[] = [];
@@ -208,6 +218,8 @@ export default function Admin() {
       const sortedMostActive = [...combinedUsers]
         .sort((a, b) => (b.stats?.totalViews || 0) - (a.stats?.totalViews || 0))
         .slice(0, 5);
+      
+      const newToday = combinedUsers.filter(u => Date.now() - new Date(u.createdAt).getTime() < 1000 * 60 * 60 * 24).length;
 
       setData({
         ...statsData,
@@ -221,7 +233,12 @@ export default function Admin() {
         mostActive: sortedMostActive,
         advancedStats,
         globalAnalytics,
-        supportTickets
+        supportTickets,
+        platformErrors,
+        reports: realReports,
+        newToday,
+        openReports: realReports.filter((r: unknown) => (r as any).status === 'open').length,
+        searchVelocity: globalAnalytics?.searchCount || 0
       });
       if (adminConfigObj?.broadcastMessage) setBroadcastInput(adminConfigObj.broadcastMessage);
       else if (systemData.broadcastMessage) setBroadcastInput(systemData.broadcastMessage);
@@ -353,6 +370,19 @@ export default function Admin() {
     }
   };
 
+  const handleResolveError = async (id: string) => {
+    setIsUpdating(true);
+    try {
+      await resolvePlatformError(id);
+      showToast("Error marked as rectified", "success");
+      await fetchData();
+    } catch (e) {
+      showToast("Failed to resolve error", "error");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   if (loading || !data) {
     return (
       <div className="min-h-screen bg-black text-white pb-20 flex items-center justify-center">
@@ -394,6 +424,7 @@ export default function Admin() {
               { id: 'reports', label: 'Intel', icon: <ShieldAlert className="w-4 h-4" /> },
               { id: 'system', label: 'Operations', icon: <Activity className="w-4 h-4" /> },
               { id: 'logs', label: 'Audit', icon: <Clock className="w-4 h-4" /> },
+              { id: 'errors', label: 'Surveillance', icon: <Ghost className="w-4 h-4" /> },
               { id: 'support', label: 'Inbox', icon: <Mail className="w-4 h-4" /> }
             ].map(tab => (
               <button 
@@ -416,6 +447,80 @@ export default function Admin() {
           <div className="space-y-12">
             {activeTab === 'overview' && (
               <>
+                {/* Global Intelligence Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+                   {/* Demographics */}
+                   <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group">
+                      <div className="absolute -right-20 -top-20 w-64 h-64 bg-brand/5 rounded-full blur-3xl group-hover:bg-brand/10 transition-all duration-700" />
+                      <div className="flex items-center justify-between mb-8 relative z-10">
+                         <div>
+                            <h3 className="text-2xl font-black uppercase tracking-tighter italic flex items-center gap-3">
+                               <Zap className="w-6 h-6 text-brand" />
+                               Global Demographics
+                            </h3>
+                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-1">Real-time visitor distribution</p>
+                         </div>
+                         <div className="px-4 py-2 bg-brand/10 border border-brand/20 rounded-xl text-[10px] font-black uppercase text-brand">Live Feed</div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 relative z-10">
+                        {data.globalAnalytics?.countries && Object.entries(data.globalAnalytics.countries).some(([k, v]) => (v as number) > 0) ? (
+                          Object.entries(data.globalAnalytics.countries)
+                            .filter(([, v]) => (v as number) > 0)
+                            .sort(([, a], [, b]) => (b as number) - (a as number))
+                            .slice(0, 6)
+                            .map(([country, count]) => (
+                               <div key={country} className="bg-black/40 border border-white/5 rounded-2xl p-6 hover:border-brand/30 transition-all">
+                                 <p className="text-[10px] font-black uppercase text-gray-500 mb-2 truncate">{country}</p>
+                                 <div className="flex items-baseline gap-2">
+                                    <p className="text-3xl font-black italic text-white">{count as number}</p>
+                                    <span className="text-[10px] font-bold text-brand italic">vis</span>
+                                 </div>
+                              </div>
+                            ))
+                        ) : (
+                          <div className="col-span-full py-12 text-center bg-black/20 rounded-3xl border border-dashed border-white/10">
+                             <Activity className="w-8 h-8 text-gray-700 mx-auto mb-4 animate-pulse" />
+                             <p className="text-gray-500 text-xs font-black uppercase tracking-widest">Scanning for incoming signals...</p>
+                          </div>
+                        )}
+                      </div>
+                   </div>
+
+                   {/* Platform Velocity */}
+                   <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group">
+                      <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl group-hover:bg-blue-500/10 transition-all duration-700" />
+                      <div className="flex items-center justify-between mb-8 relative z-10">
+                         <div>
+                            <h3 className="text-2xl font-black uppercase tracking-tighter italic flex items-center gap-3">
+                               <Clock className="w-6 h-6 text-blue-400" />
+                               Site Engagement
+                            </h3>
+                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-1">Cumulative platform time</p>
+                         </div>
+                         <Activity className="w-5 h-5 text-blue-400 animate-pulse" />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 relative z-10">
+                         <div className="bg-black/40 border border-white/5 rounded-2xl p-8 col-span-2">
+                            <p className="text-[10px] font-black uppercase text-gray-500 mb-2">Total Session Duration</p>
+                            <div className="flex items-baseline gap-3">
+                               <p className="text-6xl font-black italic text-white tracking-tighter">
+                                  {Math.floor((data.globalAnalytics?.totalSessionSeconds || 0) / 60)}
+                               </p>
+                               <span className="text-xl font-black text-blue-400 italic uppercase">Minutes spent</span>
+                            </div>
+                            <div className="mt-6 flex items-center gap-2">
+                               <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
+                                  <div className="h-full bg-blue-400 animate-shimmer" style={{ width: '65%' }} />
+                               </div>
+                               <span className="text-[10px] font-black text-blue-400 uppercase">Live</span>
+                            </div>
+                         </div>
+                      </div>
+                   </div>
+                </div>
+
                 {/* Visual Intelligence Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
                    <div className="lg:col-span-2 bg-white/5 border border-white/10 rounded-[2.5rem] p-8 relative overflow-hidden">
@@ -460,12 +565,20 @@ export default function Admin() {
                       </div>
                    </div>
 
-                   <div className="space-y-6">
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 h-fit">
                       <StatCard 
-                        label="Total Registered" 
-                        value={data.totalUsers} 
-                        icon={<Users className="w-6 h-6" />}
-                        color="text-brand"
+                        label="Platform Health" 
+                        value={data.platformErrors.filter(e => !e.resolved).length === 0 ? 100 : Math.max(0, 100 - data.platformErrors.filter(e => !e.resolved).length * 10)} 
+                        icon={<Activity className="w-6 h-6" />}
+                        color={data.platformErrors.filter(e => !e.resolved).length === 0 ? 'text-green-500' : 'text-brand'}
+                        isPercent
+                      />
+                      <StatCard 
+                        label="Total Activity" 
+                        value={0} 
+                        durationSeconds={data.globalAnalytics?.totalSessionSeconds || 0}
+                        icon={<Clock className="w-6 h-6" />}
+                        color="text-blue-400"
                       />
                       <StatCard 
                         label="Visitors" 
@@ -502,6 +615,12 @@ export default function Admin() {
 
                 {/* Advanced Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+                  <StatCard 
+                    label="Active Errors" 
+                    value={data.platformErrors.filter(e => !e.resolved).length} 
+                    icon={<Ghost className="w-6 h-6" />}
+                    color="text-brand"
+                  />
                   <StatCard 
                     label="Joined (7 Days)" 
                     value={data.advancedStats?.last7Days || 0} 
@@ -616,6 +735,30 @@ export default function Admin() {
                     </table>
                   </div>
                 </div>
+
+                {/* Country Breakdown Section */}
+                {data.globalAnalytics?.countries && (
+                  <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8">
+                     <div className="flex items-center justify-between mb-8">
+                        <div>
+                           <h3 className="text-xl font-bold uppercase tracking-tighter italic">Global Demographics</h3>
+                           <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-1">Visitor distribution by country</p>
+                        </div>
+                        <ExternalLink className="w-5 h-5 text-brand" />
+                     </div>
+                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        {Object.entries(data.globalAnalytics.countries)
+                          .sort(([, a], [, b]) => (b as number) - (a as number))
+                          .map(([country, count]) => (
+                            <div key={country} className="bg-black/40 border border-white/5 rounded-2xl p-4 text-center">
+                               <p className="text-xs font-black uppercase text-gray-500 mb-1 truncate">{country}</p>
+                               <p className="text-xl font-bold italic text-white">{count as number}</p>
+                            </div>
+                          ))
+                        }
+                     </div>
+                  </div>
+                )}
               </>
             )}
 
@@ -923,6 +1066,69 @@ export default function Admin() {
               </div>
             )}
 
+            {activeTab === 'errors' && (
+              <div className="space-y-8">
+                 <div className="bg-white/5 border border-white/10 p-8 rounded-[3rem]">
+                    <div className="flex items-center justify-between mb-8">
+                       <div className="flex items-center gap-4">
+                          <div className="p-4 bg-brand/10 rounded-2xl">
+                             <Ghost className="w-8 h-8 text-brand" />
+                          </div>
+                          <div>
+                             <h2 className="text-3xl font-black italic uppercase tracking-tighter">System Surveillance</h2>
+                             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Global platform exception monitoring</p>
+                          </div>
+                       </div>
+                    </div>
+
+                    <div className="grid gap-4">
+                      {data.platformErrors.length === 0 ? (
+                        <div className="py-20 text-center bg-black/30 rounded-3xl border border-dashed border-white/10">
+                           <ShieldAlert className="w-12 h-12 text-gray-700 mx-auto mb-4" />
+                           <p className="text-gray-500 font-bold">No anomalies detected in the mainframe.</p>
+                        </div>
+                      ) : (
+                        data.platformErrors.map((err: any) => (
+                          <div key={err.id} className={`bg-black/50 border ${err.resolved ? 'border-green-500/20 opacity-60' : 'border-brand/30'} rounded-3xl p-6 transition-all hover:bg-black/60`}>
+                            <div className="flex flex-col lg:flex-row items-start justify-between gap-6">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-3">
+                                  {err.resolved ? (
+                                    <span className="bg-green-500/20 text-green-500 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">Rectified</span>
+                                  ) : (
+                                    <span className="bg-brand/20 text-brand px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">Active Exception</span>
+                                  )}
+                                  <h4 className="font-bold text-lg truncate text-white">{err.message}</h4>
+                                </div>
+                                <p className="text-xs text-gray-500 font-mono bg-black/40 p-4 rounded-xl overflow-x-auto whitespace-pre">
+                                  {err.stack?.substring(0, 500) || 'No stack trace available'}
+                                </p>
+                                 <div className="flex flex-wrap gap-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                                  <span className="flex items-center gap-1.5"><Users className="w-3 h-3" /> {err.userEmail || err.userId}</span>
+                                  <span className="flex items-center gap-1.5"><Activity className="w-3 h-3" /> {err.componentName || 'Global'}</span>
+                                  <span className="flex items-center gap-1.5 text-brand/80"><ExternalLink className="w-3 h-3" /> {err.url ? (new URL(err.url).pathname) : 'Unknown'}</span>
+                                  <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {err.timestamp?.seconds ? new Date(err.timestamp.seconds * 1000).toLocaleString() : 'Just now'}</span>
+                                </div>
+                              </div>
+                              {!err.resolved && (
+                                <button 
+                                  onClick={() => handleResolveError(err.id)}
+                                  disabled={isUpdating}
+                                  className="px-6 py-3 bg-green-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-600 transition-all flex items-center gap-2 whitespace-nowrap"
+                                >
+                                  <ShieldAlert className="w-4 h-4" />
+                                  Mark Rectified
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                 </div>
+              </div>
+            )}
+
             {activeTab === 'support' && (
               <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden p-8">
                 <div className="flex items-center justify-between mb-8">
@@ -1043,7 +1249,15 @@ export default function Admin() {
   );
 }
 
-function StatCard({ label, value, icon, color, isPercent }: { label: string, value: number, icon: React.ReactNode, color: string, isPercent?: boolean }) {
+function StatCard({ label, value, icon, color, isPercent, unit, durationSeconds }: { label: string, value: number, icon: React.ReactNode, color: string, isPercent?: boolean, unit?: string, durationSeconds?: number }) {
+  const formatDuration = (totalSeconds: number) => {
+    if (totalSeconds < 60) return `${totalSeconds}s`;
+    if (totalSeconds < 3600) return `${Math.floor(totalSeconds / 60)}m ${totalSeconds % 60}s`;
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    return `${hours}h ${minutes}m`;
+  };
+
   return (
     <div className="bg-white/5 border border-white/10 p-8 rounded-3xl hover:border-brand/30 transition-all group relative overflow-hidden">
       <div className="absolute top-0 right-0 p-1 opacity-5">
@@ -1055,7 +1269,9 @@ function StatCard({ label, value, icon, color, isPercent }: { label: string, val
       <div>
         <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-1">{label}</p>
         <p className="text-4xl font-black italic tracking-tighter">
-          {value}{isPercent && '%'}
+          {durationSeconds !== undefined ? formatDuration(durationSeconds) : (
+            <>{value}{isPercent ? '%' : (unit || '')}</>
+          )}
         </p>
       </div>
     </div>

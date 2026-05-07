@@ -298,7 +298,7 @@ export default function MediaPreviewTray() {
                       muted={isMuted}
                       loop={false}
                       playsInline
-                      preload="auto"
+                      preload="metadata"
                       onCanPlay={handleCanPlay}
                       className="w-full h-full object-cover relative z-10 shadow-[0_0_100px_rgba(0,0,0,0.5)] bg-black"
                       onEnded={() => setTrailerEnded(true)}

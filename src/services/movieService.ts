@@ -8,6 +8,8 @@ import {
   RankingItem 
 } from '../types';
 
+import { submitContentReport } from './firebaseService';
+
 const TARGET_API = '/api';
 const EXTERNAL_API_URL = 'https://movieapi.xcasper.space/api';
 const API_KEY = 'Godszeal';
@@ -517,9 +519,7 @@ export const movieService = {
   async reportIssue(userId: string, category: string, detail: string): Promise<boolean> {
     try {
       console.log(`[Issue Reported] Category: ${category}, Detail: ${detail}`);
-      // Simulate network request
-      await new Promise(resolve => setTimeout(resolve, 500));
-      return true;
+      return await submitContentReport(userId, category, detail);
     } catch (e) {
       console.error("Failed to report issue", e);
       return false;

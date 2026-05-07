@@ -75,6 +75,13 @@ service cloud.firestore {
              data.createdAt == request.time;
     }
 
+    function isValidPlatformError(data) {
+      return data.keys().hasAll(['message', 'timestamp', 'url', 'userAgent', 'resolved']) &&
+             data.message is string && data.message.size() <= 2000 &&
+             data.timestamp == request.time &&
+             data.resolved == false;
+    }
+
     // --- Collections ---
 
     match /users/{userId} {
@@ -139,6 +146,13 @@ service cloud.firestore {
     match /liveStats/{statId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    match /platform_errors/{errorId} {
+      allow list: if isAdmin();
+      allow get: if isAdmin();
+      allow create: if true && isValidPlatformError(incoming());
+      allow update: if isAdmin();
     }
   }
 }

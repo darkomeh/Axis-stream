@@ -113,7 +113,7 @@ export default function Anime() {
         url="/anime"
       />
       <Navbar />
-      <div className="pt-28 px-6 lg:px-12 max-w-[1400px] mx-auto">
+      <div className="pt-28 px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto">
         <button 
           onClick={handleBack}
           className="mb-8 p-2 hover:bg-white/10 rounded-full transition-colors flex items-center gap-2 text-gray-400 hover:text-white"
@@ -121,8 +121,8 @@ export default function Anime() {
           <ArrowLeft className="w-6 h-6" />
           <span className="text-sm font-medium">Back</span>
         </button>
-        <h1 className="text-4xl font-bold mb-8 tracking-tight">Anime & Cartoons</h1>
-        <form onSubmit={handleSearch} className="mb-12">
+        <h1 className="text-3xl sm:text-4xl font-bold mb-6 sm:mb-8 tracking-tight">Anime & Cartoons</h1>
+        <form onSubmit={handleSearch} className="mb-8 sm:mb-12">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
             <input
@@ -136,7 +136,7 @@ export default function Anime() {
                 }
               }}
               placeholder="Search anime..."
-              className="w-full bg-white/5 border border-white/10 rounded-full py-4 pl-12 pr-6 focus:outline-none focus:border-brand transition-all"
+              className="w-full bg-white/5 border border-white/10 rounded-full py-3 sm:py-4 pl-12 pr-6 focus:outline-none focus:border-brand transition-all text-sm sm:text-base"
             />
           </div>
         </form>

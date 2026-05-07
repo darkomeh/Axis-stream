@@ -28,13 +28,13 @@ const PosterGrid = memo(({ title, items, viewAllLink, loading, variant = 'scroll
     <section className="py-fluid-sm md:py-10">
       <div className="max-w-[1400px] mx-auto px-fluid">
         {title && (
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-fluid-lg md:text-xl font-bold text-white tracking-wide">
+          <div className="flex items-center justify-between mb-6 md:mb-8">
+            <h2 className="text-xl md:text-3xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_2px_10px_rgba(255,255,255,0.1)]">
               {title}
             </h2>
             {viewAllLink && (
-              <Link to={viewAllLink} className="text-fluid-xs font-medium text-brand hover:text-white transition-colors">
-                See All
+              <Link to={viewAllLink} className="text-[10px] md:text-xs font-black uppercase tracking-widest text-brand hover:text-white transition-colors">
+                View All
               </Link>
             )}
           </div>
@@ -56,10 +56,19 @@ const PosterGrid = memo(({ title, items, viewAllLink, loading, variant = 'scroll
                 }
                 style={{ animationDelay: `${Math.min(index * 0.05, 0.5)}s`, animationFillMode: 'both' }}
               >
-                <div 
+                <motion.div 
                   role="button"
+                  tabIndex={0}
                   onClick={() => openPreview(item.id)}
-                  className="relative block aspect-[2/3] rounded-[10px] md:rounded-[14px] overflow-hidden bg-[#141414] transition-all duration-500 hover:scale-[1.05] hover:-translate-y-2 group shadow-xl active:scale-95 border border-white/5 hover:border-white/20 cursor-pointer"
+                  whileHover={{ scale: 1.05, y: -8 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="relative block aspect-[2/3] rounded-[10px] md:rounded-[14px] overflow-hidden bg-[#141414] transition-all duration-300 group shadow-xl border border-white/5 hover:border-white/20 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      openPreview(item.id);
+                    }
+                  }}
                 >
                   {item.poster ? (
                     <MovieImage
@@ -107,7 +116,7 @@ const PosterGrid = memo(({ title, items, viewAllLink, loading, variant = 'scroll
 
                   {/* Hover State Color Bar */}
                   <div className="absolute inset-x-0 bottom-0 h-1 bg-brand transform translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                </div>
+                </motion.div>
               </div>
             ))}
           </div>

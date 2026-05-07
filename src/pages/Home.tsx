@@ -277,14 +277,14 @@ export default function Home() {
         )}
 
         {popularSearches.length > 0 && (
-          <div className="px-fluid">
-            <h2 className="text-fluid-lg md:text-2xl font-bold mb-4 md:mb-6 tracking-tight">Popular Searches</h2>
+          <div className="px-fluid space-y-6 md:space-y-8">
+            <h2 className="text-xl md:text-3xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_2px_10px_rgba(255,255,255,0.1)]">Popular Searches</h2>
             <div className="flex flex-wrap gap-2 md:gap-3">
               {Array.isArray(popularSearches) && popularSearches.slice(0, 10).map((search, idx) => (
                 <Link 
                   key={idx} 
                   to={`/search?q=${encodeURIComponent(search)}`}
-                  className="px-3.5 py-1.5 md:px-4 md:py-2 bg-white/5 hover:bg-brand hover:text-white border border-white/10 hover:border-brand rounded-full text-[11px] md:text-sm transition-all shadow-sm hover:shadow-[0_0_15px_rgba(229,9,20,0.4)]"
+                  className="px-4 py-2 md:px-6 md:py-3 bg-white/5 hover:bg-brand hover:text-white border border-white/10 hover:border-brand rounded-full text-xs md:text-sm font-bold transition-all shadow-sm hover:shadow-[0_0_15px_rgba(229,9,20,0.4)]"
                 >
                   {search}
                 </Link>

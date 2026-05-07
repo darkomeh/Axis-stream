@@ -290,7 +290,7 @@ export default function Search() {
 
         <div className="flex items-center gap-3">
           <div className="relative flex-1 group">
-            <SearchIcon className="absolute left-6 w-5 h-5 text-gray-500 group-focus-within:text-brand transition-colors" />
+            <SearchIcon className="absolute left-4 sm:left-6 w-5 h-5 text-gray-500 group-focus-within:text-brand transition-colors top-1/2 -translate-y-1/2" />
             <input
               ref={inputRef}
               type="text"
@@ -299,47 +299,48 @@ export default function Search() {
               onKeyDown={handleKeyDown}
               onFocus={() => setIsFocused(true)}
               placeholder="Search on Axis TV..."
-              className="w-full h-14 pl-14 pr-12 bg-[#0F0F0F] border border-white/5 rounded-full text-base text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand/50 transition-all shadow-[0_0_15px_rgba(255,45,45,0.02)] focus:shadow-[0_0_25px_rgba(255,45,45,0.1)]"
+              className="w-full h-12 sm:h-14 pl-12 sm:pl-14 pr-12 bg-[#0F0F0F] border border-white/5 rounded-full text-sm sm:text-base text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand/50 transition-all shadow-[0_0_15px_rgba(255,45,45,0.02)] focus:shadow-[0_0_25px_rgba(255,45,45,0.1)]"
             />
             {query && (
               <button
                 onClick={handleClear}
-                className="absolute right-5 p-1 text-gray-500 hover:text-white transition-colors"
+                className="absolute right-4 sm:right-5 p-1 text-gray-500 hover:text-white transition-colors top-1/2 -translate-y-1/2"
               >
-                <X className="w-5 h-5" strokeWidth={3} />
+                <X className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={3} />
               </button>
             )}
+
+            {/* Suggestions Dropdown attached to search input */}
+            <AnimatePresence>
+              {isFocused && suggestions.length > 0 && (
+                <motion.div
+                  ref={suggestionsRef}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute top-[calc(100%+8px)] left-0 right-0 bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden z-[60] shadow-2xl backdrop-blur-3xl"
+                >
+                  <div className="px-5 py-3 border-b border-white/5 bg-white/5">
+                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Suggestions</span>
+                  </div>
+                  {suggestions.map((s, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleSuggestionClick(s)}
+                      className="w-full text-left px-5 py-4 hover:bg-white/5 transition-colors flex items-center gap-3 border-b border-white/5 last:border-0 group"
+                    >
+                      <SearchIcon className="w-4 h-4 text-gray-600 group-hover:text-brand transition-colors" />
+                      <span className="text-sm sm:text-base text-gray-300 font-bold group-hover:text-white transition-colors break-words truncate">{s}</span>
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
 
-      <div className="px-6 space-y-10 mt-6">
-        {/* Suggestions Dropdown */}
-        <AnimatePresence>
-          {isFocused && suggestions.length > 0 && (
-            <motion.div
-              ref={suggestionsRef}
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="fixed top-[180px] left-6 right-6 lg:left-[300px] lg:right-auto lg:w-[600px] max-w-full bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden z-[60] shadow-2xl backdrop-blur-3xl"
-            >
-              <div className="px-5 py-3 border-b border-white/5 bg-white/5">
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Suggestions</span>
-              </div>
-              {suggestions.map((s, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleSuggestionClick(s)}
-                  className="w-full text-left px-5 py-4 hover:bg-white/5 transition-colors flex items-center gap-3 border-b border-white/5 last:border-0 group"
-                >
-                  <SearchIcon className="w-4 h-4 text-gray-600 group-hover:text-brand transition-colors" />
-                  <span className="text-gray-300 font-bold group-hover:text-white transition-colors">{s}</span>
-                </button>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <div className="px-4 sm:px-6 space-y-10 mt-6">
 
         {error ? (
            <div className="py-20 text-center text-red-500 font-bold">{error}</div>
@@ -370,6 +371,22 @@ export default function Search() {
             })} loading={loading} variant="grid" />
             
             {hasMore && <div ref={lastElementRef} className="h-10" />}
+          </div>
+        ) : query && !loading ? (
+          <div className="py-20 flex flex-col items-center justify-center text-center space-y-6">
+            <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center border border-white/10 shadow-inner">
+               <SearchIcon className="w-10 h-10 text-gray-600" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-black tracking-tight text-white uppercase">No results found</h3>
+              <p className="text-gray-500 max-w-xs mx-auto">We couldn't find any matches for "<span className="text-white">{query}</span>". Try another search term.</p>
+            </div>
+            <button 
+              onClick={handleClear}
+              className="mt-4 px-8 py-3 bg-brand text-white text-xs font-black uppercase tracking-widest rounded-full hover:shadow-[0_0_20px_rgba(229,9,20,0.4)] transition-all active:scale-95"
+            >
+              Clear Search
+            </button>
           </div>
         ) : (
           <div className="space-y-12">

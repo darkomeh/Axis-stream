@@ -102,6 +102,24 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["text", "userId", "createdAt"]
+    },
+    "PlatformError": {
+      "title": "PlatformError",
+      "description": "Automatically logged system exception",
+      "type": "object",
+      "properties": {
+        "message": { "type": "string" },
+        "stack": { "type": "string" },
+        "componentName": { "type": "string" },
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "url": { "type": "string" },
+        "userAgent": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "resolved": { "type": "boolean" },
+        "resolvedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["message", "timestamp"]
     }
   },
   "firestore": {
@@ -140,6 +158,10 @@
     "liveStats/viewers": {
       "schema": "object",
       "description": "Real-time viewer counts"
+    },
+    "platform_errors/{errorId}": {
+      "schema": "PlatformError",
+      "description": "System error logs"
     }
   }
 }

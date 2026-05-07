@@ -185,7 +185,7 @@ export default function Details() {
     };
 
     loadData();
-  }, [id, user]);
+  }, [id, user?.id]); // FIX: Prevent full reload on heartbeat user change
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 

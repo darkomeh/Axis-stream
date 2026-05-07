@@ -37,6 +37,7 @@ export default function Tray({ isOpen, onClose, title, children, backgroundImage
                   alt="" 
                   className="w-full h-full object-cover opacity-20 blur-sm brightness-[0.3]" 
                   referrerPolicy="no-referrer"
+                  loading="lazy"
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90" />
               </div>

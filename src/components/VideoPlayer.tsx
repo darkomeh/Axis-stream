@@ -612,13 +612,14 @@ export default function VideoPlayer({
             const hls = new HlsClass({
               enableWorker: true,
               capLevelToPlayerSize: true,
-              startLevel: -1, // Auto
-              // DATA SAVING OPTIMIZATIONS
-              maxBufferLength: 30, // Buffer less to save data if user stops watching
-              maxMaxBufferLength: 60,
+              startLevel: preferences.dataSaver ? 0 : -1, // Lowest if data saver, else Auto
+              // LOW DATA SAVING OPTIMIZATIONS
+              maxBufferLength: preferences.dataSaver ? 5 : 10, // Small buffer saves data
+              maxMaxBufferLength: preferences.dataSaver ? 10 : 20,
+              maxBufferSize: preferences.dataSaver ? 15 * 1000 * 1000 : 40 * 1000 * 1000,
             });
-            if (isMobile) {
-              hls.autoLevelCapping = 2; // Cap auto quality on mobile
+            if (isMobile || preferences.dataSaver) {
+              hls.autoLevelCapping = 0; // Force lowest on data saver/mobile
             }
             hlsRef.current = hls;
             hls.loadSource(source.url);
@@ -689,7 +690,7 @@ export default function VideoPlayer({
     return () => {
       if (hlsRef.current) hlsRef.current.destroy();
     };
-  }, [selectedSourceIdx, mediaData.sources, initialTime, id]);
+  }, [selectedSourceIdx, mediaData.sources, initialTime, id, preferences.dataSaver]);
 
   // Handle Audio Track Change (Reloading stream)
   const handleAudioTrackChangeInternal = (track: any) => {
@@ -1401,7 +1402,7 @@ export default function VideoPlayer({
               exit={{ opacity: 0, x: 40, scale: 0.98 }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-[min(80vw,180px)] h-fit bg-black/85 backdrop-blur-2xl rounded-[8px] overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-white/5 pointer-events-auto ring-1 ring-white/5"
+              className="relative w-[min(90vw,260px)] sm:w-[260px] h-fit bg-black/85 backdrop-blur-2xl rounded-[8px] overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-white/5 pointer-events-auto ring-1 ring-white/5"
             >
               <div className="flex flex-col py-1 max-h-[80vh] overflow-y-auto no-scrollbar">
                 {activeMenu === "settings" && (
@@ -1425,6 +1426,21 @@ export default function VideoPlayer({
                         </div>
                       </button>
                     ))}
+                    
+                    {/* Data Saver Mode Toggle */}
+                    <div className="border-t border-white/5 my-1" />
+                    <button
+                      onClick={() => updatePreferences({ dataSaver: !preferences.dataSaver })}
+                      className="w-full flex items-center justify-between px-4 py-2 hover:bg-white/10 active:bg-white/15 transition-all group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Gauge className={`w-3.5 h-3.5 transition-colors ${preferences.dataSaver ? 'text-brand' : 'text-[#aaa]'}`} />
+                        <span className="text-xs font-medium text-white">Data Saver</span>
+                      </div>
+                      <div className={`w-8 h-4 rounded-full relative transition-all duration-300 ${preferences.dataSaver ? 'bg-brand' : 'bg-white/10'}`}>
+                         <div className={`absolute top-0.5 bottom-0.5 w-3 rounded-full bg-white shadow-sm transition-all duration-300 ${preferences.dataSaver ? 'left-4.5' : 'left-0.5'}`} />
+                      </div>
+                    </button>
                     
                     {seasons && seasons.length > 0 && (
                       <button
@@ -1545,15 +1561,21 @@ export default function VideoPlayer({
 
                 {activeMenu === "caption-settings" && (
                   <div className="flex flex-col">
-                    <div className="p-6 space-y-8">
-                      <section className="space-y-4">
+                    <div className="px-4 py-3 flex items-center gap-2 border-b border-white/5">
+                      <button onClick={() => setActiveMenu("settings")} className="p-1 -ml-1 hover:bg-white/10 rounded-full transition-colors">
+                        <ArrowLeft className="w-3 h-3 text-white/40" />
+                      </button>
+                      <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/30">Caption Style</span>
+                    </div>
+                    <div className="p-4 space-y-6">
+                      <section className="space-y-3">
                         <label className="text-[10px] font-black uppercase text-white/30 tracking-[0.2em]">Size</label>
                         <div className="grid grid-cols-4 gap-2">
                           {[14, 18, 22, 28].map((size) => (
                             <button
                               key={size}
                               onClick={() => updateSubtitleSetting({ fontSize: size })}
-                              className={`py-3 rounded-xl transition-all border font-bold text-xs ${subtitleSettings.fontSize === size ? "bg-brand border-brand text-white shadow-lg shadow-brand/20" : "bg-white/5 border-white/5 text-white/60 hover:bg-white/10"}`}
+                              className={`py-2 rounded-xl transition-all border font-bold text-xs ${subtitleSettings.fontSize === size ? "bg-brand border-brand text-white" : "bg-white/5 border-white/5 text-white/60 hover:bg-white/10"}`}
                             >
                               {size === 14 ? "S" : size === 18 ? "M" : size === 22 ? "L" : "XL"}
                             </button>
@@ -1561,21 +1583,21 @@ export default function VideoPlayer({
                         </div>
                       </section>
 
-                      <section className="space-y-4">
+                      <section className="space-y-3">
                         <label className="text-[10px] font-black uppercase text-white/30 tracking-[0.2em]">Color</label>
-                        <div className="flex justify-between items-center bg-white/5 p-3 rounded-2xl border border-white/5">
+                        <div className="flex justify-between items-center bg-white/5 p-2 rounded-2xl border border-white/5">
                           {["#ffffff", "#ffff00", "#00ffff", "#ff00ff"].map((color) => (
                             <button
                               key={color}
                               onClick={() => updateSubtitleSetting({ color })}
-                              className={`w-10 h-10 rounded-full border-2 transition-all ${subtitleSettings.color === color ? "scale-110 border-white ring-4 ring-white/10" : "border-transparent opacity-50 hover:opacity-100"}`}
+                              className={`w-8 h-8 rounded-full border-2 transition-all ${subtitleSettings.color === color ? "scale-110 border-white ring-2 ring-white/10" : "border-transparent opacity-50 hover:opacity-100"}`}
                               style={{ backgroundColor: color }}
                             />
                           ))}
                         </div>
                       </section>
 
-                      <section className="space-y-4">
+                      <section className="space-y-3">
                         <label className="text-[10px] font-black uppercase text-white/30 tracking-[0.2em]">Background Opacity</label>
                         <div className="grid grid-cols-4 gap-2">
                           {[0, 0.4, 0.6, 0.85].map((op) => {
@@ -1585,7 +1607,7 @@ export default function VideoPlayer({
                               <button
                                 key={op}
                                 onClick={() => updateSubtitleSetting({ backgroundColor: bg })}
-                                className={`py-3 rounded-xl transition-all border font-bold text-[10px] ${isSelected ? "bg-brand border-brand text-white shadow-lg shadow-brand/20" : "bg-white/5 border-white/5 text-white/60"}`}
+                                className={`py-2 rounded-xl transition-all border font-bold text-[10px] ${isSelected ? "bg-brand border-brand text-white" : "bg-white/5 border-white/5 text-white/60 hover:bg-white/10"}`}
                               >
                                 {op === 0 ? "Off" : `${Math.round(op * 100)}%`}
                               </button>

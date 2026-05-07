@@ -131,7 +131,7 @@ export default function Ranking() {
             <Trophy className="w-10 h-10 text-brand filter drop-shadow-[0_0_10px_rgba(255,45,45,0.5)]" />
           </div>
           <div>
-            <h1 className="text-5xl md:text-7xl font-black mb-3 tracking-tighter uppercase italic leading-none">
+            <h1 className="text-4xl md:text-7xl font-black mb-3 tracking-tighter uppercase italic leading-none">
               Top 30 <span className="text-brand">Ranking</span>
             </h1>
             <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-[10px] md:text-xs">The Authoritative Guide to Global Cinematic Excellence</p>

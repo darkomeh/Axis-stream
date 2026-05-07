@@ -297,7 +297,7 @@ export default function Profile() {
       <div className="fixed inset-0 z-0 bg-gradient-to-b from-brand/5 to-black" />
 
       {/* Custom Top Navigation */}
-      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-8 md:pl-[280px]">
+      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-8 md:px-12 backdrop-blur-sm bg-black/20">
         <button onClick={handleBack} className="p-2 hover:bg-white/10 rounded-full transition-colors flex items-center gap-3">
           <ArrowLeft className="w-6 h-6" />
           <h1 className="text-2xl font-black tracking-tight italic uppercase">My Profile</h1>
@@ -313,7 +313,7 @@ export default function Profile() {
         </div>
       </div>
 
-      <div className="relative z-10 pt-28 px-6 max-w-[800px] mx-auto space-y-8">
+      <div className="relative z-10 pt-28 px-4 sm:px-6 max-w-[800px] mx-auto space-y-6 sm:space-y-8">
         
         {/* PREMIUM PROFILE HEADER CARD */}
         <motion.div 
@@ -361,18 +361,18 @@ export default function Profile() {
                 ) : (
                   <button 
                   onClick={logout}
-                  className="flex items-center gap-2 px-8 py-3.5 bg-brand hover:bg-brand/90 text-white rounded-full transition-all text-xs font-black uppercase tracking-widest shadow-lg shadow-brand/20 active:scale-95"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 bg-brand hover:bg-brand/90 text-white rounded-full transition-all text-xs font-black uppercase tracking-widest shadow-lg shadow-brand/20 active:scale-95"
                 >
                   <LogOut className="w-4 h-4" /> Sign Out
                 </button>
                 )}
-                <button onClick={openEditProfile} className="flex items-center gap-2 px-8 py-3.5 bg-white/5 hover:bg-white/10 text-white border border-white/20 rounded-full transition-all text-xs font-black uppercase tracking-widest active:scale-95">
+                <button onClick={openEditProfile} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 bg-white/5 hover:bg-white/10 text-white border border-white/20 rounded-full transition-all text-xs font-black uppercase tracking-widest active:scale-95">
                   <Settings className="w-4 h-4" /> Edit Profile
                 </button>
                 {user?.email === 'greatmayuku2@gmail.com' && (
                   <button 
                     onClick={() => setViewAdmin(true)} 
-                    className="flex items-center gap-2 px-8 py-3.5 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/30 rounded-full transition-all text-xs font-black uppercase tracking-widest active:scale-95 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/30 rounded-full transition-all text-xs font-black uppercase tracking-widest active:scale-95 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
                   >
                     <Shield className="w-4 h-4" /> Command Center
                   </button>
@@ -381,8 +381,7 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* Stats Bar */}
-          <div className="relative z-10 mt-10 pt-8 border-t border-white/10 flex items-center bg-black/20 rounded-3xl p-6 backdrop-blur-md">
+          <div className="relative z-10 mt-8 sm:mt-10 pt-6 sm:pt-8 border-t border-white/10 flex items-center bg-black/20 rounded-3xl p-4 sm:p-6 backdrop-blur-md">
             <div className="flex-1 flex flex-col items-center gap-2 border-r border-white/5">
               <Bookmark className="w-6 h-6 text-brand drop-shadow-[0_0_8px_rgba(255,45,45,0.4)]" />
               <div className="flex flex-col items-center">
@@ -400,8 +399,7 @@ export default function Profile() {
           </div>
         </motion.div>
 
-        {/* ACHIEVEMENTS SECTION */}
-        <div className="bg-white/5 border border-white/10 rounded-[32px] p-6 backdrop-blur-2xl">
+        <div className="bg-white/5 border border-white/10 rounded-[32px] p-5 sm:p-6 backdrop-blur-2xl">
           <div className="flex items-center justify-between mb-6 px-2">
             <h3 className="text-sm font-black uppercase tracking-[0.2em] flex items-center gap-3">
               <Award className="w-5 h-5 text-brand" /> Achievements
@@ -426,7 +424,7 @@ export default function Profile() {
                 const Icon = badgeInfo.icon;
 
                 return (
-                  <div key={idx} className={`bg-gradient-to-br ${badgeInfo.bg} to-black/20 border border-white/10 rounded-3xl p-5 flex items-center gap-5 shadow-2xl`}>
+                  <div key={idx} className={`bg-gradient-to-br ${badgeInfo.bg} to-black/20 border border-white/10 rounded-3xl p-4 sm:p-5 flex items-center gap-4 sm:gap-5 shadow-2xl`}>
                     <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 shadow-lg">
                       <Icon className={`w-7 h-7 ${badgeInfo.color} fill-current/10`} />
                     </div>

@@ -1,42 +1,58 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { trackVisitor } from '../services/firebaseService';
+import { trackVisitorWithGeo, trackSessionDuration, logPlatformError } from '../services/firebaseService';
 
 export const Analytics = () => {
   const location = useLocation();
+  const sessionStarted = useRef(false);
+  const heartbeatInterval = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // track in firebase for admin panel
-    trackVisitor();
-    
-    // Replace G-XXXXXXXXXX with your actual Google Analytics ID
+    // 1. Initial Visitor Tracking with Geolocation (Once per session)
+    if (!sessionStarted.current) {
+      trackVisitorWithGeo();
+      sessionStarted.current = true;
+    }
+
+    // 2. Session Heartbeat (Every 60 seconds)
+    if (!heartbeatInterval.current) {
+      heartbeatInterval.current = setInterval(() => {
+        trackSessionDuration(60);
+      }, 60000);
+    }
+
+    // 3. Global Error Surveillance
+    const handleError = (event: ErrorEvent) => {
+      logPlatformError(
+        event.message,
+        event.error?.stack,
+        'Global Window'
+      );
+    };
+
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      logPlatformError(
+        `Unhandled Rejection: ${String(event.reason)}`,
+        event.reason?.stack,
+        'Promise Rejection'
+      );
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+
+    // Track page views in standard GA if configured
     const GA_ID = 'G-XXXXXXXXXX'; 
-    
-    // Only proceed if a real GA ID is provided
-    if (GA_ID === 'G-XXXXXXXXXX') {
-      console.log('Analytics is in placeholder mode. Update the GA_ID in src/components/Analytics.tsx to enable.');
-      return;
-    }
-    
-    if (!window.gtag) {
-      const script = document.createElement('script');
-      script.async = true;
-      script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
-      document.head.appendChild(script);
-
-      window.dataLayer = window.dataLayer || [];
-      window.gtag = function() {
-        window.dataLayer.push(arguments);
-      };
-      window.gtag('js', new Date());
-      window.gtag('config', GA_ID);
-    }
-
-    if (window.gtag) {
+    if (GA_ID !== 'G-XXXXXXXXXX' && window.gtag) {
       window.gtag('event', 'page_view', {
         page_path: location.pathname + location.search,
       });
     }
+
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
   }, [location]);
 
   return null;

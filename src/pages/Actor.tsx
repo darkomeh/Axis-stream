@@ -117,7 +117,7 @@ export default function ActorPage() {
       <Navbar />
       
       {/* Hero Section */}
-      <div className="relative pt-28 pb-12 px-6 lg:px-12 max-w-[1400px] mx-auto">
+      <div className="relative pt-28 pb-12 px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto">
         <button 
           onClick={handleBack}
           className="mb-8 p-2 hover:bg-white/10 rounded-full transition-colors flex items-center gap-2 text-gray-400 hover:text-white"
@@ -155,7 +155,7 @@ export default function ActorPage() {
                 <User className="w-4 h-4" />
                 <span>Actor Profile</span>
               </div>
-              <h1 className="text-5xl md:text-7xl font-black tracking-tighter">{actor.name}</h1>
+              <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tighter">{actor.name}</h1>
               <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-gray-400">
                 <div className="flex items-center gap-2">
                   <Star className="w-4 h-4 text-brand fill-brand" />
@@ -180,7 +180,7 @@ export default function ActorPage() {
       </div>
 
       {/* Filmography */}
-      <div className="px-6 lg:px-12 max-w-[1400px] mx-auto py-12">
+      <div className="px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto py-12">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-3xl font-bold tracking-tight">Filmography</h2>
           <div className="flex items-center gap-2 text-gray-500 text-sm font-bold uppercase tracking-widest">
@@ -203,7 +203,7 @@ export default function ActorPage() {
 
       {/* Related Actors */}
       {relatedActors.length > 0 && (
-        <div className="px-6 lg:px-12 max-w-[1400px] mx-auto py-12">
+        <div className="px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto py-12">
           <h2 className="text-3xl font-bold mb-8 tracking-tight">Related Actors</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
             {relatedActors.map((rel, idx) => (

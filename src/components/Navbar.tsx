@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
-  Search, Bell, Home, Film, Tv, Trophy, Radio, 
+  Search, Bell, Home, Film, Tv, Trophy, Radio, Activity,
   LayoutGrid, Grid2X2, Settings, User as UserIcon
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";

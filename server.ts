@@ -1,4 +1,5 @@
 import express from "express";
+import compression from "compression";
 import path from "path";
 import { externalMovieService } from "./src/services/externalMovieService";
 import axios from "axios";
@@ -6,6 +7,7 @@ import fs from "fs";
 import os from "os";
 
 const app = express();
+app.use(compression());
 app.use(express.json());
 
 // Diagnostic endpoint early
@@ -427,6 +429,44 @@ app.get("/api/staff/related", async (req, res) => {
 
 
 
+// Image Cache Directory
+const IMG_CACHE_DIR = path.join(os.tmpdir(), "axis-img-cache");
+if (!fs.existsSync(IMG_CACHE_DIR)) {
+  fs.mkdirSync(IMG_CACHE_DIR, { recursive: true });
+}
+
+// Helper to get cached image
+function getCachedImage(url: string): { buffer: Buffer, contentType: string } | null {
+  try {
+    const hash = Buffer.from(url).toString('base64').replace(/\//g, '_').replace(/\+/g, '-').substring(0, 100);
+    const cachePath = path.join(IMG_CACHE_DIR, hash);
+    const metaPath = cachePath + ".json";
+    
+    if (fs.existsSync(cachePath) && fs.existsSync(metaPath)) {
+      const stats = fs.statSync(cachePath);
+      // Cache images for 7 days
+      if (Date.now() - stats.mtimeMs < 7 * 24 * 60 * 60 * 1000) {
+        const buffer = fs.readFileSync(cachePath);
+        const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+        return { buffer, contentType: meta.contentType };
+      }
+    }
+  } catch (e) {
+    console.warn("[Image Proxy] Cache read error:", e);
+  }
+  return null;
+}
+
+function setCachedImage(url: string, buffer: Buffer, contentType: string) {
+  try {
+    const hash = Buffer.from(url).toString('base64').replace(/\//g, '_').replace(/\+/g, '-').substring(0, 100);
+    fs.writeFileSync(path.join(IMG_CACHE_DIR, hash), buffer);
+    fs.writeFileSync(path.join(IMG_CACHE_DIR, hash + ".json"), JSON.stringify({ contentType }));
+  } catch (e) {
+    console.warn("[Image Proxy] Cache write error:", e);
+  }
+}
+
 // Image Proxy Route
 app.get("/api/image-proxy", async (req, res) => {
   let imageUrl = req.query.url as string;
@@ -440,13 +480,20 @@ app.get("/api/image-proxy", async (req, res) => {
     imageUrl = decodeURIComponent(parts[parts.length - 1]);
   }
 
+  // Check cache first
+  const cached = getCachedImage(imageUrl);
+  if (cached) {
+    res.setHeader('Content-Type', cached.contentType);
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('X-Cache', 'HIT');
+    return res.send(cached.buffer);
+  }
+
   try {
     // Validate URL
-    let url: URL;
     try {
-      url = new URL(imageUrl);
+      new URL(imageUrl);
     } catch (e) {
-      console.error(`[Image Proxy] Invalid URL: ${imageUrl}`);
       return res.status(400).send("Invalid URL");
     }
 
@@ -499,9 +546,13 @@ app.get("/api/image-proxy", async (req, res) => {
        else contentType = 'image/jpeg';
     }
     
-    res.setHeader('Content-Type', contentType);
+    // Set cache for future requests
+    setCachedImage(imageUrl, buffer, contentType || 'image/jpeg');
+
+    res.setHeader('Content-Type', contentType || 'image/jpeg');
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('X-Cache', 'MISS');
     res.send(buffer);
   } catch (error: any) {
     console.error(`[Image Proxy] Error fetching ${imageUrl}:`, error.message);

@@ -81,6 +81,74 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
   throw new Error(JSON.stringify(errInfo));
 }
 
+export const trackVisitorWithGeo = async () => {
+  const path = 'analytics/global';
+  try {
+    // Attempt to get geolocation info via public API
+    let country = 'Unknown';
+    try {
+      const geoRes = await fetch('https://ipapi.co/json/');
+      const geoData = await geoRes.json();
+      if (geoData.country_name) country = geoData.country_name;
+    } catch (e) {
+      console.warn("Geo lookup failed", e);
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const statsRef = doc(db, 'analytics', 'global');
+    
+    await setDoc(statsRef, {
+      totalVisitors: increment(1),
+      [`dailyVisitors.${today}`]: increment(1),
+      [`countries.${country}`]: increment(1),
+      lastUpdated: serverTimestamp()
+    }, { merge: true });
+  } catch (error: any) {
+    console.error("Advanced visitor tracking failed", error);
+  }
+};
+
+export const logPlatformError = async (message: string, stack?: string, componentName?: string) => {
+  const path = 'platform_errors';
+  try {
+    const errorData = {
+      message,
+      stack: stack || 'No stack trace',
+      componentName: componentName || 'Unknown',
+      userId: auth.currentUser?.uid || 'guest',
+      userEmail: auth.currentUser?.email || 'guest',
+      url: window.location.href,
+      userAgent: navigator.userAgent,
+      timestamp: serverTimestamp(),
+      resolved: false
+    };
+    await addDoc(collection(db, path), errorData);
+  } catch (error) {
+    console.error("Failed to log platform error:", error);
+  }
+};
+
+export const trackSessionDuration = async (seconds: number) => {
+  const path = 'analytics/global';
+  try {
+    const statsRef = doc(db, 'analytics', 'global');
+    await updateDoc(statsRef, {
+      totalSessionSeconds: increment(seconds),
+      lastUpdated: serverTimestamp()
+    });
+    
+    // Also track per-user if logged in
+    if (auth.currentUser) {
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      await updateDoc(userRef, {
+        'stats.totalSessionSeconds': increment(seconds)
+      });
+    }
+  } catch (error) {
+    console.warn("Session tracking failed", error);
+  }
+};
+
 export const resetPassword = async (email: string) => {
   try {
     await sendPasswordResetEmail(auth, email);
@@ -501,6 +569,29 @@ export const updateLiveViewerCount = async (delta: number) => {
   }
 };
 
+export const getPlatformErrors = async () => {
+  const path = 'platform_errors';
+  try {
+    const q = query(collection(db, path), orderBy('timestamp', 'desc'), limit(100));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+  }
+};
+
+export const resolvePlatformError = async (errorId: string) => {
+  const path = `platform_errors/${errorId}`;
+  try {
+    await updateDoc(doc(db, 'platform_errors', errorId), {
+      resolved: true,
+      resolvedAt: serverTimestamp()
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+};
+
 export const getUsers = async () => {
   const path = 'users';
   try {
@@ -579,8 +670,36 @@ export const updateAdminConfig = async (configData: any) => {
   }
 };
 
+export const submitContentReport = async (userId: string, category: string, detail: string) => {
+  const path = 'reports';
+  try {
+    await addDoc(collection(db, path), {
+      userId,
+      category,
+      detail,
+      status: 'open',
+      createdAt: serverTimestamp()
+    });
+    return true;
+  } catch (error) {
+    console.error("Failed to submit report", error);
+    return false;
+  }
+};
+
+export const getReports = async () => {
+  const path = 'reports';
+  try {
+    const q = query(collection(db, path), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (error) {
+    console.error("Failed to get reports", error);
+    return [];
+  }
+};
+
 export const getAdminConfig = async () => {
-  const path = 'admin/config';
   try {
     const configRef = doc(db, 'admin', 'config');
     const snap = await getDoc(configRef);

@@ -221,65 +221,87 @@ export const externalMovieService = {
   },
 
   async getDetails(subjectId: string): Promise<ItemDetails> {
-    const response = await fetchWithRetry({ 
-      url: `/detail`, 
-      params: { subjectId } 
-    });
-    const data = response.data?.data || {};
-    const subject = data.subject || {};
-    const stars = data.stars || subject.stars || [];
-    
-    return {
-      id: String(subject.subjectId || subject.id),
-      title: subject.title || 'Unknown Title',
-      description: subject.description || '',
-      poster: (() => {
-        const p = (typeof subject.cover === 'string' ? subject.cover : subject.cover?.url) || 
-                  subject.poster || 
-                  subject.coverUrl || 
-                  subject.image || 
-                  subject.img || 
-                  '';
-        return p;
-      })(),
-      background: subject.stills?.[0]?.url || subject.cover?.url || '',
-      rating: subject.imdbRatingValue || subject.rating,
-      contentRating: subject.contentRating || subject.mpaa || subject.ageRating,
-      year: subject.releaseDate ? subject.releaseDate.substring(0, 4) : subject.year,
-      genres: Array.isArray(subject.genre) ? subject.genre : (typeof subject.genre === 'string' ? subject.genre.split(',') : []),
-      images: Array.isArray(subject.imageList) 
-        ? subject.imageList.map((img: any) => typeof img === 'string' ? img : img.url).filter(Boolean)
-        : [],
-      cast: stars.map((star: any) => {
-        const avatar = (typeof star.avatarUrl === 'string' ? star.avatarUrl : star.avatarUrl?.url) ||
-                       (typeof star.avatar === 'string' ? star.avatar : star.avatar?.url) || 
-                       (typeof star.cover === 'string' ? star.cover : star.cover?.url) || 
-                       (typeof star.image === 'string' ? star.image : star.image?.url) || 
-                       (typeof star.photo === 'string' ? star.photo : star.photo?.url) || '';
-        const sanitizedAvatar = sanitizeImageUrl(avatar);
-        return {
-          id: String(star.staffId || star.id),
-          name: star.name,
-          character: star.character,
-          avatarUrl: sanitizedAvatar,
-          avatar: sanitizedAvatar
-        };
-      }),
-      type: subject.subjectType === 2 ? 'Series' : 'Movie',
-      duration: subject.duration ? `${subject.duration} min` : undefined,
-      seasons: data.resource?.seasons,
-      trailer: subject.trailer,
-      trailerUrl: (typeof subject.trailerUrl === 'string' ? subject.trailerUrl : subject.trailerUrl?.url) || 
-                  (typeof subject.trailer === 'string' ? subject.trailer : (subject.trailer?.videoAddress?.url || subject.trailer?.url)) || 
-                  (typeof data.trailerUrl === 'string' ? data.trailerUrl : data.trailerUrl?.url) || ''
-    };
+    try {
+      const response = await fetchWithRetry({ 
+        url: `/detail`, 
+        params: { subjectId } 
+      });
+      const data = response.data?.data || {};
+      const subject = data.subject || {};
+      const stars = data.stars || subject.stars || [];
+      
+      return {
+        id: String(subject.subjectId || subject.id || subjectId),
+        title: subject.title || 'Unknown Title',
+        description: subject.description || '',
+        poster: (() => {
+          const p = (typeof subject.cover === 'string' ? subject.cover : subject.cover?.url) || 
+                    subject.poster || 
+                    subject.coverUrl || 
+                    subject.image || 
+                    subject.img || 
+                    '';
+          return p;
+        })(),
+        background: subject.stills?.[0]?.url || subject.cover?.url || '',
+        rating: subject.imdbRatingValue || subject.rating,
+        contentRating: subject.contentRating || subject.mpaa || subject.ageRating,
+        year: subject.releaseDate ? subject.releaseDate.substring(0, 4) : subject.year,
+        genres: Array.isArray(subject.genre) ? subject.genre : (typeof subject.genre === 'string' ? subject.genre.split(',') : []),
+        images: Array.isArray(subject.imageList) 
+          ? subject.imageList.map((img: any) => typeof img === 'string' ? img : img.url).filter(Boolean)
+          : [],
+        cast: stars.map((star: any) => {
+          const avatar = (typeof star.avatarUrl === 'string' ? star.avatarUrl : star.avatarUrl?.url) ||
+                         (typeof star.avatar === 'string' ? star.avatar : star.avatar?.url) || 
+                         (typeof star.cover === 'string' ? star.cover : star.cover?.url) || 
+                         (typeof star.image === 'string' ? star.image : star.image?.url) || 
+                         (typeof star.photo === 'string' ? star.photo : star.photo?.url) || '';
+          const sanitizedAvatar = sanitizeImageUrl(avatar);
+          return {
+            id: String(star.staffId || star.id),
+            name: star.name,
+            character: star.character,
+            avatarUrl: sanitizedAvatar,
+            avatar: sanitizedAvatar
+          };
+        }),
+        type: subject.subjectType === 2 ? 'Series' : 'Movie',
+        duration: subject.duration ? `${subject.duration} min` : undefined,
+        seasons: data.resource?.seasons,
+        trailer: subject.trailer,
+        trailerUrl: (typeof subject.trailerUrl === 'string' ? subject.trailerUrl : subject.trailerUrl?.url) || 
+                    (typeof subject.trailer === 'string' ? subject.trailer : (subject.trailer?.videoAddress?.url || subject.trailer?.url)) || 
+                    (typeof data.trailerUrl === 'string' ? data.trailerUrl : data.trailerUrl?.url) || ''
+      };
+    } catch (e: any) {
+      console.error(`[externalMovieService] getDetails failed for subjectId ${subjectId}:`, e.message);
+      return {
+        id: String(subjectId),
+        title: "Content Unavailable",
+        description: "The details for this title are currently unavailable from our provider. Please try again later.",
+        poster: "",
+        background: "",
+        rating: "0",
+        type: "Movie",
+        genres: [],
+        images: [],
+        cast: [],
+        seasons: []
+      };
+    }
   },
   async getRichDetails(subjectId: string): Promise<any> {
-    const response = await fetchWithRetry({ 
-      url: `/rich-detail`, 
-      params: { subjectId } 
-    });
-    return response.data?.data || {};
+    try {
+      const response = await fetchWithRetry({ 
+        url: `/rich-detail`, 
+        params: { subjectId } 
+      });
+      return response.data?.data || {};
+    } catch (e: any) {
+      console.error(`[externalMovieService] getRichDetails failed for ${subjectId}:`, e.message);
+      return {};
+    }
   },
 
   async getRecommendations(subjectId: string, page = 1, perPage = 10): Promise<MediaItem[]> {

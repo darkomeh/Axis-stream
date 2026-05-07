@@ -67,6 +67,7 @@ export interface UserPreferences {
   defaultQuality: string;
   skipIntro: boolean;
   playbackSpeed: number;
+  dataSaver: boolean;
   subtitleSettings: SubtitlePreferences;
 }
 
@@ -169,6 +170,7 @@ const defaultPreferences: UserPreferences = {
   defaultQuality: 'auto',
   skipIntro: false,
   playbackSpeed: 1,
+  dataSaver: false,
   subtitleSettings: {
     fontSize: 14,
     color: '#ffffff',
@@ -247,10 +249,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Initial fetch with slight delay to ensure server is ready
     const timer = setTimeout(fetchStatus, 1000);
     const interval = setInterval(() => {
-      if (!document.hidden) {
+      if (!document.hidden && window.location.pathname.startsWith('/admin')) {
         fetchStatus();
       }
-    }, 60000); // 60s polling only when visible
+    }, 60000); // 60s polling only when visible and in admin
     
     return () => {
       clearTimeout(timer);

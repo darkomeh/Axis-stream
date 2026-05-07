@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Search, LayoutGrid, Trophy, User } from "lucide-react";
+import { Home, Search, LayoutGrid, Trophy, User, Activity } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useMediaPreview } from "../contexts/MediaPreviewContext";
 
@@ -50,7 +50,7 @@ export default function BottomNav() {
                         isActive ? "text-brand drop-shadow-[0_0_8px_rgba(255,45,45,0.6)]" : "text-gray-400 group-hover:text-gray-200"
                       }`} />
                     </div>
-                    <span className={`text-[8px] font-black uppercase tracking-tighter transition-colors duration-300 ${
+                    <span className={`text-[10px] md:text-[11px] font-black uppercase tracking-tighter transition-colors duration-300 ${
                       isActive ? "text-white" : "text-gray-500"
                     }`}>
                       {item.label}

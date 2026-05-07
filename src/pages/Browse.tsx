@@ -192,7 +192,7 @@ export default function Browse() {
 
       <Navbar />
       
-      <div className="relative z-10 pt-28 px-6 lg:px-12 max-w-[1400px] mx-auto">
+      <div className="relative z-10 pt-28 px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto">
         <motion.button 
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -207,8 +207,9 @@ export default function Browse() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
+            className="flex-1"
           >
-            <h1 className="text-5xl md:text-7xl font-black mb-4 tracking-tighter uppercase leading-none italic" style={{ WebkitTextStroke: '1px rgba(255,255,255,0.1)' }}>
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-black mb-2 sm:mb-4 tracking-tighter uppercase leading-none italic" style={{ WebkitTextStroke: '1px rgba(255,255,255,0.1)' }}>
               Browse <span className="text-brand">{selectedType === "1" ? "Movies" : selectedType === "2" ? "Series" : "All"}</span>
             </h1>
             <p className="text-gray-500 font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs">Curated Excellence • Global Cinema • Unlimited Access</p>
@@ -217,7 +218,7 @@ export default function Browse() {
           <div className="flex flex-col gap-4">
             <button 
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center justify-center gap-3 px-8 py-4 border rounded-full transition-all group ${showFilters ? 'bg-brand/20 border-brand text-brand' : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'}`}
+              className={`flex items-center justify-center gap-2 sm:gap-3 px-6 sm:px-8 py-3.5 sm:py-4 border rounded-full transition-all group ${showFilters ? 'bg-brand/20 border-brand text-brand' : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'}`}
             >
               <Filter className={`w-4 h-4 transition-transform ${showFilters ? 'scale-110' : ''}`} />
               <span className="font-black uppercase tracking-widest text-xs">Refine Content</span>
@@ -226,8 +227,7 @@ export default function Browse() {
           </div>
         </div>
 
-        {/* Cinematic Filters Desktop (Glass Bar) */}
-        <div className="hidden md:flex items-center gap-6 p-4 bg-white/5 backdrop-blur-3xl border border-white/5 rounded-3xl mb-12">
+        <div className="hidden md:flex items-center gap-4 lg:gap-6 p-4 bg-white/5 backdrop-blur-3xl border border-white/5 rounded-3xl mb-12 flex-wrap">
           <div className="flex items-center gap-3 px-4 py-2 border-r border-white/10">
              <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Filter By:</span>
           </div>

@@ -81,6 +81,15 @@ service cloud.firestore {
              data.timestamp == request.time &&
              data.resolved == false;
     }
+    
+    function isValidReport(data) {
+      return data.keys().hasAll(['userId', 'category', 'detail', 'status', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.category is string &&
+             data.detail is string &&
+             data.status == 'open' &&
+             data.createdAt == request.time;
+    }
 
     // --- Collections ---
 
@@ -152,6 +161,13 @@ service cloud.firestore {
       allow list: if isAdmin();
       allow get: if isAdmin();
       allow create: if true && isValidPlatformError(incoming());
+      allow update: if isAdmin();
+    }
+
+    match /reports/{reportId} {
+      allow list: if isAdmin();
+      allow get: if isAdmin();
+      allow create: if isSignedIn() && isValidReport(incoming());
       allow update: if isAdmin();
     }
   }

@@ -2,61 +2,130 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --color-brand: #E50914; 
-  --color-brand-hover: #F40612;
-  --color-bg-base: #0B0B0B;
-  --color-bg-sidebar: #050505;
-  --color-card: #181818;
-  --radius-card: 12px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", system-ui, sans-serif;
+  --color-brand: #ffffff; /* Moving away from pure red to white glowing core for iOS feel */
+  --color-brand-hover: #f0f0f0;
+  
+  --color-bg-base: #000000;
+  --color-bg-sidebar: rgba(20, 20, 20, 0.6);
+  --color-card: rgba(30, 30, 30, 0.4);
+  
+  --radius-card: 24px; /* iOS style heavy rounding */
+  --radius-sm: 12px;
+  --radius-lg: 32px;
 
   /* Fluid Constants */
-  --fluid-px-4: clamp(0.5rem, 1.5vw, 1rem); /* 8px to 16px */
-  --fluid-px-6: clamp(0.625rem, 2vw, 1.5rem); /* 10px to 24px */
-  --fluid-px-12: clamp(0.875rem, 4vw, 3rem); /* 14px to 48px */
-  
-  --fluid-font-xs: clamp(0.5rem, 0.8vw, 0.7rem);
-  --fluid-font-sm: clamp(0.6rem, 1.2vw, 0.8rem);
-  --fluid-font-base: clamp(0.7rem, 1.8vw, 0.95rem);
-  --fluid-font-lg: clamp(0.8rem, 2.2vw, 1.1rem);
-  --fluid-font-xl: clamp(0.9rem, 3vw, 1.2rem);
-  --fluid-font-2xl: clamp(1rem, 4vw, 1.4rem);
-  --fluid-font-hero: clamp(1.2rem, 7vw, 4rem);
+  --fluid-px-4: clamp(0.35rem, 1.2vw + 0.2rem, 1rem);
+  --fluid-px-6: clamp(0.5rem, 2vw + 0.3rem, 1.5rem);
+  --fluid-px-12: clamp(0.85rem, 4vw + 0.5rem, 3rem);
+  /* Fluid Text Variables */
+  --text-fluid-xs: clamp(0.625rem, 0.5vw + 0.5rem, 0.8rem);
+  --text-fluid-sm: clamp(0.725rem, 0.8vw + 0.55rem, 0.925rem);
+  --text-fluid-base: clamp(0.825rem, 1vw + 0.6rem, 1.05rem);
+  --text-fluid-lg: clamp(0.875rem, 1.2vw + 0.65rem, 1.15rem);
+  --text-fluid-xl: clamp(0.95rem, 1.5vw + 0.7rem, 1.3rem);
+  --text-fluid-2xl: clamp(1.05rem, 1.8vw + 0.8rem, 1.6rem);
+  --text-fluid-3xl: clamp(1.15rem, 2.5vw + 0.9rem, 2rem);
+  --text-fluid-4xl: clamp(1.25rem, 3.5vw + 1rem, 2.5rem);
+  --text-fluid-5xl: clamp(1.35rem, 4.5vw + 1.1rem, 3.25rem);
+  --text-fluid-6xl: clamp(1.5rem, 5.5vw + 1.2rem, 4rem);
+  --text-fluid-7xl: clamp(1.75rem, 7vw + 1.4rem, 5rem);
 }
 
 @layer utilities {
-  .text-fluid-xs { font-size: var(--fluid-font-xs); }
-  .text-fluid-sm { font-size: var(--fluid-font-sm); }
-  .text-fluid-base { font-size: var(--fluid-font-base); }
-  .text-fluid-lg { font-size: var(--fluid-font-lg); }
-  .text-fluid-xl { font-size: var(--fluid-font-xl); }
-  .text-fluid-2xl { font-size: var(--fluid-font-2xl); }
-  .text-fluid-hero { font-size: var(--fluid-font-hero); }
-
+  .text-fluid-xs { font-size: var(--text-fluid-xs); }
+  .text-fluid-sm { font-size: var(--text-fluid-sm); }
+  .text-fluid-base { font-size: var(--text-fluid-base); }
+  .text-fluid-lg { font-size: var(--text-fluid-lg); }
+  .text-fluid-xl { font-size: var(--text-fluid-xl); }
+  .text-fluid-2xl { font-size: var(--text-fluid-2xl); }
+  .text-fluid-3xl { font-size: var(--text-fluid-3xl); }
+  .text-fluid-4xl { font-size: var(--text-fluid-4xl); }
+  .text-fluid-5xl { font-size: var(--text-fluid-5xl); }
+  .text-fluid-6xl { font-size: var(--text-fluid-6xl); }
+  .text-fluid-7xl { font-size: var(--text-fluid-7xl); }
   .px-fluid { padding-left: var(--fluid-px-12); padding-right: var(--fluid-px-12); }
   .px-fluid-sm { padding-left: var(--fluid-px-6); padding-right: var(--fluid-px-6); }
+  
+  /* Fluid Spacing & Margin Utilities */
+  .space-y-fluid > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-y-reverse: 0;
+    margin-top: calc(var(--fluid-px-12) * (1 - var(--tw-space-y-reverse)));
+    margin-bottom: calc(var(--fluid-px-12) * var(--tw-space-y-reverse));
+  }
+  .-mt-fluid { margin-top: calc(-1 * var(--fluid-px-12)); }
+  .-mt-fluid-sm { margin-top: calc(-1 * var(--fluid-px-6)); }
+  .gap-fluid { gap: var(--fluid-px-4); }
+  .py-fluid { padding-top: var(--fluid-px-12); padding-bottom: var(--fluid-px-12); }
+  
+  /* ---- iOS 26 LIQUID GLASS & VISIONOS UTILITIES ---- */
+  
+  .glass-panel {
+    @apply bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)] overflow-hidden;
+    border-radius: var(--radius-card);
+  }
+
+  .glass-button {
+    @apply bg-white/10 backdrop-blur-xl border border-white/20 shadow-[0_4px_16px_rgba(0,0,0,0.2)] hover:bg-white/20 hover:scale-[1.02] active:scale-[0.98] active:bg-white/5 transition-all duration-300;
+    border-radius: 9999px;
+  }
+
+  .glass-nav {
+    @apply bg-black/40 backdrop-blur-3xl border-b border-white/10 transition-all duration-500 hover:bg-black/50;
+  }
+  
+  .glass-dropdown {
+    @apply bg-black/60 backdrop-blur-3xl border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)];
+    border-radius: var(--radius-sm);
+  }
+
+  .glass-modal {
+    @apply bg-black/50 backdrop-blur-3xl border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.6)];
+    border-radius: var(--radius-lg);
+  }
+
+  .text-glow {
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+  }
+
+  .image-glow {
+    filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.15));
+  }
+
+  .cinematic-vignette {
+    box-shadow: inset 0 0 150px rgba(0,0,0,0.9);
+  }
 }
 
 @layer base {
   body {
-    @apply bg-bg-base text-white antialiased selection:bg-brand/30 selection:text-white overflow-x-hidden;
+    @apply bg-black text-white antialiased overflow-x-hidden;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+    /* Soft cinema lighting globally */
+    background: radial-gradient(circle at 50% 0%, #1a1a2e 0%, #000000 60%);
+    background-attachment: fixed;
+  }
+
+  /* Global Liquid UI adjustments */
+  input, textarea, select {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl text-white outline-none focus:bg-white/10 focus:border-white/30 focus:shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all duration-300;
   }
 }
 
 /* Hide scrollbar for clean UI */
 ::-webkit-scrollbar {
-  width: 6px;
+  display: none;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 10px;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: transparent;
 }
 
 .hide-scrollbar::-webkit-scrollbar {
@@ -69,33 +138,33 @@
 
 /* Cinematic Utilities */
 .hero-gradient-mobile {
-  background: linear-gradient(180deg, rgba(11, 11, 11, 0) 0%, rgba(11, 11, 11, 0.7) 60%, #0B0B0B 100%);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.8) 60%, #000000 100%);
 }
 
 .hero-gradient-overlay {
-  background: linear-gradient(90deg, #0B0B0B 10%, rgba(11, 11, 11, 0.6) 40%, rgba(11, 11, 11, 0) 100%);
+  background: radial-gradient(circle at 70% 30%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 80%, rgba(0,0,0,1) 100%);
 }
 
 .card-overlay {
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 40%, rgba(0, 0, 0, 0.9) 100%);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.8) 100%);
 }
 
 .premium-blur {
-  @apply backdrop-blur-3xl;
+  @apply backdrop-blur-[40px] bg-black/30;
 }
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(20px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.8s ease-out forwards;
+  animation: fadeIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
 .hover-scale {
-  @apply transition-transform duration-300 hover:scale-105;
+  @apply transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-[1.03] hover:shadow-[0_20px_40px_rgba(0,0,0,0.5)];
 }
 
 /* Snap Scrolling */
@@ -107,5 +176,5 @@
 }
 
 .glow-brand {
-  box-shadow: 0 0 20px rgba(229, 9, 20, 0.4);
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
 }

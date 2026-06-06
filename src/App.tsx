@@ -51,6 +51,7 @@ const Playlist = lazyWithRetry(() => import("./pages/Playlist"));
 const Ranking = lazyWithRetry(() => import("./pages/Ranking"));
 const Legal = lazyWithRetry(() => import("./pages/Legal"));
 const Admin = lazyWithRetry(() => import("./pages/Admin"));
+const Trails = lazyWithRetry(() => import("./pages/Trails"));
 
 import { useAuth } from "./contexts/AuthContext";
 
@@ -81,28 +82,28 @@ function AppContent() {
   }, [siteConfig]);
 
   // Routes where BottomNav should be visible
-  const showNavRoutes = ["/", "/search", "/browse", "/anime", "/toons", "/playlist", "/profile", "/ranking", "/live"];
+  const showNavRoutes = ["/", "/search", "/browse", "/anime", "/toons", "/playlist", "/profile", "/ranking", "/live", "/trails"];
   const shouldShowNav = showNavRoutes.includes(location.pathname);
 
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-brand/30 selection:text-white font-sans antialiased pb-20">
+    <div className="min-h-screen bg-transparent text-white selection:bg-brand/30 selection:text-white font-sans antialiased pb-20">
       {/* <LoginPopup /> */}
       <Analytics />
       <SystemAlerts />
       <MediaPreviewTray />
       <main>
         <Suspense fallback={
-          <div className="min-h-screen flex items-center justify-center bg-black">
+          <div className="min-h-screen flex items-center justify-center bg-transparent">
             <PopcornLoader />
           </div>
         }>
       <AnimatePresence mode="wait">
         <motion.div 
           key={location.pathname}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.98 }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         >
           <Routes location={location}>
             <Route path="/" element={<Home />} />
@@ -116,6 +117,7 @@ function AppContent() {
             <Route path="/playlist" element={<Playlist />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/ranking" element={<Ranking />} />
+            <Route path="/trails" element={<Trails />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/legal/:type" element={<Legal />} />
             {/* Fallback routes for movies/series/trending to browse for now */}

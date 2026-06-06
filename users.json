@@ -1,1 +1,46 @@
-[]
+[
+  {
+    "id": "tlt2bOByi1NTa7Rw84MTiJNz2qL2",
+    "username": "×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永",
+    "name": "×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永",
+    "email": "greatmayuku2@gmail.com",
+    "avatar": "https://lh3.googleusercontent.com/a/ACg8ocLp0x8OcYKLogqqsa4wNBIDnnTyl1Y52UvAFkNeu3pBp7rW8w=s96-c",
+    "bio": "Your lovely ×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永",
+    "role": "admin",
+    "watchlistCount": 3,
+    "historyCount": 50,
+    "stats": {
+      "watchTimeMinutes": 0,
+      "totalViews": 7,
+      "lastWatchDate": "2026-06-05",
+      "currentStreak": 7,
+      "genreProgress": {
+        "Horror": 1,
+        "Series": 6
+      },
+      "weekendCount": 0,
+      "badges": [
+        "7-day streak"
+      ]
+    },
+    "preferences": {
+      "autoPlayNext": true,
+      "autoPlay": true,
+      "showTrailers": true,
+      "defaultQuality": "auto",
+      "skipIntro": false,
+      "playbackSpeed": 1,
+      "dataSaver": false,
+      "subtitleSettings": {
+        "fontSize": 14,
+        "color": "#ffffff",
+        "backgroundColor": "rgba(0,0,0,0)",
+        "verticalPosition": 4
+      }
+    },
+    "lastAction": "2026-06-05T19:46:55.784Z",
+    "lastActionType": null,
+    "createdAt": "2026-06-04T20:26:08.846Z",
+    "updatedAt": "2026-06-05T19:46:57.190Z"
+  }
+]

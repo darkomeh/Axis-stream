@@ -1,0 +1,39 @@
+src/components/ContinueWatchingGrid.tsx:      <div className="max-w-[1400px] mx-auto px-fluid">
+src/components/ContinueWatchingGrid.tsx:                className="flex-none w-[clamp(240px,60vw,400px)] md:w-[400px] snap-start animate-fade-in"
+src/components/BottomNav.tsx:          className="fixed bottom-6 left-1/2 z-[100] w-[90%] max-w-[400px] md:hidden"
+src/components/PosterGrid.tsx:      <div className="max-w-[1400px] mx-auto px-fluid">
+src/components/PosterGrid.tsx:                  : "flex-none w-[clamp(115px,30vw,210px)] md:w-[180px] lg:w-[200px] snap-start animate-fade-in"
+src/components/TopTenGrid.tsx:        <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
+src/components/TopTenGrid.tsx:              <div key={i} className="flex-none w-[280px] sm:w-[320px] flex items-end">
+src/components/TopTenGrid.tsx:      <div className="max-w-[1400px] mx-auto px-fluid">
+src/components/TopTenGrid.tsx:                className="flex-none w-[clamp(140px,35vw,240px)] md:w-[240px] snap-start relative group animate-fade-in"
+src/components/Footer.tsx:      <div className="max-w-[1400px] mx-auto px-fluid">
+src/components/LoginPopup.tsx:              <p className="text-sm text-gray-400 font-medium max-w-[280px] mx-auto">
+src/components/Carousel.tsx:        <div className="max-w-[1400px] mx-auto px-fluid w-full pointer-events-auto">
+src/components/Carousel.tsx:            className={`min-w-[6px] h-1.5 md:h-2 rounded-full transition-all duration-500 flex-shrink-0 ${ idx === currentIndex ? "w-8 md:w-10 bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]" : "w-1.5 md:w-2 bg-white/30 hover:bg-white/60" }`}
+src/components/MediaPreviewTray.tsx:                      <p className="text-sm font-bold text-white/60 uppercase tracking-widest max-w-[240px]">This item has restricted access. Sign in to see more or stream.</p>
+src/components/MediaPreviewTray.tsx:                      className="flex flex-col items-center gap-3 md:gap-4 min-w-[100px] md:min-w-[120px] group cursor-pointer" 
+src/components/MediaPreviewTray.tsx:                      className="flex-none w-[130px] md:w-[170px] group cursor-pointer space-y-3"
+src/components/MediaPreviewTray.tsx:                      className="flex-none w-[220px] md:w-[280px] aspect-video rounded-lg md:rounded-xl overflow-hidden bg-[#121212] border border-white/5 shadow-2xl cursor-pointer group"
+src/components/MediaPreviewTray.tsx:                        className="relative flex-none w-[220px] md:w-[280px] aspect-video rounded-lg md:rounded-xl overflow-hidden bg-[#121212] border border-white/5 shadow-2xl group cursor-pointer"
+src/components/VideoPlayer.tsx:                <div className="ml-2 overflow-hidden max-w-[150px] sm:max-w-none">
+src/components/VideoPlayer.tsx:                      <div className="text-white font-mono text-xs tracking-wider min-w-[60px] md:min-w-[70px] text-right shrink-0">
+src/components/VideoPlayer.tsx:              className="relative w-[min(90vw,260px)] sm:w-[260px] h-fit bg-black/85 backdrop-blur-2xl rounded-[8px] overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-white/5 pointer-events-auto ring-1 ring-white/5"
+src/pages/Actor.tsx:      <div className="relative pt-28 pb-12 px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto">
+src/pages/Actor.tsx:      <div className="px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto py-12">
+src/pages/Actor.tsx:        <div className="px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto py-12">
+src/pages/Browse.tsx:      <div className="relative z-10 pt-28 px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto">
+src/pages/Toons.tsx:      <div className="pt-28 px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto">
+src/pages/Playlist.tsx:      <div className="relative z-10 pt-28 px-6 max-w-[1200px] mx-auto space-y-8">
+src/pages/Anime.tsx:      <div className="pt-28 px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto">
+src/pages/Profile.tsx:      <div className="relative z-10 pt-28 px-4 sm:px-6 max-w-[800px] mx-auto space-y-6 sm:space-y-8">
+src/pages/Profile.tsx:                  <p className="text-gray-300 text-sm font-medium mt-4 md:max-w-[400px] bg-white/5 p-3 rounded-2xl border border-white/5">
+src/pages/Admin.tsx:      <div className="pt-28 px-6 lg:px-12 max-w-[1400px] mx-auto text-left">
+src/pages/Details.tsx:            <p className="text-white/60 text-sm font-medium max-w-[400px] mb-8 leading-relaxed">Access high-quality streams, trailers and save your progress by signing in.</p>
+src/pages/Details.tsx:      <div className="max-w-[1400px] mx-auto px-5 py-8 space-y-8">
+src/pages/Details.tsx:                  className="flex-none w-[130px] md:w-[180px] snap-start group space-y-3 cursor-pointer"
+src/pages/Details.tsx:                className="relative flex-none w-[280px] aspect-video rounded-[16px] overflow-hidden bg-white/5 border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)] group cursor-pointer transition-all hover:scale-[1.02] hover:border-white/30"
+src/pages/Details.tsx:                className="flex-none w-[280px] aspect-video rounded-[16px] overflow-hidden bg-white/5 border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)] relative group cursor-pointer transition-all hover:scale-[1.02] hover:border-white/30"
+src/pages/Details.tsx:              <p className="text-white/60 text-base font-normal leading-relaxed max-w-[250px] mx-auto opacity-80">
+src/pages/Ranking.tsx:      <div className="relative z-10 pt-20 px-fluid max-w-[1400px] mx-auto">
+src/pages/Home.tsx:        <div className="relative z-10 -mt-fluid-sm md:-mt-24 space-y-12 md:space-y-24 pb-20 max-w-[1400px] mx-auto px-fluid">

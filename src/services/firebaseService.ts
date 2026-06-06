@@ -699,6 +699,26 @@ export const getReports = async () => {
   }
 };
 
+export const resolveReport = async (reportId: string) => {
+  const path = `reports/${reportId}`;
+  try {
+    const reportRef = doc(db, 'reports', reportId);
+    await updateDoc(reportRef, { status: 'closed' });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+};
+
+export const deleteReport = async (reportId: string) => {
+  const path = `reports/${reportId}`;
+  try {
+    const reportRef = doc(db, 'reports', reportId);
+    await deleteDoc(reportRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+};
+
 export const getAdminConfig = async () => {
   try {
     const configRef = doc(db, 'admin', 'config');

@@ -1,7 +1,7 @@
 import express from "express";
 import compression from "compression";
 import path from "path";
-import { externalMovieService } from "./src/services/externalMovieService";
+import { externalMovieService, setApiSource } from "./src/services/externalMovieService";
 import axios from "axios";
 import fs from "fs";
 import os from "os";
@@ -45,6 +45,7 @@ interface AdminState {
     tagline: string;
     logoUrl?: string;
     allowGuestBrowsing: boolean;
+    apiSource?: 'main' | 'backup';
   };
   reports: { id: string, userId: string, category: string, detail: string, timestamp: string, status: 'open' | 'closed' }[];
 }
@@ -63,6 +64,7 @@ let adminState: AdminState = {
     tagline: "The Ultimate Streaming Experience",
     logoUrl: "https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg",
     allowGuestBrowsing: true,
+    apiSource: 'main',
   },
   reports: []
 };
@@ -99,6 +101,7 @@ function logAction(type: string, detail: string) {
 }
 
 loadAdminState();
+setApiSource(adminState.siteConfig?.apiSource || 'main');
 
 // Global process error handlers to prevent crashes
 process.on('uncaughtException', (err) => {
@@ -334,19 +337,197 @@ app.get("/api/ranking", async (req, res) => {
   }
 });
 
+const tmdbCache = new Map<string, string>();
+
+async function resolveTmdbId(title: string, year: string, type: string): Promise<string | null> {
+  const normTitle = title.replace(/\[netflix\]/gi, '').trim();
+  const searchTitle = normTitle.replace(/[^a-zA-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const cacheKey = `${searchTitle}-${year || ''}-${type}`.toLowerCase().trim();
+  
+  if (tmdbCache.has(cacheKey)) {
+    return tmdbCache.get(cacheKey)!;
+  }
+  
+  try {
+    const isSeries = type.toLowerCase() === 'series' || type.toLowerCase() === 'tv';
+    const tmdbType = isSeries ? 'tv' : 'movie';
+    const TMDB_API_KEY = '15d2ea6d0dc1d476efbca3eba2b9bbfb'; // Fallback free tier key
+    
+    // TMDB Search API
+    const params: any = {
+      api_key: TMDB_API_KEY,
+      query: searchTitle,
+      page: 1,
+      include_adult: false
+    };
+    
+    if (year) {
+      if (isSeries) {
+        params.first_air_date_year = year;
+      } else {
+        params.primary_release_year = year;
+        params.year = year;
+      }
+    }
+
+    const searchUrl = `https://api.themoviedb.org/3/search/${tmdbType}`;
+    const res = await axios.get(searchUrl, { params, timeout: 5000 });
+    
+    if (res.data && res.data.results && res.data.results.length > 0) {
+      const resolvedId = String(res.data.results[0].id);
+      tmdbCache.set(cacheKey, resolvedId);
+      console.log(`[TMDB Resolver API] Successfully resolved ${searchTitle} to TMDb ID: ${resolvedId}`);
+      return resolvedId;
+    }
+    
+    // Fallback if year was too strict
+    if (year) {
+      const fallbackParams = { ...params };
+      delete fallbackParams.first_air_date_year;
+      delete fallbackParams.primary_release_year;
+      delete fallbackParams.year;
+      
+      const fallbackRes = await axios.get(searchUrl, { params: fallbackParams, timeout: 5000 });
+      if (fallbackRes.data && fallbackRes.data.results && fallbackRes.data.results.length > 0) {
+        const resolvedId = String(fallbackRes.data.results[0].id);
+        tmdbCache.set(cacheKey, resolvedId);
+        console.log(`[TMDB Resolver API] Successfully resolved ${searchTitle} (w/o year) to TMDb ID: ${resolvedId}`);
+        return resolvedId;
+      }
+    }
+
+    
+  } catch (err: any) {
+    console.error(`[TMDB Resolver] Failed for ${searchTitle}:`, err.message);
+  }
+  return null;
+}
+
 app.get("/api/play", async (req, res) => {
   try {
-    const { subjectId, detailPath, se, ep } = req.query;
+    const { subjectId, detailPath, se, ep, title, year, type } = req.query;
     const data = await externalMovieService.getPlay(
       String(subjectId || ""),
       detailPath ? String(detailPath) : undefined,
       se ? Number(se) : undefined,
       ep ? Number(ep) : undefined
     );
+    
+    // Dynamically resolve TMDb ID and construct the clean, ad-free sandboxed embedUrl
+    try {
+      const sId = String(subjectId || "");
+      let resolvedTmdbId = "";
+      let mediaType = type ? String(type).toLowerCase() : "movie";
+      const seasonNum = se ? Number(se) : 1;
+      const episodeNum = ep ? Number(ep) : 1;
+      
+      if (sId) {
+        // Option 1: Try TMDB Resolver with provided title/year
+        if (title) {
+           const tmdbId = await resolveTmdbId(String(title), year ? String(year) : "", mediaType === "series" ? "Series" : "Movie");
+           if (tmdbId) resolvedTmdbId = tmdbId;
+        }
+
+        // Option 2: Fallback to getDetails
+        if (!resolvedTmdbId) {
+          const details = await externalMovieService.getDetails(sId);
+          if (details && details.title && details.title !== "Content Unavailable") {
+            mediaType = details.type === "Series" ? "series" : "movie";
+            const tmdbId = await resolveTmdbId(details.title, details.year || "", details.type === "Series" ? "Series" : "Movie");
+            if (tmdbId) resolvedTmdbId = tmdbId;
+          }
+        }
+        
+        // Option 3: Extract from upstream embedUrl
+        if (!resolvedTmdbId && data.embedUrl && data.embedUrl.includes('vidsrc')) {
+           const match = data.embedUrl.match(/\/embed\/(movie|tv)\/([a-zA-Z0-9_-]+)/);
+           if (match) {
+             mediaType = match[1];
+             resolvedTmdbId = match[2];
+           }
+        }
+        
+        // Option 4: Fallback assuming subjectId is tmdbId
+        if (!resolvedTmdbId) {
+          resolvedTmdbId = sId;
+        }
+        
+        if (resolvedTmdbId) {
+            data.tmdbId = resolvedTmdbId;
+            data.type = mediaType;
+            
+            // Try extracting servers from vidsrc.wiki
+            let vidsrcServers = [];
+            try {
+              const url = `https://vidsrc.wiki/embed/${data.type}/${resolvedTmdbId}`;
+              const pRes = await axios.get(url, {timeout: 5000});
+              const match = pRes.data.match(/var CFG\s*=\s*(.*?);function/);
+              if (match) {
+                const cfg = new Function('return ' + match[1])();
+                if (cfg && cfg.servers) {
+                  vidsrcServers = cfg.servers.map((s: any) => ({
+                    id: s.id || s.name,
+                    name: s.name,
+                    url: data.type === 'series' 
+                      ? s.tv_url.replace('{tmdb_id}', resolvedTmdbId).replace('{season}', seasonNum).replace('{episode}', episodeNum)
+                      : s.movie_url.replace('{tmdb_id}', resolvedTmdbId)
+                  }));
+                }
+              }
+            } catch (err) {
+              console.warn('[TMDB Resolver] Could not fetch vidsrc servers');
+            }
+            
+            if (vidsrcServers.length > 0) {
+              data.vidsrcServers = vidsrcServers;
+              data.embedUrl = vidsrcServers[0].url;
+            } else {
+              data.embedUrl = (mediaType === "series"
+                ? `https://vidzen.fun/tv/${resolvedTmdbId}/${seasonNum}/${episodeNum}`
+                : `https://vidzen.fun/movie/${resolvedTmdbId}`);
+            }
+            
+            // Use the first server as the fallback embedCode
+            data.embedCode = `<iframe src="${data.embedUrl}" width="100%" height="100%" frameborder="0" allowfullscreen sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"></iframe>`;
+            
+            console.log(`[TMDB Resolver] Overwrote embedUrl: ${data.embedUrl}, type: ${data.type}, tmdbId: ${data.tmdbId}`);
+        }
+      }
+    } catch (e: any) {
+      console.warn("[TMDB Resolver] Warning: Failed to fetch item details for TMDB resolution:", e.message);
+    }
+    
     res.json(data);
   } catch (error: any) {
     console.error("[API] Play error:", error.message);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get("/api/verify-embed", async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.json({ valid: false });
+  try {
+    const response = await axios.get(String(url), { 
+      timeout: 3000, 
+      validateStatus: () => true 
+    });
+    const html = (typeof response.data === 'string' ? response.data.toLowerCase() : '');
+    const isBad = response.status >= 400 || 
+                  html.includes('<title>404</title>') || 
+                  html.includes('<title>not found</title>') || 
+                  html.includes('page not found') ||
+                  html.includes('this page could not be found') ||
+                  html.includes('error 404');
+    
+    // Some embedders like vidzen explicitly write "404 - Not Found" or similar in the document
+    if (html.includes('404 - not found') || html.includes('not found') && html.length < 5000) {
+       return res.json({ valid: false });
+    }
+    
+    res.json({ valid: !isBad });
+  } catch (err: any) {
+    res.json({ valid: false, error: err.message });
   }
 });
 
@@ -370,26 +551,17 @@ app.get("/api/staff/detail", async (req, res) => {
     res.json(data);
   } catch (error: any) {
     const status = error.response?.status || 500;
-    const isSkipRetry = error.message?.includes("skip retry");
-    const isDown = status === 502 || status === 503 || status === 504 || isSkipRetry;
-
-    if (isDown) {
-      if (!isSkipRetry) {
-        console.warn(`[API] Staff detail upstream down (${status}), returning skeleton. staffId: ${req.query.staffId}`);
-      }
-      // Return a skeleton actor instead of a 502 error to allow UI to continue
-      return res.json({
-        id: String(req.query.staffId),
-        name: "Biography Unavailable",
-        avatar: "",
-        description: "The biography details are currently unavailable from our data provider. Please try again later.",
-        biography: "The biography details are currently unavailable from our data provider. Please try again later.",
-        popularity: 0
-      });
-    }
+    console.log(`[API Proxy] Staff detail handled downstream status ${status} gracefully. staffId: ${req.query.staffId}`);
     
-    console.error(`[API] Actor detail unexpected error (${status}):`, error.message);
-    res.status(status).json({ success: false, error: error.message });
+    // Return a skeleton actor instead of failing to allow UI to continue
+    return res.json({
+      id: String(req.query.staffId || ""),
+      name: "Biography Unavailable",
+      avatar: "",
+      description: "The biography details are currently unavailable from our data provider. Please try again later.",
+      biography: "The biography details are currently unavailable from our data provider. Please try again later.",
+      popularity: 0
+    });
   }
 });
 
@@ -404,11 +576,8 @@ app.get("/api/staff/works", async (req, res) => {
     res.json(data);
   } catch (error: any) {
     const status = error.response?.status || 500;
-    if (status === 502 || status === 503 || status === 504 || error.message?.includes("skip retry")) {
-      return res.json([]); // Return empty list instead of error
-    }
-    console.error("[API] Actor works error:", error.message);
-    res.status(status).json({ success: false, error: error.message });
+    console.log(`[API Proxy] Actor works handled downstream status ${status} gracefully. staffId: ${req.query.staffId}`);
+    return res.json([]); // Return empty list instead of error
   }
 });
 
@@ -419,11 +588,8 @@ app.get("/api/staff/related", async (req, res) => {
     res.json(data);
   } catch (error: any) {
     const status = error.response?.status || 500;
-    if (status === 502 || status === 503 || status === 504 || error.message?.includes("skip retry")) {
-      return res.json([]); // Return empty list instead of error
-    }
-    console.error("[API] Related actors error:", error.message);
-    res.status(status).json({ success: false, error: error.message });
+    console.log(`[API Proxy] Related actors handled downstream status ${status} gracefully. staffId: ${req.query.staffId}`);
+    return res.json([]); // Return empty list instead of error
   }
 });
 
@@ -474,10 +640,24 @@ app.get("/api/image-proxy", async (req, res) => {
     return res.status(400).send("URL is required");
   }
 
-  // Prevent recursive proxying
-  while (imageUrl.includes("/api/image-proxy?url=")) {
-    const parts = imageUrl.split("/api/image-proxy?url=");
-    imageUrl = decodeURIComponent(parts[parts.length - 1]);
+  // Prevent recursive or nested proxying (e.g. from weserv.nl, wsrv.nl, or other proxy headers)
+  let attempts = 0;
+  while (attempts < 5 && (imageUrl.includes("weserv.nl") || imageUrl.includes("wsrv.nl") || imageUrl.includes("/api/image-proxy"))) {
+    attempts++;
+    const urlParamIndex = imageUrl.indexOf("url=");
+    if (urlParamIndex !== -1) {
+      let rawUrl = imageUrl.substring(urlParamIndex + 4);
+      const ampersandIndex = rawUrl.indexOf("&");
+      if (ampersandIndex !== -1) {
+        rawUrl = rawUrl.substring(0, ampersandIndex);
+      }
+      imageUrl = decodeURIComponent(rawUrl);
+    } else if (imageUrl.includes("/api/image-proxy?url=")) {
+      const parts = imageUrl.split("/api/image-proxy?url=");
+      imageUrl = decodeURIComponent(parts[parts.length - 1]);
+    } else {
+      break;
+    }
   }
 
   // Check cache first
@@ -704,6 +884,9 @@ app.post("/api/admin/config", (req, res) => {
   const { siteConfig } = req.body;
   if (siteConfig) {
     adminState.siteConfig = { ...adminState.siteConfig, ...siteConfig };
+    if (siteConfig.apiSource) {
+      setApiSource(siteConfig.apiSource);
+    }
     logAction("CONFIG_UPDATE", `Site identity updated: ${adminState.siteConfig.siteName}`);
     saveAdminState();
     res.json({ success: true });

@@ -14,235 +14,235 @@ import { MovieImage } from "../components/MovieImage";
 import { useMediaPreview } from "../contexts/MediaPreviewContext";
 
 export default function Ranking() {
-  const navigate = useNavigate();
-  const { openPreview } = useMediaPreview();
-  const [rankings, setRankings] = useState<RankingItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+ const navigate = useNavigate();
+ const { openPreview } = useMediaPreview();
+ const [rankings, setRankings] = useState<RankingItem[]>([]);
+ const [loading, setLoading] = useState(true);
+ const [error, setError] = useState<string | null>(null);
 
-  const handleBack = () => {
-    if (window.history.length > 2) {
-      navigate(-1);
-    } else {
-      navigate('/');
-    }
-  };
+ const handleBack = () => {
+ if (window.history.length > 2) {
+ navigate(-1);
+ } else {
+ navigate('/');
+ }
+ };
 
-  const loadRankings = async () => {
-    try {
-      if (rankings.length === 0) setLoading(true);
-      setError(null);
-      const [data, adminConfig, hotResult] = await Promise.all([
-        movieService.getRanking(),
-        getAdminConfig(),
-        movieService.getHot()
-      ]);
-      
-      let baseRankings = [...data];
-      
-      // Inject admin spotlights if enabled
-      if (adminConfig?.spotlights?.top10) {
-        const top10 = adminConfig.spotlights.top10;
-        for (let i = 0; i < 10; i++) {
-          if (top10[i]) {
-            const existingIndex = baseRankings.findIndex(r => r.id === top10[i].id);
-            if (existingIndex !== -1 && existingIndex !== i) {
-                baseRankings.splice(existingIndex, 1);
-            }
-            if (baseRankings.length > i) baseRankings[i] = { ...baseRankings[i], ...top10[i] };
-            else baseRankings.push(top10[i] as any);
-          }
-        }
-      }
+ const loadRankings = async () => {
+ try {
+ if (rankings.length === 0) setLoading(true);
+ setError(null);
+ const [data, adminConfig, hotResult] = await Promise.all([
+ movieService.getRanking(),
+ getAdminConfig(),
+ movieService.getHot()
+ ]);
+ 
+ let baseRankings = [...data];
+ 
+ // Inject admin spotlights if enabled
+ if (adminConfig?.spotlights?.top10) {
+ const top10 = adminConfig.spotlights.top10;
+ for (let i = 0; i < 10; i++) {
+ if (top10[i]) {
+ const existingIndex = baseRankings.findIndex(r => r.id === top10[i].id);
+ if (existingIndex !== -1 && existingIndex !== i) {
+ baseRankings.splice(existingIndex, 1);
+ }
+ if (baseRankings.length > i) baseRankings[i] = { ...baseRankings[i], ...top10[i] };
+ else baseRankings.push(top10[i] as any);
+ }
+ }
+ }
 
-      // Mix in Hot movies/series to ensure we have at least 30 high quality items
-      let pool: any[] = [];
-      if (hotResult) {
-        pool = [...hotResult.movies, ...hotResult.series];
-      }
+ // Mix in Hot movies/series to ensure we have at least 30 high quality items
+ let pool: any[] = [];
+ if (hotResult) {
+ pool = [...hotResult.movies, ...hotResult.series];
+ }
 
-      let finalRankings = [...baseRankings];
-      
-      if (finalRankings.length < 30 && pool.length > 0) {
-        const shuffledPool = pool.sort(() => 0.5 - Math.random());
-        for (const item of shuffledPool) {
-          if (finalRankings.length >= 30) break;
-          if (!finalRankings.find(r => r.id === item.id)) {
-            finalRankings.push({
-              ...item,
-              score: item.score || item.rating || "9.5",
-              cover: item.cover || item.poster
-            });
-          }
-        }
-      }
+ let finalRankings = [...baseRankings];
+ 
+ if (finalRankings.length < 30 && pool.length > 0) {
+ const shuffledPool = pool.sort(() => 0.5 - Math.random());
+ for (const item of shuffledPool) {
+ if (finalRankings.length >= 30) break;
+ if (!finalRankings.find(r => r.id === item.id)) {
+ finalRankings.push({
+ ...item,
+ score: item.score || item.rating || "9.5",
+ cover: item.cover || item.poster
+ });
+ }
+ }
+ }
 
-      setRankings(finalRankings.slice(0, 30));
-    } catch (e) {
-      console.error("Failed to load rankings", e);
-      setError("Failed to load rankings. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+ setRankings(finalRankings.slice(0, 30));
+ } catch (e) {
+ console.error("Failed to load rankings", e);
+ setError("Failed to load rankings. Please try again.");
+ } finally {
+ setLoading(false);
+ }
+ };
 
-  useEffect(() => {
-    loadRankings();
-  }, []);
+ useEffect(() => {
+ loadRankings();
+ }, []);
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
-        <h2 className="text-xl font-bold text-red-500 mb-4">{error}</h2>
-        <button onClick={loadRankings} className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-full font-bold transition-all">Retry</button>
-      </div>
-    );
-  }
+ if (error) {
+ return (
+ <div className="min-h-screen bg-transparent flex flex-col items-center justify-center p-6 text-center">
+ <h2 className="text-fluid-xl font-bold text-red-500 mb-4">{error}</h2>
+ <button onClick={loadRankings} className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-full font-bold transition-all">Retry</button>
+ </div>
+ );
+ }
 
-  return (
-    <div className="min-h-screen bg-[#000000] text-white pb-20 relative overflow-hidden">
-      {/* Background Poster Collage (Subtle) */}
-      <div className="fixed inset-0 z-0 opacity-10 blur-[100px] pointer-events-none">
-        <img 
-          src="https://picsum.photos/seed/cinema-ranking/1920/1080?blur=10" 
-          alt="background" 
-          className="w-full h-full object-cover"
-          loading="lazy"
-          referrerPolicy="no-referrer"
-        />
-        <div className="absolute inset-0 bg-gradient-to-br from-brand/5 via-black to-black" />
-      </div>
+ return (
+ <div className="min-h-screen bg-transparent text-white pb-20 relative overflow-hidden">
+ {/* Background Poster Collage (Subtle) */}
+ <div className="fixed inset-0 z-0 opacity-10 blur-[100px] pointer-events-none">
+ <img 
+ src="https://picsum.photos/seed/cinema-ranking/1920/1080?blur=10" 
+ alt="background" 
+ className="w-full h-full object-cover"
+ loading="lazy"
+ referrerPolicy="no-referrer"
+ />
+ <div className="absolute inset-0 bg-gradient-to-br from-brand/5 via-black to-black" />
+ </div>
 
-      <Navbar />
-      
-      <div className="relative z-10 pt-20 px-fluid max-w-[1400px] mx-auto">
-        <motion.button 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          onClick={handleBack}
-          className="mb-8 p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all flex items-center gap-2 text-gray-400 hover:text-white group border border-white/5"
-        >
-          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-          <span className="text-xs font-black uppercase tracking-widest">Back</span>
-        </motion.button>
+ <Navbar />
+ 
+ <div className="relative z-10 pt-20 px-fluid max-w-[1400px] mx-auto">
+ <motion.button 
+ initial={{ opacity: 0, x: -20 }}
+ animate={{ opacity: 1, x: 0 }}
+ onClick={handleBack}
+ className="mb-8 p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all flex items-center gap-2 text-gray-400 hover:text-white group border border-white/5"
+ >
+ <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+ <span className="text-fluid-xs font-semibold tracking-wide">Back</span>
+ </motion.button>
 
-        <div className="flex flex-col md:flex-row md:items-end gap-6 mb-16">
-          <div className="p-5 bg-brand/10 rounded-[32px] border border-brand/20 shadow-[0_0_50px_rgba(255,45,45,0.1)]">
-            <Trophy className="w-10 h-10 text-brand filter drop-shadow-[0_0_10px_rgba(255,45,45,0.5)]" />
-          </div>
-          <div>
-            <h1 className="text-4xl md:text-7xl font-black mb-3 tracking-tighter uppercase italic leading-none">
-              Top 30 <span className="text-brand">Ranking</span>
-            </h1>
-            <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-[10px] md:text-xs">The Authoritative Guide to Global Cinematic Excellence</p>
-          </div>
-        </div>
+ <div className="flex flex-col md:flex-row md:items-end gap-6 mb-16">
+ <div className="p-5 bg-brand/10 rounded-3xl border border-brand/20 shadow-[0_0_50px_rgba(255,45,45,0.1)]">
+ <Trophy className="w-10 h-10 text-brand filter drop-shadow-[0_0_10px_rgba(255,45,45,0.5)]" />
+ </div>
+ <div>
+ <h1 className="text-fluid-4xl font-semibold mb-3 tracking-tight leading-none">
+ Top 30 <span className="text-brand">Ranking</span>
+ </h1>
+ <p className="text-gray-500 font-bold tracking-[0.3em] text-fluid-sm">The Authoritative Guide to Global Cinematic Excellence</p>
+ </div>
+ </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-40">
-            <PopcornLoader />
-          </div>
-        ) : rankings.length > 0 ? (
-          <div className="grid grid-cols-1 gap-8">
-            {rankings.map((item, idx) => (
-              <motion.div
-                key={`${item.id}-${idx}`}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05, duration: 0.8 }}
-                className="group relative"
-              >
-                {/* Large Background Rank Shadow */}
-                <span className="hidden md:block absolute -left-16 top-1/2 -translate-y-1/2 font-black text-[250px] leading-none tracking-tighter text-transparent select-none opacity-10 transition-all duration-700 pointer-events-none group-hover:opacity-20 group-hover:scale-110" style={{ WebkitTextStroke: '2px rgba(255,255,255,0.3)', fontFamily: 'Inter' }}>
-                   {idx + 1}
-                </span>
+ {loading ? (
+ <div className="flex items-center justify-center py-40">
+ <PopcornLoader />
+ </div>
+ ) : rankings.length > 0 ? (
+ <div className="grid grid-cols-1 gap-8">
+ {rankings.map((item, idx) => (
+ <motion.div
+ key={`${item.id}-${idx}`}
+ initial={{ opacity: 0, y: 30 }}
+ animate={{ opacity: 1, y: 0 }}
+ transition={{ delay: idx * 0.05, duration: 0.8 }}
+ className="group relative"
+ >
+ {/* Large Background Rank Shadow */}
+ <span className="hidden md:block absolute -left-16 top-1/2 -translate-y-1/2 font-semibold text-fluid-7xl leading-none tracking-tight text-transparent select-none opacity-10 transition-all duration-700 pointer-events-none group-hover:opacity-20 group-hover:scale-110" style={{ WebkitTextStroke: '2px rgba(255,255,255,0.3)', fontFamily: 'Inter' }}>
+ {idx + 1}
+ </span>
 
-                <div 
-                  role="button"
-                  onClick={() => openPreview(item.id)}
-                  className="relative block bg-white/[0.03] backdrop-blur-3xl border border-white/5 rounded-3xl md:rounded-[40px] overflow-hidden hover:bg-white/[0.07] hover:border-white/20 transition-all duration-500 shadow-2xl active:scale-[0.99] cursor-pointer"
-                >
-                  <div className="flex flex-row items-stretch gap-4 md:gap-12 p-4 md:p-10">
-                    
-                    {/* Rank Number Circle - Hidden on small mobile */}
-                    <div className="hidden sm:flex flex-shrink-0 w-16 h-16 md:w-24 md:h-24 rounded-full bg-black/40 border border-white/10 items-center justify-center z-10 shadow-inner group-hover:border-brand/50 transition-colors self-center">
-                      <span className={`text-2xl md:text-4xl font-black italic tracking-tighter ${idx < 3 ? 'text-brand' : 'text-white/40'}`}>
-                        #{idx + 1}
-                      </span>
-                    </div>
+ <div 
+ role="button"
+ onClick={() => openPreview(item.id)}
+ className="relative block bg-white/[0.03] backdrop-blur-3xl border border-white/5 rounded-3xl md:rounded-[40px] overflow-hidden hover:bg-white/[0.07] hover:border-white/20 transition-all duration-500 shadow-2xl active:scale-[0.99] cursor-pointer"
+ >
+ <div className="flex flex-row items-stretch gap-4 md:gap-12 p-4 md:p-10">
+ 
+ {/* Rank Number Circle - Hidden on small mobile */}
+ <div className="hidden sm:flex flex-shrink-0 w-16 h-16 md:w-24 md:h-24 rounded-full bg-black/40 backdrop-blur-3xl border border-white/10 items-center justify-center z-10 shadow-inner group-hover:border-brand/50 transition-colors self-center">
+ <span className={`text-fluid-2xl font-semibold tracking-tight ${idx < 3 ? 'text-brand' : 'text-white/40'}`}>
+ #{idx + 1}
+ </span>
+ </div>
 
-                    {/* Poster with Glass Frame */}
-                    <div className="flex-shrink-0 w-24 sm:w-28 md:w-44 aspect-[2/3] rounded-xl md:rounded-[24px] overflow-hidden border border-white/10 shadow-2xl group-hover:scale-105 transition-transform duration-700 relative z-10 self-center">
-                      {item.cover || item.poster ? (
-                        <MovieImage 
-                          src={item.cover || item.poster} 
-                          alt={item.title} 
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-white/5 flex items-center justify-center text-gray-500 text-[10px] text-center p-4 font-black uppercase">
-                          No Poster
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
+ {/* Poster with Glass Frame */}
+ <div className="flex-shrink-0 w-24 sm:w-28 md:w-44 aspect-[2/3] rounded-xl md:rounded-3xl overflow-hidden border border-white/10 shadow-2xl group-hover:scale-105 transition-transform duration-700 relative z-10 self-center">
+ {item.cover || item.poster ? (
+ <MovieImage 
+ src={item.cover || item.poster} 
+ alt={item.title} 
+ className="w-full h-full object-cover"
+ />
+ ) : (
+ <div className="w-full h-full bg-white/5 flex items-center justify-center text-gray-500 text-fluid-sm text-center p-4 font-semibold ">
+ No Poster
+ </div>
+ )}
+ <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+ </div>
 
-                    {/* Info */}
-                    <div className="flex-1 space-y-2 md:space-y-6 z-10 text-left py-2 flex flex-col justify-center overflow-hidden">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <div className="sm:hidden px-2 py-0.5 bg-black/40 border border-white/10 rounded-md text-[10px] font-black italic shadow-inner">
-                          #{idx + 1}
-                        </div>
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 md:px-3 md:py-1 bg-white/5 rounded-full border border-white/5">
-                           <TrendingUp className="w-3 h-3 text-brand" />
-                           <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-gray-400">
-                             {item.type == 2 || item.type === '2' || item.type === 'Series' || item.category === 'Series' ? 'Series' : 'Movie'}
-                           </span>
-                        </div>
-                        {idx < 3 && (
-                          <span className="px-2 py-0.5 md:px-3 md:py-1 bg-brand text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest rounded-full shadow-[0_0_15px_rgba(255,45,45,0.4)] animate-pulse">
-                            TOP 3
-                          </span>
-                        )}
-                      </div>
+ {/* Info */}
+ <div className="flex-1 space-y-2 md:space-y-6 z-10 text-left py-2 flex flex-col justify-center overflow-hidden">
+ <div className="flex items-center gap-2 flex-wrap">
+ <div className="sm:hidden px-2 py-0.5 bg-black/40 backdrop-blur-3xl border border-white/10 rounded-md text-fluid-sm font-semibold shadow-inner">
+ #{idx + 1}
+ </div>
+ <div className="flex items-center gap-1.5 px-2 py-0.5 md:px-3 md:py-1 bg-white/5 rounded-full border border-white/5">
+ <TrendingUp className="w-3 h-3 text-brand" />
+ <span className="font-semibold tracking-wide text-gray-400 text-fluid-sm">
+ {item.type == 2 || item.type === '2' || item.type === 'Series' || item.category === 'Series' ? 'Series' : 'Movie'}
+ </span>
+ </div>
+ {idx < 3 && (
+ <span className="px-2 py-0.5 md:px-3 md:py-1 bg-brand text-white font-semibold tracking-wide rounded-full shadow-[0_0_15px_rgba(255,45,45,0.4)] animate-pulse text-fluid-sm">
+ TOP 3
+ </span>
+ )}
+ </div>
 
-                      <h3 className="text-lg sm:text-2xl md:text-5xl font-black group-hover:text-brand transition-all tracking-tighter leading-none md:leading-tight uppercase line-clamp-2 md:line-clamp-3 italic truncate sm:whitespace-normal">
-                        {item.title}
-                      </h3>
+ <h3 className="text-fluid-lg font-semibold group-hover:text-brand transition-all tracking-tight leading-none md:leading-tight line-clamp-2 md:line-clamp-3 truncate sm:whitespace-normal">
+ {item.title}
+ </h3>
 
-                      <div className="flex items-center gap-4 md:gap-6 mt-auto md:mt-0">
-                        <div className="flex items-center gap-1 md:gap-2 px-2 py-1 md:px-4 md:py-2 bg-[#f5c518]/10 rounded-lg md:rounded-xl border border-[#f5c518]/20">
-                          <Star className="w-3.5 h-3.5 md:w-5 md:h-5 text-[#f5c518] fill-[#f5c518]" />
-                          <span className="text-sm md:text-xl font-black text-[#f5c518] italic">{item.score || item.rating || '9.8'}</span>
-                        </div>
-                        
-                        <div className="flex flex-col">
-                           <span className="text-[8px] md:text-[10px] font-black text-gray-500 uppercase tracking-widest leading-none mb-1 md:mb-0">Year</span>
-                           <span className="text-xs md:text-base font-bold text-white/60 leading-none">{item.year || '2024'}</span>
-                        </div>
-                      </div>
-                    </div>
+ <div className="flex items-center gap-4 md:gap-6 mt-auto md:mt-0">
+ <div className="flex items-center gap-1 md:gap-2 px-2 py-1 md:px-4 md:py-2 bg-[#f5c518]/10 rounded-lg md:rounded-xl border border-[#f5c518]/20">
+ <Star className="w-3.5 h-3.5 md:w-5 md:h-5 text-[#f5c518] fill-[#f5c518]" />
+ <span className="text-fluid-sm font-semibold text-[#f5c518] ">{item.score || item.rating || '9.8'}</span>
+ </div>
+ 
+ <div className="flex flex-col">
+ <span className="font-semibold text-gray-500 tracking-wide leading-none mb-1 md:mb-0 text-fluid-sm">Year</span>
+ <span className="text-fluid-xs font-bold text-white/60 leading-none">{item.year || '2024'}</span>
+ </div>
+ </div>
+ </div>
 
-                    {/* Action Button */}
-                    <div className="hidden lg:flex flex-shrink-0 items-center gap-6 z-10">
-                      <div className="w-20 h-20 bg-white text-black rounded-[24px] flex items-center justify-center group-hover:bg-brand group-hover:text-white transition-all duration-500 shadow-2xl transform group-hover:rotate-6 active:scale-95 group-hover:shadow-[0_0_40px_rgba(255,45,45,0.3)]">
-                        <Play className="w-8 h-8 fill-current translate-x-1" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-40 bg-white/5 border border-white/5 rounded-[40px] backdrop-blur-xl">
-            <PopcornLoader />
-            <p className="text-gray-500 font-black uppercase tracking-widest mt-8">Establishing Network Connection...</p>
-          </div>
-        )}
-      </div>
+ {/* Action Button */}
+ <div className="hidden lg:flex flex-shrink-0 items-center gap-6 z-10">
+ <div className="w-20 h-20 bg-white text-black rounded-3xl flex items-center justify-center group-hover:bg-brand group-hover:text-white transition-all duration-500 shadow-2xl transform group-hover:rotate-6 active:scale-95 group-hover:shadow-[0_0_40px_rgba(255,45,45,0.3)]">
+ <Play className="w-8 h-8 fill-current translate-x-1" />
+ </div>
+ </div>
+ </div>
+ </div>
+ </motion.div>
+ ))}
+ </div>
+ ) : (
+ <div className="text-center py-40 bg-white/5 border border-white/5 rounded-[40px] backdrop-blur-xl">
+ <PopcornLoader />
+ <p className="text-gray-500 font-semibold tracking-wide mt-8">Establishing Network Connection...</p>
+ </div>
+ )}
+ </div>
 
-      <Footer />
-    </div>
-  );
+ <Footer />
+ </div>
+ );
 }

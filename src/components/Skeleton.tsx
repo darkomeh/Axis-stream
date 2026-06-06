@@ -38,7 +38,7 @@ export function ListSkeleton({ count = 6 }: { count?: number }) {
 
 export function HeroSkeleton() {
   return (
-    <div className="relative w-full aspect-[21/9] bg-black overflow-hidden mb-12">
+    <div className="relative w-full aspect-[21/9] bg-transparent overflow-hidden mb-12">
       <Skeleton className="absolute inset-0" />
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
       <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 space-y-4">

@@ -75,11 +75,16 @@ export interface MediaSource {
 }
 
 export interface MediaData {
+  id?: string;
   sources: MediaSource[];
   subtitles?: { language: string; url: string }[];
   embedUrl?: string;
+  embedCode?: string;
+  type?: string;
+  tmdbId?: string;
   audioTracks?: { language: string; languageCode: string; subjectId: string; detailPath: string }[];
   initialTime?: number;
+  vidsrcServers?: any[];
 }
 
 export interface Actor {

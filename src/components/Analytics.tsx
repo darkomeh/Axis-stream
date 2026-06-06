@@ -23,6 +23,9 @@ export const Analytics = () => {
 
     // 3. Global Error Surveillance
     const handleError = (event: ErrorEvent) => {
+      if (event.message === 'Script error.' || event.message?.toLowerCase().includes('script error')) {
+        return; // Ignore harmless third-party cross-origin iframe errors
+      }
       logPlatformError(
         event.message,
         event.error?.stack,

@@ -120,6 +120,19 @@
         "resolvedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["message", "timestamp"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "User report for content or issues",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "category": { "type": "string" },
+        "detail": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "closed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "category", "detail", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -162,6 +175,10 @@
     "platform_errors/{errorId}": {
       "schema": "PlatformError",
       "description": "System error logs"
+    },
+    "reports/{reportId}": {
+      "schema": "Report",
+      "description": "User reports"
     }
   }
 }

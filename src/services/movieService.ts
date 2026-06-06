@@ -32,7 +32,10 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 1, backoff =
     return cached.data;
   }
 
-  const tryDirect = !config.url?.startsWith('http') && !config.url?.includes('/staff/');
+  // Routing all requests through our Node Express API proxy ensures that the Admin-configured 
+  // 'apiSource' (Main vs. Backup) is respected, automatic backend failover works gracefully, 
+  // and browser-side CORS blocks or timeouts are fully prevented.
+  const tryDirect = false;
   if (tryDirect) {
     try {
       const directResponse = await axios.get(`${EXTERNAL_API_URL}${config.url}`, {
@@ -365,7 +368,7 @@ export const movieService = {
       }
       return list;
     } catch (e: any) {
-      console.error("Error in getRecommendations:", e.message || e);
+      // console.error("Error in getRecommendations:", e.message || e);
       return [];
     }
   },
@@ -395,7 +398,7 @@ export const movieService = {
       }
       return list;
     } catch (e: any) {
-      console.error("Error in browse:", e.message || e);
+      // console.error("Error in browse:", e.message || e);
       return [];
     }
   },
@@ -418,14 +421,38 @@ export const movieService = {
     }
   },
 
-  async getPlay(subjectId: string, season?: number, episode?: number): Promise<MediaData> {
-    const params: any = { subjectId, apikey: API_KEY };
+  async getPlay(subjectId: string, season?: number, episode?: number, detailPath?: string, title?: string, year?: string, type?: string): Promise<MediaData> {
+    const params: any = { subjectId };
     if (season !== undefined && season > 0) params.se = season;
     if (episode !== undefined && episode > 0) params.ep = episode;
+    if (detailPath) params.detailPath = detailPath;
+    if (title) params.title = title;
+    if (year) params.year = year;
+    if (type) params.type = type;
+
+    // 1. Try our own backend proxy API first. It manages backup scaling, routing, headers, and credentials.
+    try {
+      const response = await axios.get(`${TARGET_API}/play`, { params });
+      if (response.data && (
+        (Array.isArray(response.data.sources) && response.data.sources.length > 0) ||
+        response.data.embedUrl ||
+        response.data.embedCode
+      )) {
+        return response.data;
+      }
+    } catch (err: any) {
+      console.warn("[movieService] Backend /api/play proxy returned error, trying direct browser fallback...", err.message || err);
+    }
+
+    // 2. Browser direct fetch as secondary fallback, using legacy layout
+    const directParams: any = { subjectId, apikey: API_KEY };
+    if (season !== undefined && season > 0) directParams.se = season;
+    if (episode !== undefined && episode > 0) directParams.ep = episode;
+    if (detailPath) directParams.detailPath = detailPath;
 
     try {
-      // Call external API directly from browser to bypass server-side 502/Cloudflare
-      const response = await axios.get(`${EXTERNAL_API_URL}/play`, { params });
+      // Call external API directly from browser to bypass server-side issues
+      const response = await axios.get(`${EXTERNAL_API_URL}/play`, { params: directParams });
       const data = response.data?.data || {};
       
       const streams = data.streams || [];
@@ -472,7 +499,7 @@ export const movieService = {
       }
       throw new Error("No sources found in direct API response");
     } catch (e: any) {
-      console.error("Direct API call failed, trying fallback:", e);
+      console.warn("[movieService] Direct browser-side API call failed:", e.message || e);
       try {
         // Construct immediate embed-based fallback to guarantee playback
         const embedUrl = season ? `https://vidsrc.to/embed/tv/${subjectId}/${season}/${episode || 1}` : `https://vidsrc.to/embed/movie/${subjectId}`;

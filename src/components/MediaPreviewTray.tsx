@@ -313,7 +313,7 @@ export default function MediaPreviewTray() {
  className="w-full h-full object-cover relative z-10 shadow-[0_0_100px_rgba(0,0,0,0.5)] bg-transparent"
  onEnded={() => setTrailerEnded(true)}
  onError={(e) => {
- console.error("Trailer playback error", e);
+ console.error("Trailer playback error");
  setTrailerEnded(true);
  }}
  />

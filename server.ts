@@ -1,7 +1,7 @@
 import express from "express";
 import compression from "compression";
 import path from "path";
-import { externalMovieService, setApiSource } from "./src/services/externalMovieService";
+import { externalMovieService, setApiSource } from "./src/services/externalMovieService.js";
 import axios from "axios";
 import fs from "fs";
 import os from "os";

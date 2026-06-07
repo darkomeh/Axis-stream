@@ -6,7 +6,7 @@ import {
   MediaData, 
   Actor, 
   RankingItem 
-} from '../types';
+} from '../types.js';
 
 const BASE_URL_MAIN = 'https://movieapi.xcasper.space/api';
 const BASE_URL_BACKUP = 'https://gzmovieboxapi.septorch.tech/api';

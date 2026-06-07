@@ -69,10 +69,43 @@ let adminState: AdminState = {
   reports: []
 };
 
+function getActiveAdminStatePath(): string {
+  if (process.env.VERCEL) {
+    const tempPath = path.join(os.tmpdir(), "admin_state.json");
+    // If it doesn't exist in /tmp, copy the root seed state to /tmp to persist modifications safely
+    if (!fs.existsSync(tempPath) && fs.existsSync(ADMIN_STATE_FILE)) {
+      try {
+        fs.writeFileSync(tempPath, fs.readFileSync(ADMIN_STATE_FILE, "utf-8"));
+      } catch (err) {
+        console.warn("[Vercel OS] Failed to copy seed admin_state to /tmp:", err);
+      }
+    }
+    return tempPath;
+  }
+  return ADMIN_STATE_FILE;
+}
+
+function getActiveUsersPath(): string {
+  if (process.env.VERCEL) {
+    const tempPath = path.join(os.tmpdir(), "users.json");
+    // If it doesn't exist in /tmp, copy the root seed state to /tmp to persist modifications safely
+    if (!fs.existsSync(tempPath) && fs.existsSync(USERS_FILE)) {
+      try {
+        fs.writeFileSync(tempPath, fs.readFileSync(USERS_FILE, "utf-8"));
+      } catch (err) {
+        console.warn("[Vercel OS] Failed to copy seed users.json to /tmp:", err);
+      }
+    }
+    return tempPath;
+  }
+  return USERS_FILE;
+}
+
 function loadAdminState() {
   try {
-    if (fs.existsSync(ADMIN_STATE_FILE)) {
-      const stored = JSON.parse(fs.readFileSync(ADMIN_STATE_FILE, "utf-8"));
+    const filePath = getActiveAdminStatePath();
+    if (fs.existsSync(filePath)) {
+      const stored = JSON.parse(fs.readFileSync(filePath, "utf-8"));
       adminState = { 
         ...adminState, 
         ...stored,
@@ -86,7 +119,12 @@ function loadAdminState() {
 }
 
 function saveAdminState() {
-  fs.writeFileSync(ADMIN_STATE_FILE, JSON.stringify(adminState, null, 2));
+  try {
+    const writePath = getActiveAdminStatePath();
+    fs.writeFileSync(writePath, JSON.stringify(adminState, null, 2));
+  } catch (err) {
+    console.error("Error saving admin state (writing to file system):", err);
+  }
 }
 
 function logAction(type: string, detail: string) {
@@ -114,8 +152,9 @@ process.on('unhandledRejection', (reason, promise) => {
 
 function getUsers(): any[] {
   try {
-    if (fs.existsSync(USERS_FILE)) {
-      const data = fs.readFileSync(USERS_FILE, "utf-8");
+    const filePath = getActiveUsersPath();
+    if (fs.existsSync(filePath)) {
+      const data = fs.readFileSync(filePath, "utf-8");
       return JSON.parse(data);
     }
   } catch (e) {
@@ -125,14 +164,19 @@ function getUsers(): any[] {
 }
 
 function saveUser(user: any) {
-  const users = getUsers();
-  const existingIndex = users.findIndex(u => u.email === user.email);
-  if (existingIndex > -1) {
-    users[existingIndex] = { ...users[existingIndex], ...user, updatedAt: new Date().toISOString() };
-  } else {
-    users.push({ ...user, createdAt: new Date().toISOString() });
+  try {
+    const users = getUsers();
+    const existingIndex = users.findIndex(u => u.email === user.email);
+    if (existingIndex > -1) {
+      users[existingIndex] = { ...users[existingIndex], ...user, updatedAt: new Date().toISOString() };
+    } else {
+      users.push({ ...user, createdAt: new Date().toISOString() });
+    }
+    const writePath = getActiveUsersPath();
+    fs.writeFileSync(writePath, JSON.stringify(users, null, 2));
+  } catch (err) {
+    console.error("Error saving user (writing to file system):", err);
   }
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
 // Simple in-memory cache

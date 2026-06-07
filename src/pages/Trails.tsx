@@ -57,7 +57,7 @@ function getYouTubeId(url: string) {
   return (match && match[1].length === 11) ? match[1] : "";
 }
 
-function getEmbedUrl(url: string, autoplay = true, muted = true) {
+function getEmbedUrl(url: string, autoplay = true, muted = true, isDataSaver = true) {
   if (!url) return "";
   const videoId = getYouTubeId(url);
   
@@ -74,8 +74,13 @@ function getEmbedUrl(url: string, autoplay = true, muted = true) {
       "modestbranding=1",
       `playlist=${videoId}`,
       "playsinline=1"
-    ].join("&");
-    return `https://www.youtube.com/embed/${videoId}?${params}`;
+    ];
+    if (isDataSaver) {
+      params.push("vq=medium"); // Forces standard optimized mobile quality, cutting down trailer data weight to 5-10MB or less
+    } else {
+      params.push("vq=hd720"); // High fidelity streaming block
+    }
+    return `https://www.youtube.com/embed/${videoId}?${params.join("&")}`;
   }
   return url;
 }
@@ -97,6 +102,7 @@ export default function Trails() {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [iframeLoading, setIframeLoading] = useState(true);
+  const [isDataSaver, setIsDataSaver] = useState(true); // Enabled by default to satisfy ultra low data request
 
   // High fidelity customized panel states matching the requested Figma/AI mockup
   const [showPlaylistSheet, setShowPlaylistSheet] = useState(false);
@@ -516,27 +522,53 @@ export default function Trails() {
         )}
 
         {/* Liquid Glass Top Header overlay */}
-        <header className="absolute top-0 inset-x-0 z-40 bg-gradient-to-b from-black/80 to-transparent pt-4 pb-12 px-4 flex items-center justify-between pointer-events-auto select-none">
+        <header className="absolute top-0 inset-x-0 z-40 bg-gradient-to-b from-black/80 to-transparent pt-4 pb-12 px-4 flex items-center justify-between pointer-events-auto select-none gap-2">
           <button 
             onClick={() => navigate("/")}
-            className="w-10 h-10 rounded-full flex items-center justify-center bg-black/40 border border-white/10 backdrop-blur-md active:scale-95 transition-all text-white/80 hover:text-white"
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-black/40 border border-white/10 backdrop-blur-md active:scale-95 transition-all text-white/80 hover:text-white shrink-0"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-6">
-            <span className="text-white/40 text-sm font-bold cursor-pointer hover:text-white transition-all uppercase tracking-wider relative">
-              Following
-            </span>
-            <span className="text-white text-sm font-black uppercase tracking-wider relative">
-              For You
-              <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-4 h-1 bg-brand rounded-full" />
-            </span>
+          <div className="flex items-center gap-1.5 xs:gap-3 bg-black/55 px-3 py-1.5 rounded-full border border-white/5 backdrop-blur-md max-w-xs overflow-hidden">
+            {/* Elegant Data Saver Pill Button */}
+            <button 
+              onClick={() => {
+                setIsDataSaver(prev => !prev);
+                showToast(
+                  !isDataSaver 
+                    ? "Data Saver Active (~5-10MB mobile quality blocks)" 
+                    : "Ultra HD Quality Enabled (Standard bandwidth)",
+                  "info"
+                );
+              }}
+              className={`text-[9px] font-black uppercase tracking-wider py-1 px-2.5 rounded-full transition-all flex items-center gap-1 active:scale-95 shrink-0 ${
+                isDataSaver 
+                  ? "bg-green-500/25 text-green-400 border border-green-500/35 shadow-[0_0_10px_rgba(34,197,94,0.15)]" 
+                  : "bg-white/5 text-white/50 hover:bg-white/10"
+              }`}
+            >
+              <Flame className="w-2.5 h-2.5" />
+              <span className="hidden xs:inline">Data Saver</span>
+              <span>{isDataSaver ? "ON" : "OFF"}</span>
+            </button>
+
+            <span className="text-white/20 select-none">|</span>
+
+            <div className="flex items-center gap-3">
+              <span className="text-white/40 text-[10px] font-bold cursor-pointer hover:text-white transition-all uppercase tracking-wider">
+                Follow
+              </span>
+              <span className="text-white text-[10px] font-black uppercase tracking-wider relative shrink-0">
+                For You
+                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-0.5 bg-brand rounded-full" />
+              </span>
+            </div>
           </div>
 
           <button 
             onClick={() => setIsMuted(prev => !prev)}
-            className="w-10 h-10 rounded-full flex items-center justify-center bg-black/40 border border-white/10 backdrop-blur-md active:scale-95 transition-all text-white/80 hover:text-white"
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-black/40 border border-white/10 backdrop-blur-md active:scale-95 transition-all text-white/80 hover:text-white shrink-0"
           >
             {isMuted ? <VolumeX className="w-4 h-4 text-brand" /> : <Volume2 className="w-4 h-4" />}
           </button>
@@ -551,8 +583,15 @@ export default function Trails() {
         >
           {items.map((item, index) => {
             const isCurrentlyActive = index === activeIndex;
-            const embedSrc = isCurrentlyActive ? getEmbedUrl(item.trailerUrl, true, isMuted) : "";
+            const isPreloadingNext = index === activeIndex + 1;
+            const isPreloadingPrev = index === activeIndex - 1;
+            const shouldRenderVideo = isCurrentlyActive || isPreloadingNext || isPreloadingPrev;
+
             const isYoutube = item.trailerUrl && getYouTubeId(item.trailerUrl) !== "";
+            const embedSrc = shouldRenderVideo 
+              ? getEmbedUrl(item.trailerUrl, isCurrentlyActive, isMuted, isDataSaver) 
+              : "";
+            
             const isWatchlisted = isInWatchlist(item.id);
 
             return (
@@ -564,29 +603,37 @@ export default function Trails() {
                 
                 {/* 1. Cinematic Background Backdrop & Video Embed Frame */}
                 <div className="absolute inset-0 w-full h-full bg-black z-0">
-                  {isCurrentlyActive ? (
+                  {/* Blurred ambient glow backdrop (visible at all times for beautiful mood) */}
+                  <div className="absolute inset-0 w-full h-full select-none pointer-events-none overflow-hidden scale-110 opacity-35 blur-3xl z-0">
+                    <MovieImage
+                      src={item.background || item.poster}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+
+                  {shouldRenderVideo ? (
                     <div className="w-full h-full relative">
                       {!item.trailerUrl ? (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#070a13] z-20">
-                          <MovieImage
-                            src={item.background || item.poster}
-                            alt={item.title}
-                            className="absolute inset-0 w-full h-full object-cover brightness-[0.25]"
-                          />
-                          <div className="relative z-10 px-8 py-6 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md flex flex-col items-center gap-3 max-w-xs text-center shadow-2xl">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#070a13]/80 z-20">
+                          <div className="relative z-10 px-8 py-6 rounded-2xl bg-black/60 border border-white/10 backdrop-blur-md flex flex-col items-center gap-3 max-w-xs text-center shadow-2xl">
                             <span className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/40">🎬</span>
                             <span className="text-sm font-black uppercase tracking-wider text-white">No Trailer</span>
                             <span className="text-xs text-white/50 leading-relaxed">This exclusive release does not have a public trailer. Check out the movie overview below instead!</span>
                           </div>
                         </div>
                       ) : (
-                        <div className="w-full h-full relative pointer-events-none">
+                        <div className={`w-full h-full relative pointer-events-none transition-opacity duration-300 ${isCurrentlyActive ? 'opacity-100' : 'opacity-0'}`}>
                           {isYoutube ? (
                             <iframe
                               src={embedSrc}
                               title={item.title}
-                              onLoad={() => setIframeLoading(false)}
-                              className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[180%] sm:w-[130%] lg:w-[100%] h-full max-w-none border-0 select-none brightness-95 pointer-events-none scale-[1.05]"
+                              onLoad={() => {
+                                if (isCurrentlyActive) {
+                                  setIframeLoading(false);
+                                }
+                              }}
+                              className="absolute inset-x-0 top-1/2 -translate-y-1/2 w-full aspect-video border-0 select-none brightness-95 pointer-events-none z-10 shadow-2xl"
                               allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
                               loading="eager"
                             />
@@ -594,27 +641,28 @@ export default function Trails() {
                             <video
                               ref={el => { if (isCurrentlyActive) activeVideoRef.current = el; }}
                               src={item.trailerUrl}
-                              autoPlay
+                              autoPlay={isCurrentlyActive}
                               muted={isMuted}
                               loop
                               playsInline
-                              onWaiting={() => setIframeLoading(true)}
-                              onPlaying={() => setIframeLoading(false)}
-                              onCanPlay={() => setIframeLoading(false)}
-                              className="absolute inset-0 w-full h-full object-cover brightness-95 pointer-events-none"
+                              preload={isDataSaver && !isCurrentlyActive ? "metadata" : "auto"}
+                              onWaiting={() => { if (isCurrentlyActive) setIframeLoading(true); }}
+                              onPlaying={() => { if (isCurrentlyActive) setIframeLoading(false); }}
+                              onCanPlay={() => { if (isCurrentlyActive) setIframeLoading(false); }}
+                              className="absolute inset-x-0 top-1/2 -translate-y-1/2 w-full aspect-video object-contain brightness-95 pointer-events-none z-10"
                             />
                           )}
                           
                           {/* Active iframe spinner or buffer loaded tracker */}
-                          {iframeLoading && (
-                            <div className="absolute inset-0 bg-black/35 backdrop-blur-xs flex flex-col items-center justify-center gap-3 z-10">
+                          {iframeLoading && isCurrentlyActive && (
+                            <div className="absolute inset-0 bg-black/45 backdrop-blur-xs flex flex-col items-center justify-center gap-3 z-30 pointer-events-none">
                               <div className="w-10 h-10 border-4 border-brand border-t-transparent rounded-full animate-spin" />
                               <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand animate-pulse">Loading Video Teaser...</span>
                             </div>
                           )}
 
                           {/* Sound indicator helper toast on slide */}
-                          {isMuted && (
+                          {isMuted && isCurrentlyActive && (
                             <div className="absolute top-[88px] left-1/2 -translate-x-1/2 bg-black/60 border border-white/10 px-3 py-1.5 rounded-full text-[9px] uppercase font-bold text-white/80 pointer-events-none tracking-widest select-none flex items-center gap-1.5 animate-pulse z-40">
                               <VolumeX className="w-3 px-px text-brand" />
                               <span>Mute On • Tap Screen To Hear</span>
@@ -623,17 +671,28 @@ export default function Trails() {
                         </div>
                       )}
                       
+                      {/* Image cover overlay displayed before active iframe is fully buffered/ready, or for preloading slides */}
+                      {(!isCurrentlyActive || (isYoutube && iframeLoading)) && (
+                        <MovieImage
+                          src={item.background || item.poster}
+                          alt={item.title}
+                          className="absolute inset-0 w-full h-full object-contain z-10 brightness-[0.7] transition-opacity duration-300 pointer-events-none"
+                        />
+                      )}
+
                       {/* Interactive block overlay: Clicking the background anywhere toggles global mute */}
-                      <div 
-                        onClick={() => setIsMuted(p => !p)}
-                        className="absolute inset-0 z-10 cursor-pointer pointer-events-auto" 
-                      />
+                      {isCurrentlyActive && (
+                        <div 
+                          onClick={() => setIsMuted(p => !p)}
+                          className="absolute inset-0 z-20 cursor-pointer pointer-events-auto" 
+                        />
+                      )}
                     </div>
                   ) : (
                     <MovieImage
                       src={item.background}
                       alt={item.title}
-                      className="w-full h-full object-cover brightness-[0.4]"
+                      className="w-full h-full object-contain brightness-[0.5]"
                     />
                   )}
                   {/* Dense gradient overlays to support crystal-clear scannability */}

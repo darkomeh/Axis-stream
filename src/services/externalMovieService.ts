@@ -550,23 +550,24 @@ export const externalMovieService = {
     }
 
     // Fallback to constructed stream URLs and embed URL if API fails or returns no sources
+    const baseURL = currentApiSource === 'backup' ? BASE_URL_BACKUP : BASE_URL_MAIN;
     const constructedSources = [
       {
         quality: '1080p',
-        url: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=1080${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
-        downloadUrl: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=1080&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        url: `${baseURL}/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=1080${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        downloadUrl: `${baseURL}/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=1080&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
         type: 'mp4' as const
       },
       {
         quality: '720p',
-        url: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=720${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
-        downloadUrl: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=720&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        url: `${baseURL}/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=720${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        downloadUrl: `${baseURL}/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=720&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
         type: 'mp4' as const
       },
       {
         quality: '360p',
-        url: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=360${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
-        downloadUrl: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=360&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        url: `${baseURL}/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=360${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        downloadUrl: `${baseURL}/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=360&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
         type: 'mp4' as const
       }
     ];

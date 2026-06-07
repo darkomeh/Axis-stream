@@ -10,6 +10,23 @@ const app = express();
 app.use(compression());
 app.use(express.json());
 
+// Vercel Serverless Function Path Fixer Middleware
+// Sometimes Vercel's Edge/Serverless Router strips the /api/ prefix or rewrites to query params.
+app.use((req, res, next) => {
+  if (process.env.VERCEL) {
+    let url = req.url;
+    // If it's a rewritten generic slug
+    if (url.startsWith('/?slug=')) {
+      url = '/' + url.split('/?slug=')[1];
+    }
+    // If it doesn't have /api prefix but it's an api request
+    if (!url.startsWith('/api') && url !== '/' && !url.includes('sitemap') && !url.includes('robots')) {
+      req.url = '/api' + url;
+    }
+  }
+  next();
+});
+
 // Diagnostic endpoint early
 app.get("/api/server-health", (req, res) => {
   try {
@@ -64,7 +81,7 @@ let adminState: AdminState = {
     tagline: "The Ultimate Streaming Experience",
     logoUrl: "https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg",
     allowGuestBrowsing: true,
-    apiSource: 'main',
+    apiSource: 'backup',
   },
   reports: []
 };

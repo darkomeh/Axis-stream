@@ -412,7 +412,7 @@ async function resolveTmdbId(title: string, year: string, type: string): Promise
   try {
     const isSeries = type.toLowerCase() === 'series' || type.toLowerCase() === 'tv';
     const tmdbType = isSeries ? 'tv' : 'movie';
-    const TMDB_API_KEY = '15d2ea6d0dc1d476efbca3eba2b9bbfb'; // Fallback free tier key
+    const TMDB_API_KEY = '8265bd1679663a7ea12ac168da84d2e8';
     
     // TMDB Search API
     const params: any = {
@@ -517,39 +517,12 @@ app.get("/api/play", async (req, res) => {
             data.tmdbId = resolvedTmdbId;
             data.type = mediaType;
             
-            // Try extracting servers from vidsrc.wiki
-            let vidsrcServers = [];
-            try {
-              const url = `https://vidsrc.wiki/embed/${data.type}/${resolvedTmdbId}`;
-              const pRes = await axios.get(url, {timeout: 5000});
-              const match = pRes.data.match(/var CFG\s*=\s*(.*?);function/);
-              if (match) {
-                const cfg = new Function('return ' + match[1])();
-                if (cfg && cfg.servers) {
-                  vidsrcServers = cfg.servers.map((s: any) => ({
-                    id: s.id || s.name,
-                    name: s.name,
-                    url: data.type === 'series' 
-                      ? s.tv_url.replace('{tmdb_id}', resolvedTmdbId).replace('{season}', seasonNum).replace('{episode}', episodeNum)
-                      : s.movie_url.replace('{tmdb_id}', resolvedTmdbId)
-                  }));
-                }
-              }
-            } catch (err) {
-              console.warn('[TMDB Resolver] Could not fetch vidsrc servers');
-            }
-            
-            if (vidsrcServers.length > 0) {
-              data.vidsrcServers = vidsrcServers;
-              data.embedUrl = vidsrcServers[0].url;
-            } else {
-              data.embedUrl = (mediaType === "series"
-                ? `https://vidzen.fun/tv/${resolvedTmdbId}/${seasonNum}/${episodeNum}`
-                : `https://vidzen.fun/movie/${resolvedTmdbId}`);
-            }
-            
-            // Use the first server as the fallback embedCode
-            data.embedCode = `<iframe src="${data.embedUrl}" width="100%" height="100%" frameborder="0" allowfullscreen sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"></iframe>`;
+            const vidsrcEmbedUrl = mediaType === "series" 
+                ? `https://vidsrc.wiki/embed/tv/${resolvedTmdbId}/${seasonNum}/${episodeNum}`
+                : `https://vidsrc.wiki/embed/movie/${resolvedTmdbId}`;
+
+            data.embedUrl = vidsrcEmbedUrl;
+            data.embedCode = `<iframe src="${data.embedUrl}" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>`;
             
             console.log(`[TMDB Resolver] Overwrote embedUrl: ${data.embedUrl}, type: ${data.type}, tmdbId: ${data.tmdbId}`);
         }

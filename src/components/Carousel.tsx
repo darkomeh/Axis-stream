@@ -113,24 +113,23 @@ export default function Carousel({ items }: CarouselProps) {
  </h1>
  
  <div className="flex flex-wrap items-center gap-3 md:gap-5 text-white/70 mb-5 md:mb-8 font-medium tracking-wide text-fluid-base">
- <span>{currentItem.year || '2024'}</span>
- <span className="text-white/20">•</span>
- 
- <span className="px-1.5 py-0.5 bg-white/10 border border-white/20 rounded leading-none text-fluid-sm">
- {currentItem.contentRating || '18+'}
- </span>
- <span className="text-white/20">•</span>
-
- <span className=" tracking-wide">{currentItem.category || (currentItem.type == 2 || currentItem.type === 'Series' ? 'Series' : 'Movie')}</span>
- 
  {currentItem.rating && (
- <>
- <span className="text-white/20">•</span>
- <span className="flex items-center gap-1.5 px-2 py-0.5 bg-white text-black font-bold rounded-sm tracking-tight shadow-[0_4px_10px_rgba(255,255,255,0.2)] text-fluid-sm">
+ <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-brand/15 border border-brand/40 text-brand font-bold rounded tracking-tight text-fluid-sm shadow-[0_0_15px_rgba(255,45,45,0.2)]">
  IMDb {currentItem.rating}
  </span>
- </>
  )}
+ <span className="text-white/20">•</span>
+ <span>{currentItem.year || '2024'}</span>
+ <span className="text-white/20">•</span>
+ <span className=" tracking-wide">{currentItem.category || (currentItem.type == 2 || currentItem.type === 'Series' ? 'Series' : 'Movie')}</span>
+ <span className="text-white/20">•</span>
+ <span className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded font-mono text-xs uppercase text-white/60 tracking-wider">
+ UHD 4K
+ </span>
+ <span className="text-white/20">•</span>
+ <span className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded font-mono text-xs uppercase text-white/60 tracking-wider">
+ Dolby Atmos
+ </span>
  </div>
 
  <p className="text-white/80 line-clamp-3 mb-8 md:mb-10 max-w-2xl leading-relaxed font-normal text-fluid-lg">

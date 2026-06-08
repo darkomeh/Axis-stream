@@ -104,7 +104,12 @@ export default function VideoPlayer({
  const serversList = mediaData.vidsrcServers && mediaData.vidsrcServers.length > 0 
    ? mediaData.vidsrcServers 
    : [
-       { id: "vidzen", name: "Zen (Fast)", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidzen.fun/tv/${id}/${s}/${e}` : `https://vidzen.fun/movie/${id}` }
+       { id: "filmu", name: "Server 1", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://embed.filmu.in/tv/${id}/${s}/${e}` : `https://embed.filmu.in/movie/${id}` },
+       { id: "vidsrc-wiki", name: "vidsrc.wiki", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidsrc.wiki/embed/tv/${id}/${s}/${e}` : `https://vidsrc.wiki/embed/movie/${id}` },
+       { id: "vidsrc-pe", name: "vidsrc.pe", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidsrc.pe/embed/tv/${id}/${s}/${e}` : `https://vidsrc.pe/embed/movie/${id}` },
+       { id: "vidsrcme-ru", name: "vidsrc.ru", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidsrcme.ru/embed/tv/${id}/${s}/${e}` : `https://vidsrcme.ru/embed/movie/${id}` },
+       { id: "vidsrcme-su", name: "vidsrc.su", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidsrcme.su/embed/tv/${id}/${s}/${e}` : `https://vidsrcme.su/embed/movie/${id}` },
+       { id: "vidsrc-me-ru", name: "vidsrc-me.ru", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidsrc-me.ru/embed/tv/${id}/${s}/${e}` : `https://vidsrc-me.ru/embed/movie/${id}` }
      ];
  const defaultServerId = serversList.find((s: any) => s.name?.toLowerCase().includes("pro") || s.id?.toLowerCase().includes("server_"))?.id || serversList[0]?.id || "";
  const [activeServer, setActiveServer] = useState<string>(defaultServerId);
@@ -962,39 +967,22 @@ export default function VideoPlayer({
  >
  {/* Video Element */}
  {useIframeFallback ? (
- mediaData.embedCode ? (
-  <div 
-    className="w-full h-full border-none absolute inset-0 z-10"
-    dangerouslySetInnerHTML={{ __html: mediaData.embedCode }}
-    ref={(el) => {
-      if (el) {
-        const iframe = el.querySelector('iframe');
-        if (iframe) {
-          iframe.onload = () => setLoading(false);
-        } else {
-          setLoading(false);
-        }
-      }
-    }}
-  />
-) : (
   <iframe
     key={actualIframeUrl} // Force iframe to remount on src change
     src={actualIframeUrl}
     className="w-full h-full border-none absolute inset-0 z-10"
+    allowFullScreen
+    allow="autoplay; encrypted-media; fullscreen"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+    onLoad={() => setLoading(false)}
     style={{
       width: "100%",
       height: "100%",
       position: "absolute",
       top: 0,
-      left: 0,
+      left: 0
     }}
-    allow="autoplay; fullscreen; picture-in-picture"
-    allowFullScreen
-    sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
-    onLoad={() => setLoading(false)}
   />
-)
 ) : (
  <>
  <canvas

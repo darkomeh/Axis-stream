@@ -82,6 +82,7 @@ export default function Browse() {
 
  const [items, setItems] = useState<MediaItem[]>([]);
  const [trending, setTrending] = useState<MediaItem[]>([]);
+ const [hot, setHot] = useState<MediaItem[]>([]);
  const [loading, setLoading] = useState(true);
  const [loadingMore, setLoadingMore] = useState(false);
  const [error, setError] = useState<string | null>(null);
@@ -114,7 +115,9 @@ export default function Browse() {
  }, [loading, loadingMore, hasMore]);
 
  useEffect(() => {
- movieService.getTrending().then(setTrending).catch(console.error);
+  const trendPage = Math.floor(Math.random() * 4) + 1;
+  movieService.getTrending(trendPage).then(data => setTrending(data.sort(() => 0.5 - Math.random()))).catch(console.error);
+  movieService.getHot().then(data => setHot([...data.movies, ...data.series].sort(() => 0.5 - Math.random()))).catch(console.error);
  }, []);
 
  useEffect(() => {
@@ -343,9 +346,9 @@ export default function Browse() {
  )}
  </AnimatePresence>
 
- {!selectedGenre && !selectedCountry && selectedType === "0" && trending.length > 0 && (
+ {!selectedGenre && !selectedCountry && selectedType === "0" && hot.length > 0 && (
  <div className="-mx-6 lg:-mx-12 mb-20">
- <TopTenGrid title="Top Content on Axis TV" items={trending.slice(0, 10)} />
+ <TopTenGrid title="Top Content on Axis TV" items={hot.slice(0, 10)} />
  </div>
  )}
 

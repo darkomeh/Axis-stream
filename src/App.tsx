@@ -12,6 +12,7 @@ import BottomNav from "./components/BottomNav";
 import MediaPreviewTray from "./components/MediaPreviewTray";
 import SystemAlerts from "./components/SystemAlerts";
 import PopcornLoader from "./components/PopcornLoader";
+import WhatsAppBubble from "./components/WhatsAppBubble";
 // import LoginPopup from "./components/LoginPopup"; // Removing as per request
 import { Analytics } from "./components/Analytics";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -91,6 +92,7 @@ function AppContent() {
       <Analytics />
       <SystemAlerts />
       <MediaPreviewTray />
+      <WhatsAppBubble />
       <main>
         <Suspense fallback={
           <div className="min-h-screen flex items-center justify-center bg-transparent">

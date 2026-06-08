@@ -281,15 +281,21 @@ export const externalMovieService = {
 
   async getHot(): Promise<{ movies: MediaItem[], series: MediaItem[] }> {
     try {
-      const url = currentApiSource === 'backup' ? '/hot-movies-series' : '/hot';
-      const response = await fetchWithRetry({ url });
+      const response = await axios.get('https://gzmovieboxapi.septorch.tech/api/hot-movies-series', {
+        params: { apikey: 'Godszeal' },
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        timeout: 8000
+      });
       const data = response.data?.data || {};
       return {
         movies: Array.isArray(data.movie) ? data.movie.map(normalizeItem) : [],
         series: Array.isArray(data.tv) ? data.tv.map(normalizeItem) : [],
       };
     } catch (e: any) {
-      console.error("Error in getHot:", e.message || e);
+      console.error("Error in getHot direct fetch:", e.message || e);
       return { movies: [], series: [] };
     }
   },
@@ -439,37 +445,19 @@ export const externalMovieService = {
 
   async getRanking(): Promise<RankingItem[]> {
     try {
-      if (currentApiSource === 'backup') {
-          const hot = await this.getHot();
-          const items = [...hot.movies, ...hot.series].sort((a,b) => (Number(b.rating) || 0) - (Number(a.rating) || 0));
-          return items.map((item, index) => ({
-             id: item.id,
-             title: item.title,
-             cover: item.poster,
-             score: item.rating,
-             rank: index + 1,
-             type: item.type === 'Movie' ? 1 : 2,
-             year: item.year
-          }));
-      }
-
-      const response = await fetchWithRetry({ url: `/ranking` });
-      const list = response.data?.data?.subjectList || [];
-      if (!Array.isArray(list)) return [];
-      return list.map((item: any, index: number) => {
-        let poster = (typeof item.cover === 'string' ? item.cover : item.cover?.url) || item.poster || '';
-        return {
-          id: String(item.subjectId || item.id),
-          title: item.title,
-          cover: poster,
-          score: item.score || item.imdbRatingValue || item.rating,
-          rank: index + 1,
-          type: item.subjectType,
-          year: item.releaseDate ? item.releaseDate.substring(0, 4) : item.year,
-        };
-      });
+      const hot = await this.getHot();
+      const items = [...hot.movies, ...hot.series].sort((a,b) => (Number(b.rating) || 0) - (Number(a.rating) || 0));
+      return items.map((item, index) => ({
+         id: item.id,
+         title: item.title,
+         cover: item.poster,
+         score: item.rating,
+         rank: index + 1,
+         type: item.type === 'Movie' ? 1 : 2,
+         year: item.year
+      }));
     } catch (e: any) {
-      console.error("Error in getRanking:", e.message || e);
+      console.error("Error in getRanking override:", e.message || e);
       return [];
     }
   },
@@ -536,7 +524,7 @@ export const externalMovieService = {
       if (sources.length > 0) {
         // Construct a fallback embed URL if not provided by API
         const embedUrl = data.embedUrl || data.iframeUrl || data.playerUrl || 
-          (params.se ? `https://vidsrc.to/embed/tv/${subjectId}/${params.se}/${params.ep || 1}` : `https://vidsrc.to/embed/movie/${subjectId}`);
+          (params.se ? `https://vidsrc.wiki/embed/tv/${subjectId}/${params.se}/${params.ep || 1}` : `https://vidsrc.wiki/embed/movie/${subjectId}`);
 
         return { 
           sources, 
@@ -575,7 +563,7 @@ export const externalMovieService = {
     return {
       sources: constructedSources,
       subtitles: [],
-      embedUrl: season ? `https://vidsrc.to/embed/tv/${subjectId}/${season}/${episode || 1}` : `https://vidsrc.to/embed/movie/${subjectId}`
+      embedUrl: season ? `https://vidsrc.wiki/embed/tv/${subjectId}/${season}/${episode || 1}` : `https://vidsrc.wiki/embed/movie/${subjectId}`
     };
   },
 

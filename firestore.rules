@@ -103,10 +103,12 @@ service cloud.firestore {
         // Action: Update profile info or Heartbeat
         incoming().lastLogin == request.time
       ) || isAdmin();
+      allow delete: if isOwner(userId) || isAdmin();
 
       match /continueWatching/{movieId} {
         allow read: if isOwner(userId);
-        allow write: if isOwner(userId) && isValidContinueWatching(incoming());
+        allow create, update: if isOwner(userId) && isValidContinueWatching(incoming());
+        allow delete: if isOwner(userId) || isAdmin();
       }
 
       match /watchHistory/{historyId} {

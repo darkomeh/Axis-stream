@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { 
   Heart, MessageCircle, Share2, Bookmark, Star, Download, Plus, Play, Check, 
   ChevronLeft, Users, Video, Send, X, Volume2, VolumeX, Flame, Verified,
-  ExternalLink, ArrowDownToLine, ShoppingBag, Radio, Folder
+  ExternalLink, ArrowDownToLine, ShoppingBag, Radio, Folder, Shield
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { movieService } from "../services/movieService";
@@ -11,6 +11,8 @@ import { MovieImage } from "../components/MovieImage";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import Navbar from "../components/Navbar";
+import { MetaVerifiedBadge } from "../components/MetaVerifiedBadge";
+import { formatDurationToHours } from "../types";
 
 interface TrailItem {
   id: string;
@@ -93,16 +95,18 @@ export default function Trails() {
   const [items, setItems] = useState<TrailItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [showCreatorPanel, setShowCreatorPanel] = useState(false);
+  const [showFollowingModal, setShowFollowingModal] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showRatingPicker, setShowRatingPicker] = useState(false);
   const [showDownloadPanel, setShowDownloadPanel] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [iframeLoading, setIframeLoading] = useState(true);
-  const [isDataSaver, setIsDataSaver] = useState(true); // Enabled by default to satisfy ultra low data request
+  const [isDataSaver, setIsDataSaver] = useState(false);
+  const [floatingHearts, setFloatingHearts] = useState<Array<{ id: number; x: number; y: number }>>([]);
 
   // High fidelity customized panel states matching the requested Figma/AI mockup
   const [showPlaylistSheet, setShowPlaylistSheet] = useState(false);
@@ -253,8 +257,8 @@ export default function Trails() {
               description: details.description || item.description || "A masterfully curated theatrical release showing exclusively on Axis TV.",
               type: String(details.type || (item.type === "Series" || item.type === 2 ? "Series" : "Movie")),
               trailerUrl: finalTrailer,
-              likes: (seed * 4322) % 85000 + 4200,
-              commentsCount: (seed * 892) % 4500 + 120,
+              likes: Math.floor(Math.random() * 25000) + 1200,
+              commentsCount: Math.floor(Math.random() * 25) + 5,
               shares: (seed * 342) % 1500 + 45,
               saves: (seed * 123) % 900 + 20,
               isLikedByMe: false,
@@ -281,14 +285,14 @@ export default function Trails() {
             description: "Tom Clancy's operational counter-intelligence operative races across borders in high-stakes visual espionage.",
             type: "Movie",
             trailerUrl: "https://www.youtube.com/watch?v=1V7GgP7A8b4",
-            likes: 42390,
-            commentsCount: 2011,
+            likes: 15400,
+            commentsCount: 18,
             shares: 849,
             saves: 302,
             isLikedByMe: false,
             isSavedByMe: false,
             myRating: null,
-            duration: "106 min",
+            duration: "1.8 hours",
             contentRating: "18+",
           });
         }
@@ -301,7 +305,8 @@ export default function Trails() {
           initialComments[item.id] = [
             { id: "c1", name: "Chidi_Axis", text: "Genuinely excited for this! Cinematography looks legendary 🔥", time: "2h ago" },
             { id: "c2", name: "Axis Trails", text: "Premiering next Friday under Axis TV Exclusives. Set your timers!", time: "1h ago", isOfficial: true },
-            { id: "c3", name: "Aisha_O", text: "The audio pacing is so tense. Definitely watching.", time: "45m ago" }
+            { id: "c3", name: "Aisha_O", text: "The audio pacing is so tense. Definitely watching.", time: "1h ago" },
+            { id: "c4", name: "greatmayuku2", text: "The streaming pipeline is fully optimized for this release! Stunning fidelity 🛸", time: "2h ago", isDev: true }
           ];
         });
         setCommentsMap(initialComments);
@@ -450,7 +455,8 @@ export default function Trails() {
       id: `comment-${Date.now()}`,
       name: user.username || "You",
       text: newCommentText.trim(),
-      time: "Just now"
+      time: "Just now",
+      isDev: user.email === "greatmayuku2@gmail.com"
     };
 
     setCommentsMap(prev => ({
@@ -483,8 +489,42 @@ export default function Trails() {
     showToast(nextFollow ? "Followed Axis Trails!" : "Unfollowed creator section", "success");
   };
 
+  const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>, item: TrailItem) => {
+    e.preventDefault();
+    if (!item.isLikedByMe) {
+      toggleLike(item.id);
+    }
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const newHeart = {
+      id: Date.now() + Math.random(),
+      x,
+      y
+    };
+    
+    setFloatingHearts(prev => [...prev, newHeart]);
+    
+    setTimeout(() => {
+      setFloatingHearts(prev => prev.filter(h => h.id !== newHeart.id));
+    }, 800);
+  };
+
   return (
-    <div className="flex h-[100dvh] w-full bg-black text-white relative overflow-hidden font-sans lg:pl-64">
+    <div className="flex h-[100dvh] w-full bg-[#04060c] text-white relative overflow-hidden font-sans lg:pl-64 justify-center items-center">
+      {/* Immersive blurred full screen ambient glow background on desktop */}
+      <div className="absolute inset-0 hidden lg:block z-0 pointer-events-none overflow-hidden scale-110 opacity-20 blur-[130px] transition-all duration-1000 select-none">
+        {activeItem && (
+          <MovieImage
+            src={activeItem.background || activeItem.poster}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+        )}
+      </div>
+
       {/* Hide standard layout backgrounds or footers inside this immersive player */}
       <style>{`
         .hide-scrollbar::-webkit-scrollbar {
@@ -493,6 +533,15 @@ export default function Trails() {
         .hide-scrollbar {
           -ms-overflow-style: none;
           scrollbar-width: none;
+        }
+        @keyframes marquee {
+          0% { transform: translate3d(0, 0, 0); }
+          100% { transform: translate3d(-33.33%, 0, 0); }
+        }
+        .animate-marquee-slow {
+          display: flex;
+          width: max-content;
+          animation: marquee 16s linear infinite;
         }
         /* Lock view height to solve mobile layout triggers */
         @supports (-webkit-touch-callout: none) {
@@ -503,16 +552,16 @@ export default function Trails() {
       `}</style>
 
       {/* Primary DESKTOP SIDEBAR overlay layout integration */}
-      <div className="hidden lg:block">
+      <div className="hidden lg:block relative z-30 select-none">
         <Navbar />
       </div>
 
-      {/* Main Reels content viewport panel */}
-      <div className="flex-1 w-full h-full relative flex flex-col justify-between">
+      {/* Smartphone mockup frame container centered on desktop, full-viewport on mobile */}
+      <div className="relative w-full h-[100dvh] lg:h-[92vh] lg:max-h-[820px] lg:my-auto lg:aspect-[9/16] lg:max-w-[420px] lg:rounded-[36px] bg-black border border-transparent lg:border-white/10 overflow-hidden shadow-2xl lg:shadow-[0_24px_85px_rgba(0,0,0,0.9)] z-20 flex flex-col">
         
         {/* Loading overlay panel */}
         {loading && (
-          <div className="absolute inset-0 bg-black/95 z-50 flex flex-col items-center justify-center gap-4">
+          <div className="absolute inset-0 bg-[#04060c]/98 z-50 flex flex-col items-center justify-center gap-4">
             <Radio className="w-12 h-12 text-brand animate-pulse" />
             <div className="text-center space-y-1">
               <p className="text-sm font-black uppercase tracking-widest text-brand">Axis Trails</p>
@@ -520,72 +569,33 @@ export default function Trails() {
             </div>
           </div>
         )}
-
         {/* Liquid Glass Top Header overlay */}
-        <header className="absolute top-0 inset-x-0 z-40 bg-gradient-to-b from-black/80 to-transparent pt-4 pb-12 px-4 flex items-center justify-between pointer-events-auto select-none gap-2">
+        <header className="absolute top-0 inset-x-0 z-40 bg-gradient-to-b from-black/85 via-black/45 to-transparent pt-4 pb-12 px-4 flex items-center justify-between pointer-events-auto select-none gap-2">
           <button 
             onClick={() => navigate("/")}
-            className="w-10 h-10 rounded-full flex items-center justify-center bg-black/40 border border-white/10 backdrop-blur-md active:scale-95 transition-all text-white/80 hover:text-white shrink-0"
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-black/45 border border-white/10 backdrop-blur-md active:scale-95 transition-all text-white/80 hover:text-white shrink-0"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-1.5 xs:gap-3 bg-black/55 px-3 py-1.5 rounded-full border border-white/5 backdrop-blur-md max-w-xs overflow-hidden">
-            {/* Elegant Data Saver Pill Button */}
-            <button 
-              onClick={() => {
-                setIsDataSaver(prev => !prev);
-                showToast(
-                  !isDataSaver 
-                    ? "Data Saver Active (~5-10MB mobile quality blocks)" 
-                    : "Ultra HD Quality Enabled (Standard bandwidth)",
-                  "info"
-                );
-              }}
-              className={`text-[9px] font-black uppercase tracking-wider py-1 px-2.5 rounded-full transition-all flex items-center gap-1 active:scale-95 shrink-0 ${
-                isDataSaver 
-                  ? "bg-green-500/25 text-green-400 border border-green-500/35 shadow-[0_0_10px_rgba(34,197,94,0.15)]" 
-                  : "bg-white/5 text-white/50 hover:bg-white/10"
-              }`}
-            >
-              <Flame className="w-2.5 h-2.5" />
-              <span className="hidden xs:inline">Data Saver</span>
-              <span>{isDataSaver ? "ON" : "OFF"}</span>
-            </button>
-
-            <span className="text-white/20 select-none">|</span>
-
-            <div className="flex items-center gap-3">
-              <span className="text-white/40 text-[10px] font-bold cursor-pointer hover:text-white transition-all uppercase tracking-wider">
-                Follow
-              </span>
-              <span className="text-white text-[10px] font-black uppercase tracking-wider relative shrink-0">
-                For You
-                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-0.5 bg-brand rounded-full" />
-              </span>
-            </div>
+          <div className="text-center font-black uppercase tracking-widest text-[11px] text-white/80 bg-black/40 border border-white/10 backdrop-blur-md px-4 py-2 rounded-full shadow-lg">
+            Axis Trails
           </div>
 
-          <button 
-            onClick={() => setIsMuted(prev => !prev)}
-            className="w-10 h-10 rounded-full flex items-center justify-center bg-black/40 border border-white/10 backdrop-blur-md active:scale-95 transition-all text-white/80 hover:text-white shrink-0"
-          >
-            {isMuted ? <VolumeX className="w-4 h-4 text-brand" /> : <Volume2 className="w-4 h-4" />}
-          </button>
+          {/* Spacer to balance layout alignment */}
+          <div className="w-10 h-10 shrink-0 opacity-0 pointer-events-none" />
         </header>
 
         {/* Master swipable snap container */}
         <div
           ref={containerRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-scroll snap-y snap-mandatory hide-scrollbar w-full h-full bg-[#03060f]"
+          className="flex-1 overflow-y-scroll snap-y snap-mandatory hide-scrollbar w-full h-full bg-black relative"
           style={{ scrollSnapType: "y mandatory", scrollBehavior: "auto" }}
         >
           {items.map((item, index) => {
             const isCurrentlyActive = index === activeIndex;
-            const isPreloadingNext = index === activeIndex + 1;
-            const isPreloadingPrev = index === activeIndex - 1;
-            const shouldRenderVideo = isCurrentlyActive || isPreloadingNext || isPreloadingPrev;
+            const shouldRenderVideo = isCurrentlyActive;
 
             const isYoutube = item.trailerUrl && getYouTubeId(item.trailerUrl) !== "";
             const embedSrc = shouldRenderVideo 
@@ -598,7 +608,7 @@ export default function Trails() {
               <div 
                 key={`slide-${item.id}-${index}`}
                 className="w-full h-full snap-start relative flex flex-col justify-end bg-black overflow-hidden select-none"
-                style={{ height: "100dvh" }}
+                style={{ height: "100%" }}
               >
                 
                 {/* 1. Cinematic Background Backdrop & Video Embed Frame */}
@@ -660,14 +670,6 @@ export default function Trails() {
                               <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand animate-pulse">Loading Video Teaser...</span>
                             </div>
                           )}
-
-                          {/* Sound indicator helper toast on slide */}
-                          {isMuted && isCurrentlyActive && (
-                            <div className="absolute top-[88px] left-1/2 -translate-x-1/2 bg-black/60 border border-white/10 px-3 py-1.5 rounded-full text-[9px] uppercase font-bold text-white/80 pointer-events-none tracking-widest select-none flex items-center gap-1.5 animate-pulse z-40">
-                              <VolumeX className="w-3 px-px text-brand" />
-                              <span>Mute On • Tap Screen To Hear</span>
-                            </div>
-                          )}
                         </div>
                       )}
                       
@@ -680,10 +682,10 @@ export default function Trails() {
                         />
                       )}
 
-                      {/* Interactive block overlay: Clicking the background anywhere toggles global mute */}
+                      {/* Interactive block overlay: Double click triggers like floating hearts */}
                       {isCurrentlyActive && (
                         <div 
-                          onClick={() => setIsMuted(p => !p)}
+                          onDoubleClick={(e) => handleDoubleClick(e, item)}
                           className="absolute inset-0 z-20 cursor-pointer pointer-events-auto" 
                         />
                       )}
@@ -698,21 +700,41 @@ export default function Trails() {
                   {/* Dense gradient overlays to support crystal-clear scannability */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-black/35 z-10 pointer-events-none" />
                   <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black via-black/75 to-transparent z-15 pointer-events-none" />
-                                {/* 2. Floating CENTER-RIGHT Actions Menu Column - Styled like TikTok/ChatGPT mockup */}
-                <div className="absolute right-4 bottom-28 sm:bottom-32 z-30 flex flex-col items-center gap-4.5">
+                </div>
+
+                {/* Local Floating hearts overlay */}
+                {isCurrentlyActive && floatingHearts.map(heart => (
+                  <motion.div
+                    key={heart.id}
+                    initial={{ scale: 0, opacity: 1, rotate: Math.random() * 40 - 20 }}
+                    animate={{ 
+                      scale: [1, 2.2, 1.8], 
+                      opacity: [1, 1, 0],
+                      y: heart.y - 120 
+                    }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    className="absolute pointer-events-none z-40 text-[#ff0050] drop-shadow-[0_0_20px_rgba(255,0,80,0.9)]"
+                    style={{ left: heart.x - 24, top: heart.y - 24 }}
+                  >
+                    <Heart className="w-12 h-12 fill-current" />
+                  </motion.div>
+                ))}
+
+                {/* 2. Floating CENTER-RIGHT Actions Menu Column - Styled like TikTok */}
+                <div className="absolute right-3.5 bottom-24 z-30 flex flex-col items-center gap-4.5 selection:bg-transparent">
                   
-                  {/* Axis Avatar profile badge with bottom overlapping plus (+) trigger */}
+                  {/* Creator Avatar profile badge with bottom overlapping plus (+) trigger */}
                   <div className="relative mb-2 flex flex-col items-center select-none">
                     <button 
                       onClick={() => setShowCreatorPanel(true)}
-                      className="w-[50px] h-[50px] rounded-full border-2 border-white/20 p-0.5 bg-black hover:border-brand/50 transition-colors shadow-2xl relative"
+                      className="w-11 h-11 rounded-full border-2 border-white/20 p-0.5 bg-black hover:border-brand/50 transition-colors shadow-2xl relative"
                     >
-                      <div className="w-full h-full rounded-full bg-black flex items-center justify-center font-black text-[10px] text-white tracking-wider">
+                      <div className="w-full h-full rounded-full bg-black flex items-center justify-center font-black text-[9px] text-white tracking-widest leading-none">
                         AXIS
                       </div>
                     </button>
                     {/* Glowing active indicator */}
-                    <span className="absolute top-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-black" />
+                    <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-black animate-pulse" />
                     
                     {/* Overlay plus expand buttons */}
                     <AnimatePresence>
@@ -725,141 +747,168 @@ export default function Trails() {
                             e.stopPropagation();
                             followCreator();
                           }}
-                          className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-white text-black hover:bg-brand flex items-center justify-center font-bold shadow-xl transition-all"
+                          className="absolute -bottom-1 w-[18px] h-[18px] rounded-full bg-[#ff0050] text-white hover:scale-105 flex items-center justify-center font-bold shadow-xl transition-all"
                         >
-                          <Plus className="w-3.5 h-3.5 stroke-[4px]" />
+                          <Plus className="w-3 h-3 stroke-[3px]" />
                         </motion.button>
                       )}
                     </AnimatePresence>
                   </div>
 
                   {/* LIKE BUTTON Block */}
-                  <div className="flex flex-col items-center select-none">
+                  <div className="flex flex-col items-center select-none group">
                     <button 
                       onClick={() => toggleLike(item.id)}
-                      className={`w-12 h-12 rounded-full flex items-center justify-center shadow-xl backdrop-blur-md border active:scale-90 transition-all ${
+                      className={`w-11 h-11 rounded-full flex items-center justify-center border transition-all duration-200 active:scale-75 shadow-lg backdrop-blur-md ${
                         item.isLikedByMe 
-                          ? "bg-red-500/20 border-red-500 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)]" 
-                          : "bg-black/40 border-white/10 text-white/95 hover:bg-black/60"
+                          ? "bg-[#ff0050]/20 border-[#ff0050] text-[#ff0050] shadow-[0_0_12px_rgba(255,0,80,0.4)]" 
+                          : "bg-black/35 border-white/10 text-white/95 hover:bg-black/55 group-hover:scale-105"
                       }`}
                     >
                       <Heart className={`w-5 h-5 ${item.isLikedByMe ? "fill-current" : ""}`} />
                     </button>
-                    <span className="text-[11px] font-black text-white/90 drop-shadow mt-1">
+                    <span className="text-[10px] font-black text-white/90 drop-shadow mt-1 select-none font-mono">
                       {item.isLikedByMe ? "24.8K" : "24.7K"}
                     </span>
                   </div>
 
                   {/* COMMENTS BUTTON Drawer trigger */}
-                  <div className="flex flex-col items-center select-none">
+                  <div className="flex flex-col items-center select-none group">
                     <button 
                       onClick={() => setShowComments(true)}
-                      className="w-12 h-12 rounded-full flex items-center justify-center transition-all bg-black/40 border border-white/10 text-white hover:bg-black/60 active:scale-90 shadow-xl backdrop-blur-md"
+                      className="w-11 h-11 rounded-full flex items-center justify-center border border-white/10 text-white bg-black/35 hover:bg-black/55 group-hover:scale-105 transition-all duration-200 active:scale-75 shadow-lg backdrop-blur-md"
                     >
                       <MessageCircle className="w-5 h-5" />
                     </button>
-                    <span className="text-[11px] font-black text-white/90 drop-shadow mt-1">
-                      1.2K
+                    <span className="text-[10px] font-black text-white/90 drop-shadow mt-1 select-none font-mono">
+                      {item.commentsCount}
                     </span>
                   </div>
 
                   {/* BOOKMARK BUTTON Playlist sheet trigger */}
-                  <div className="flex flex-col items-center select-none">
+                  <div className="flex flex-col items-center select-none group">
                     <button 
-                      onClick={() => {
-                        setShowPlaylistSheet(true);
-                      }}
-                      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all border active:scale-90 shadow-xl backdrop-blur-md ${
+                      onClick={() => setShowPlaylistSheet(true)}
+                      className={`w-11 h-11 rounded-full flex items-center justify-center border transition-all duration-200 active:scale-75 shadow-lg backdrop-blur-md ${
                         localPlaylists.some(p => p.checked)
-                          ? "bg-amber-500/10 border-amber-500 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.25)]" 
-                          : "bg-black/40 border-white/10 text-white hover:bg-black/60"
+                          ? "bg-amber-500/10 border-amber-500 text-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.4)]" 
+                          : "bg-black/35 border-white/10 text-white hover:bg-black/55 group-hover:scale-105"
                       }`}
                     >
                       <Bookmark className={`w-5 h-5 ${localPlaylists.some(p => p.checked) ? "fill-current" : ""}`} />
                     </button>
-                    <span className="text-[11px] font-black text-white/90 drop-shadow mt-1">
+                    <span className="text-[10px] font-black text-white/90 drop-shadow mt-1 select-none font-mono">
                       8.9K
                     </span>
                   </div>
 
                   {/* STAR RATING trigger */}
-                  <div className="flex flex-col items-center select-none">
+                  <div className="flex flex-col items-center select-none group">
                     <button 
                       onClick={() => setShowRatingPicker(true)}
-                      className={`w-12 h-12 rounded-full flex items-center justify-center shadow-xl backdrop-blur-md border active:scale-90 transition-all ${
+                      className={`w-11 h-11 rounded-full flex items-center justify-center border transition-all duration-200 active:scale-75 shadow-lg backdrop-blur-md ${
                         item.myRating 
-                          ? "bg-brand/20 border-brand text-brand shadow-[0_0_15px_rgba(244,196,48,0.3)]" 
-                          : "bg-black/40 border-white/10 text-amber-500/90 hover:bg-black/60"
+                          ? "bg-[#00f2fe]/20 border-[#00f2fe] text-[#00f2fe] shadow-[0_0_12px_rgba(0,242,254,0.4)]" 
+                          : "bg-black/35 border-white/10 text-[#00f2fe] hover:bg-black/55 group-hover:scale-105"
                       }`}
                     >
-                      <Star className={`w-5 h-5 ${item.myRating ? "fill-current" : "fill-current text-amber-500/35"}`} />
+                      <Star className={`w-5 h-5 ${item.myRating ? "fill-current" : "fill-current text-[#00f2fe]/25"}`} />
                     </button>
-                    <span className="text-[11px] font-black text-[#f4c430] drop-shadow mt-1">
+                    <span className="text-[10px] font-black text-[#00f2fe] drop-shadow mt-1 select-none font-mono">
                       {item.myRating ? `${item.myRating}.0` : item.rating}
                     </span>
                   </div>
 
+                  {/* DOWNLOAD BUTTON */}
+                  <div className="flex flex-col items-center select-none group">
+                    <button 
+                      onClick={() => setShowDownloadPanel(true)}
+                      className="w-11 h-11 rounded-full flex items-center justify-center border border-white/10 text-[#25f4ee] bg-black/35 hover:bg-black/55 group-hover:scale-105 transition-all duration-200 active:scale-75 shadow-lg backdrop-blur-md"
+                    >
+                      <Download className="w-5 h-5" />
+                    </button>
+                    <span className="text-[10px] font-black text-[#25f4ee] drop-shadow mt-1 select-none">
+                      DL
+                    </span>
+                  </div>
+
                   {/* GENERIC SHARE trigger */}
-                  <div className="flex flex-col items-center select-none">
+                  <div className="flex flex-col items-center select-none group">
                     <button 
                       onClick={() => handleShare(item)}
-                      className="w-12 h-12 rounded-full flex items-center justify-center transition-all bg-black/40 border border-white/10 text-white hover:bg-black/60 active:scale-90 shadow-xl backdrop-blur-md"
+                      className="w-11 h-11 rounded-full flex items-center justify-center border border-white/10 text-white bg-black/35 hover:bg-black/55 group-hover:scale-105 transition-all duration-200 active:scale-75 shadow-lg backdrop-blur-md"
                     >
                       <Share2 className="w-5 h-5" />
                     </button>
-                    <span className="text-[11px] font-black text-white/90 drop-shadow mt-1">
+                    <span className="text-[10px] font-black text-white/90 drop-shadow mt-1 select-none font-mono">
                       3.6K
                     </span>
                   </div>
 
                 </div>
 
-                {/* 3. Immersive Bottom-Left Information & Action Dashboard - High Fidelity Design */}
-                <div className="absolute left-4 bottom-5 max-w-[calc(100%-80px)] z-30 select-none space-y-3 pb-2 pt-4 pr-3">
+                {/* 3. Immersive Bottom-Left Information & Action Dashboard */}
+                <div className="absolute left-3.5 bottom-4 max-w-[calc(100%-72px)] z-30 select-none space-y-2 pointer-events-none pb-1 pr-1 text-left">
                   
-                  {/* Title / Header of the current video */}
-                  <div className="space-y-0.5">
-                    <h2 className="text-white text-xl sm:text-2xl font-black uppercase tracking-tight leading-none drop-shadow">
-                      {item.title}
-                    </h2>
+                  {/* Account Name & Creator indicators */}
+                  <div className="flex items-center gap-1.5 pointer-events-auto">
+                    <span 
+                      onClick={() => setShowCreatorPanel(true)}
+                      className="text-white text-xs font-black lowercase hover:underline cursor-pointer flex items-center gap-1 leading-none select-text"
+                    >
+                      @axistrails
+                    </span>
+                    <MetaVerifiedBadge className="w-3.5 h-3.5" />
                     
-                    {/* Media category lists */}
-                    <div className="flex items-center gap-1.5 flex-wrap text-xs font-bold text-white/60 pt-1">
-                      <span>{item.releaseYear}</span>
-                      <span className="text-white/30">•</span>
-                      <span className="text-[#a5b4fc]">{item.genres.slice(0, 2).join(", ")}</span>
-                      <span className="text-white/30">•</span>
-                      <span>{item.duration || "2h 49m"}</span>
+                    <span className="bg-[#ff0050]/20 text-[#ff0050] text-[8px] font-black uppercase px-1.5 py-0.5 rounded border border-[#ff0050]/10 tracking-widest leading-none scale-95 origin-left">
+                      Creator
+                    </span>
+                  </div>
+
+                  {/* Movie Title & Bio Segment */}
+                  <div className="space-y-0.5 pointer-events-auto select-text">
+                    <h3 className="text-white text-xs font-black uppercase tracking-wider line-clamp-1">
+                      {item.title}
+                    </h3>
+                    <p className="text-white/85 text-[10px] leading-relaxed line-clamp-2 pr-1 font-sans">
+                      {item.description}
+                    </p>
+                    {/* Hashtags Row */}
+                    <div className="text-[#00f2fe] text-[9px] font-extrabold flex gap-1 flex-wrap select-none mt-0.5 pointer-events-auto">
+                      <span>#axisexclusives</span>
+                      <span>#{item.genres[0]?.toLowerCase() || "cinema"}</span>
+                      <span>#weeklypremier</span>
+                      <span>#axistrails</span>
                     </div>
                   </div>
 
-                  {/* Teaser info text paragraph */}
-                  <p className="text-white/80 text-xs sm:text-sm leading-relaxed max-w-sm line-clamp-3 mb-1 pr-4">
-                    {item.description}
-                  </p>
-
-                  {/* Orange Rating badge pill representing live counts */}
-                  <div className="flex items-center">
-                    <div className="inline-flex items-center gap-1.5 bg-black/55 border border-white/10 px-3 py-1 rounded-full text-xs text-[#f4c430] font-black shadow-lg">
-                      <Star className="w-3.5 h-3.5 fill-current text-[#f4c430]" />
-                      <span>{item.myRating ? `${item.myRating}.0` : item.rating}/10</span>
-                      <span className="text-white/30">•</span>
-                      <span className="text-white/80">{(parseInt(item.id) || 7) * 15}K Ratings</span>
-                    </div>
+                  {/* Release Attributes metadata strip */}
+                  <div className="flex items-center gap-2 text-[8px] font-bold text-white/50 pt-0.5 font-mono">
+                    <span>{item.releaseYear}</span>
+                    <span>•</span>
+                    <span>{item.duration ? formatDurationToHours(item.duration) : "2.8 hours"}</span>
                   </div>
 
-                  {/* 4. Giant Elegant Metallic Call-To-Action Play Button */}
-                  <div className="pt-1 pointer-events-auto">
+                  {/* Metallic instant watch cyan button pill with *add to playlist* */}
+                  <div className="pt-1 flex flex-wrap items-center gap-2 pointer-events-auto">
                     <Link
                       to={`/details/${item.id}`}
-                      className="w-full sm:w-[320px] flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-full bg-gradient-to-r from-[#4d6bfe] to-[#809bfb] text-slate-950 font-black text-xs tracking-widest uppercase transition-all shadow-[0_4px_25px_rgba(77,107,254,0.35)] hover:bg-gradient-to-t active:scale-95 text-center"
+                      className="inline-flex items-center justify-center gap-2 py-2 px-4.5 rounded-full bg-gradient-to-r from-[#25f4ee] to-[#00f2fe] text-black font-black text-[9px] tracking-widest uppercase transition-all shadow-[0_4px_12px_rgba(37,244,238,0.25)] hover:scale-105 active:scale-95 translate-y-0.5 shrink-0"
                     >
-                      <span>Watch Now</span>
-                      <Play className="w-4 h-4 fill-current text-slate-950 stroke-none" />
+                      <span>Stream Full Release</span>
+                      <Play className="w-2.5 h-2.5 fill-current text-black stroke-none" />
                     </Link>
+
+                    <button
+                      onClick={() => setShowPlaylistSheet(true)}
+                      className="inline-flex items-center justify-center gap-1.5 py-2 px-4 rounded-full bg-white/10 hover:bg-white/20 text-white font-black text-[9px] tracking-widest uppercase transition-all border border-white/10 hover:scale-105 active:scale-95 translate-y-0.5 shrink-0"
+                    >
+                      <span>Add to Playlist</span>
+                      <Bookmark className="w-2.5 h-2.5 text-amber-400" />
+                    </button>
                   </div>
 
-                </div>              </div>
+                </div>
 
               </div>
             );
@@ -899,39 +948,48 @@ export default function Trails() {
 
             {/* List of comments scrolling viewport */}
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 hide-scrollbar">
-              {((commentsMap[activeItem.id]) || []).map((comm) => (
-                <div key={comm.id} className="flex gap-3 items-start p-1 relative">
-                  
-                  {/* Initials profile avatar scene */}
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black select-none shrink-0 ${
-                    comm.isOfficial 
-                      ? "bg-brand text-black shadow-[0_0_10px_rgba(244,196,48,0.3)]" 
-                      : "bg-white/10 text-white"
-                  }`}>
-                    {comm.isOfficial ? "AT" : comm.name.substring(0, 2).toUpperCase()}
-                  </div>
-
-                  {/* Comment context body block */}
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center gap-1.5 wrap">
-                      <span className="text-white/90 text-xs font-extrabold lowercase">
-                        @{comm.name.toLowerCase()}
-                      </span>
-                      {comm.isOfficial && (
-                        <span className="bg-brand text-black text-[7px] font-black uppercase px-1 rounded flex items-center gap-0.5">
-                          <Verified className="w-2 h-2" />
-                          <span>Creator</span>
-                        </span>
-                      )}
-                      <span className="text-white/35 text-[9px] font-medium">{comm.time}</span>
+              {((commentsMap[activeItem.id]) || []).map((comm) => {
+                const isCommenterDev = (comm as any).isDev || comm.name.toLowerCase() === "greatmayuku2" || comm.name.toLowerCase() === "greatmayuku2@gmail.com" || (user && user.email === "greatmayuku2@gmail.com" && comm.name === user.username);
+                const commenterName = (isCommenterDev && user && user.email === "greatmayuku2@gmail.com" && user.username) ? user.username : comm.name;
+                return (
+                  <div key={comm.id} className="flex gap-3 items-start p-1 relative">
+                    
+                    {/* Initials profile avatar scene */}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black select-none shrink-0 ${
+                      comm.isOfficial 
+                        ? "bg-brand text-black shadow-[0_0_10px_rgba(244,196,48,0.3)]" 
+                        : isCommenterDev 
+                          ? "bg-blue-600 text-white shadow-[0_0_10px_rgba(37,99,235,0.4)]" 
+                          : "bg-white/10 text-white"
+                    }`}>
+                      {comm.isOfficial ? "AT" : isCommenterDev ? "DEV" : commenterName.substring(0, 2).toUpperCase()}
                     </div>
-                    <p className="text-white/80 text-xs sm:text-sm leading-relaxed font-sans pr-4 select-text">
-                      {comm.text}
-                    </p>
-                  </div>
 
-                </div>
-              ))}
+                    {/* Comment context body block */}
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-white/90 text-xs font-extrabold flex items-center gap-1 select-text">
+                          @{commenterName.toLowerCase()}
+                          {(isCommenterDev || (user && comm.name === user.username)) && (
+                            <MetaVerifiedBadge className="w-3.5 h-3.5" />
+                          )}
+                        </span>
+                        {comm.isOfficial && (
+                          <span className="bg-brand text-black text-[7px] font-black uppercase px-1 rounded flex items-center gap-0.5">
+                            <Verified className="w-2 h-2" />
+                            <span>Creator</span>
+                          </span>
+                        )}
+                        <span className="text-white/35 text-[9px] font-medium">{comm.time}</span>
+                      </div>
+                      <p className="text-white/80 text-xs sm:text-sm leading-relaxed font-sans pr-4 select-text">
+                        {comm.text}
+                      </p>
+                    </div>
+
+                  </div>
+                );
+              })}
             </div>
 
             {/* Bottom stick content input field */}
@@ -1346,10 +1404,14 @@ export default function Trails() {
                     <p className="text-white/40 text-[9px] font-bold uppercase tracking-wider mt-0.5">Followers</p>
                   </div>
                   <div className="border-r border-white/10 h-7" />
-                  <div className="text-center">
-                    <p className="text-white text-md font-black">1</p>
+                  <button 
+                    onClick={() => setShowFollowingModal(true)}
+                    className="text-center hover:opacity-80 active:scale-95 transition-all focus:outline-none"
+                    title="View Following List"
+                  >
+                    <p className="text-[#809bfb] text-md font-black underline decoration-dashed">1</p>
                     <p className="text-white/40 text-[9px] font-bold uppercase tracking-wider mt-0.5">Following</p>
-                  </div>
+                  </button>
                 </div>
 
                 {/* Description bio matching figma source */}
@@ -1432,6 +1494,77 @@ export default function Trails() {
                 </div>
 
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ==========================================
+          10. AXIS TRAILS FOLLOWING ACCOUNT DRAWER / POPUP
+         ========================================== */}
+      <AnimatePresence>
+        {showFollowingModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+            <div className="absolute inset-0 z-0" onClick={() => setShowFollowingModal(false)} />
+            
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative w-full max-w-sm bg-[#0a0d16] border border-white/10 p-6 rounded-3xl z-10 shadow-[0_20px_50px_rgba(0,0,0,0.9)] text-left"
+            >
+              <div className="flex items-center justify-between mb-5 border-b border-white/5 pb-3">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4.5 h-4.5 text-[#809bfb]" />
+                  <h3 className="text-white text-sm font-black uppercase tracking-wider">
+                    Axis Trails Following
+                  </h3>
+                </div>
+                <button 
+                  onClick={() => setShowFollowingModal(false)}
+                  className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center text-white/50 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-4">
+                Exclusive Following (1 User)
+              </p>
+
+              {/* Developer Profile card */}
+              <div className="flex items-center justify-between p-4 bg-white/[0.02] border border-[#809bfb]/35 rounded-2xl hover:border-blue-500/20 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black text-xs shadow-lg shadow-blue-500/10">
+                    DEV
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-white text-xs font-black">
+                        {user && user.email === "greatmayuku2@gmail.com" ? user.username : "greatmayuku2"}
+                      </p>
+                      <MetaVerifiedBadge className="w-4 h-4" />
+                    </div>
+                    <p className="text-white/40 text-[9px] font-semibold mt-0.5">greatmayuku2@gmail.com</p>
+                    <p className="text-[#809bfb] text-[8px] font-black tracking-wider uppercase mt-1">Lead Creator & Platform Dev</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 text-[9px] font-black tracking-wider text-green-400 bg-green-400/10 px-2 py-1 rounded-full uppercase border border-green-400/20">
+                  <span>✓ Creator Mutual</span>
+                </div>
+              </div>
+
+              <p className="text-white/40 text-[10px] leading-relaxed mt-4 text-center px-1">
+                Axis Trails is a developer-moderated system. Axis Trails exclusively follows and monitors our verified lead platform developer <span className="text-white font-bold">{user && user.email === "greatmayuku2@gmail.com" ? user.username : "greatmayuku2"}</span>.
+              </p>
+
+              <button
+                onClick={() => setShowFollowingModal(false)}
+                className="w-full py-3 bg-white/5 hover:bg-white/10 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-all mt-5"
+              >
+                Close List
+              </button>
             </motion.div>
           </div>
         )}

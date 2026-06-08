@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { movieService } from "../services/movieService";
-import { ItemDetails, MediaData, MediaItem } from "../types";
+import { ItemDetails, MediaData, MediaItem, formatDurationToHours } from "../types";
 import VideoPlayer from "../components/VideoPlayer";
 import PosterGrid from "../components/PosterGrid";
 import EpisodeSelector from "../components/EpisodeSelector";
@@ -42,6 +42,31 @@ export default function Details() {
  const [selectedEpisode, setSelectedEpisode] = useState<number>(1);
  const [isDownloadTrayOpen, setIsDownloadTrayOpen] = useState(false);
  const [showDetails, setShowDetails] = useState(false);
+
+const uniqueCast = useMemo(() => {
+if (!details || !Array.isArray(details.cast)) return [];
+const acc: any[] = [];
+details.cast.forEach((actor: any) => {
+const existing = acc.find(a => 
+(a.id && actor.id && String(a.id) === String(actor.id)) || 
+(a.name && actor.name && a.name.toLowerCase() === actor.name.toLowerCase())
+);
+if (existing) {
+if (actor.character && existing.character) {
+const currentChars = existing.character.split('/').map((c: string) => c.trim());
+const newChar = actor.character.trim();
+if (newChar && !currentChars.includes(newChar)) {
+existing.character = `${existing.character} / ${newChar}`;
+}
+} else if (actor.character) {
+existing.character = actor.character;
+}
+} else {
+acc.push({ ...actor });
+}
+});
+return acc;
+}, [details?.cast]);
  
  const [isMiniPlayer, setIsMiniPlayer] = useState(false);
  const [userClosedMiniPlayer, setUserClosedMiniPlayer] = useState(false);
@@ -467,7 +492,7 @@ export default function Details() {
  
  {details.year && <span className="">{details.year}</span>}
  <span className="text-white/20 font-semibold">•</span>
- {details.duration && <span className="">{details.duration}</span>}
+ {details.duration && <span className="">{formatDurationToHours(details.duration)}</span>}
  <span className="text-white/20 font-semibold">•</span>
  <span className=" tracking-wide font-bold text-fluid-sm">{details.type || 'Movie'}</span>
  </div>
@@ -642,11 +667,11 @@ export default function Details() {
  )}
  
  {/* Cast Section in Details Tray */}
- {Array.isArray(details.cast) && details.cast.length > 0 && (
+ {Array.isArray(uniqueCast) && uniqueCast.length > 0 && (
  <div className="pt-6 border-t border-white/10">
  <h3 className="text-fluid-lg font-semibold mb-4 tracking-wide">Top Cast</h3>
  <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar">
- {Array.isArray(details.cast) && details.cast.slice(0, 6).map((actor, idx) => (
+ {Array.isArray(uniqueCast) && uniqueCast.slice(0, 8).map((actor, idx) => (
  <div key={`${actor.id}-${idx}`} className="flex-shrink-0 w-20 text-center group">
  <div className="w-20 h-20 rounded-full overflow-hidden mb-2 bg-white/5 border border-white/10 group-hover:border-white/30 transition-all shadow-md">
  <SmartActorImage 
@@ -656,7 +681,12 @@ export default function Details() {
  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
  />
  </div>
- <p className="text-fluid-sm text-white/70 font-medium line-clamp-2 group-hover:text-white transition-colors leading-tight">{actor.name}</p>
+ <p className="text-fluid-sm text-white font-medium line-clamp-1 group-hover:text-white transition-colors leading-tight">{actor.name}</p>
+{actor.character && (
+<p className="text-gray-500 font-bold mt-0.5 tracking-tight leading-tight whitespace-normal break-words line-clamp-1 text-fluid-xs">
+as {actor.character}
+</p>
+)}
  </div>
  ))}
  </div>

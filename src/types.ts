@@ -85,6 +85,7 @@ export interface MediaData {
   audioTracks?: { language: string; languageCode: string; subjectId: string; detailPath: string }[];
   initialTime?: number;
   vidsrcServers?: any[];
+  isBackup?: boolean;
 }
 
 export interface Actor {
@@ -119,4 +120,47 @@ export interface User {
   password: string;
   watchlist: string[];
   history: { id: string; title: string; poster: string }[];
+}
+
+export function formatDurationToHours(val: string | undefined | null): string {
+  if (!val) return "";
+  const clean = val.toLowerCase().trim();
+  
+  if (clean.includes("hour") || clean.includes("hr") || clean.includes(":")) {
+    return val;
+  }
+  
+  // Parse formats like "2h 45m", "1h 30min"
+  const hMatch = clean.match(/(\d+)\s*h/);
+  const mMatch = clean.match(/(\d+)\s*(m|min)/);
+  
+  let totalMinutes = 0;
+  if (hMatch) {
+    totalMinutes += parseInt(hMatch[1], 10) * 60;
+  }
+  if (mMatch) {
+    totalMinutes += parseInt(mMatch[1], 10);
+  }
+  
+  // If we couldn't parse with h and m, check if it's just raw minutes (e.g. "120", "106 min", "120mins")
+  if (totalMinutes === 0) {
+    const onlyDigits = clean.match(/^(\d+)$/) || clean.match(/^(\d+)\s*(min|mins|m)$/);
+    if (onlyDigits) {
+      totalMinutes = parseInt(onlyDigits[1], 10);
+    } else {
+      // Fallback: extract the first number found and assume it's minutes
+      const anyDigit = clean.match(/(\d+)/);
+      if (anyDigit) {
+        totalMinutes = parseInt(anyDigit[1], 10);
+      }
+    }
+  }
+  
+  if (totalMinutes > 0) {
+    const hrs = (totalMinutes / 60).toFixed(1);
+    const formatted = hrs.endsWith(".0") ? hrs.slice(0, -2) : hrs;
+    return `${formatted} ${parseFloat(formatted) === 1 ? 'hour' : 'hours'}`;
+  }
+  
+  return val;
 }

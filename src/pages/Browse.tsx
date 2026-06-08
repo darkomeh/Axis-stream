@@ -11,6 +11,7 @@ import { ErrorMessage } from "../components/ErrorMessage";
 import { SEO } from "../components/SEO";
 import { Filter, ChevronDown, X, Loader2, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import BrowseGenreRow from "../components/BrowseGenreRow";
 
 const GENRES = [
  { id: "", name: "All Genres" },
@@ -92,11 +93,39 @@ export default function Browse() {
  const [selectedGenre, setSelectedGenre] = useState("");
  const [selectedCountry, setSelectedCountry] = useState("");
  const [selectedType, setSelectedType] = useState(initialType);
+
+ const isMoviePage = location.pathname === "/movies" || location.pathname === "/movie";
+ const isSeriesPage = location.pathname === "/series";
+ const isRestrictedView = isMoviePage || isSeriesPage;
+
+ const activeGenres = GENRES.filter(g => g.id !== "");
+ const showHorizontalSlices = !selectedGenre && !selectedCountry && (isMoviePage || isSeriesPage || selectedType === "1" || selectedType === "2");
+
+ const [visibleGenresCount, setVisibleGenresCount] = useState(4);
+ const bottomObserver = useRef<IntersectionObserver | null>(null);
+
+ const bottomTrackerRef = useCallback((node: HTMLDivElement | null) => {
+  if (bottomObserver.current) bottomObserver.current.disconnect();
+  bottomObserver.current = new IntersectionObserver((entries) => {
+   if (entries[0].isIntersecting && visibleGenresCount < activeGenres.length) {
+    setVisibleGenresCount(prev => Math.min(prev + 3, activeGenres.length));
+   }
+  }, {
+   rootMargin: "400px"
+  });
+  if (node) bottomObserver.current.observe(node);
+ }, [visibleGenresCount, activeGenres.length]);
  
  // Sync selectedType when route changes (e.g. Navigating between /movies and /series)
  useEffect(() => {
- setSelectedType(initialType);
- }, [initialType]);
+  if (isMoviePage) {
+   setSelectedType("1");
+  } else if (isSeriesPage) {
+   setSelectedType("2");
+  } else {
+   setSelectedType(initialType);
+  }
+ }, [initialType, isMoviePage, isSeriesPage]);
 
  const [showFilters, setShowFilters] = useState(false);
  const observer = useRef<IntersectionObserver | null>(null);
@@ -121,15 +150,19 @@ export default function Browse() {
  }, []);
 
  useEffect(() => {
- setPage(1);
- loadItems(1, true);
- }, [selectedGenre, selectedCountry, selectedType]);
+  if (!showHorizontalSlices) {
+   setPage(1);
+   loadItems(1, true);
+  } else {
+   setLoading(false);
+  }
+ }, [selectedGenre, selectedCountry, selectedType, showHorizontalSlices]);
 
  useEffect(() => {
- if (page > 1) {
- loadItems(page, false);
- }
- }, [page]);
+  if (page > 1 && !showHorizontalSlices) {
+   loadItems(page, false);
+  }
+ }, [page, showHorizontalSlices]);
 
  const handleBack = () => {
  if (window.history.length > 2) {
@@ -236,18 +269,22 @@ export default function Browse() {
  </div>
  
  <div className="flex-1 flex items-center gap-4">
- <div className="relative group">
- <select 
- value={selectedType}
- onChange={(e) => setSelectedType(e.target.value)}
- className="bg-transparent text-white rounded-xl px-4 py-2 focus:outline-none cursor-pointer hover:text-brand transition-colors font-semibold tracking-wide text-fluid-xs appearance-none pr-8"
- >
- {TYPES.map(t => <option key={t.id} value={t.id} className="bg-[#141414]">{t.name}</option>)}
- </select>
- <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500" />
- </div>
+ {!isRestrictedView && (
+  <>
+   <div className="relative group">
+   <select 
+   value={selectedType}
+   onChange={(e) => setSelectedType(e.target.value)}
+   className="bg-transparent text-white rounded-xl px-4 py-2 focus:outline-none cursor-pointer hover:text-brand transition-colors font-semibold tracking-wide text-fluid-xs appearance-none pr-8"
+   >
+   {TYPES.map(t => <option key={t.id} value={t.id} className="bg-[#141414]">{t.name}</option>)}
+   </select>
+   <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500" />
+   </div>
 
- <div className="w-px h-6 bg-white/10" />
+   <div className="w-px h-6 bg-white/10" />
+  </>
+ )}
 
  <div className="relative group">
  <select 
@@ -274,14 +311,16 @@ export default function Browse() {
  </div>
  </div>
  
- {(selectedGenre || selectedCountry || selectedType !== "0") && (
+ {(selectedGenre || selectedCountry || (!isRestrictedView && selectedType !== "0")) && (
  <motion.button
  initial={{ opacity: 0, scale: 0.9 }}
  animate={{ opacity: 1, scale: 1 }}
  onClick={() => {
  setSelectedGenre("");
  setSelectedCountry("");
- setSelectedType("0");
+ if (!isRestrictedView) {
+  setSelectedType("0");
+ }
  }}
  className="px-6 py-2.5 bg-brand/10 border border-brand/20 text-brand rounded-full text-fluid-sm font-semibold tracking-wide hover:bg-brand hover:text-white transition-all shadow-[0_0_15px_rgba(255,45,45,0.2)]"
  >
@@ -299,20 +338,22 @@ export default function Browse() {
  className="md:hidden overflow-hidden mb-8 p-6 bg-white/5 border border-white/5 rounded-3xl space-y-8"
  >
  <div className="grid grid-cols-1 gap-8">
- <div className="space-y-4">
- <label className="text-fluid-sm font-semibold tracking-[0.3em] text-gray-500">Pick Type</label>
- <div className="flex flex-wrap gap-2">
- {TYPES.map(t => (
- <button
- key={t.id}
- onClick={() => setSelectedType(t.id)}
- className={`px-5 py-2.5 rounded-full text-fluid-sm font-semibold transition-all tracking-wide ${selectedType === t.id ? 'bg-brand text-white shadow-[0_0_20px_rgba(255,45,45,0.4)]' : 'bg-white/5 border border-white/5 text-gray-500 hover:bg-white/10'}`}
- >
- {t.name}
- </button>
- ))}
- </div>
- </div>
+ {!isRestrictedView && (
+  <div className="space-y-4">
+  <label className="text-fluid-sm font-semibold tracking-[0.3em] text-gray-500">Pick Type</label>
+  <div className="flex flex-wrap gap-2">
+  {TYPES.map(t => (
+  <button
+  key={t.id}
+  onClick={() => setSelectedType(t.id)}
+  className={`px-5 py-2.5 rounded-full text-fluid-sm font-semibold transition-all tracking-wide ${selectedType === t.id ? 'bg-brand text-white shadow-[0_0_20px_rgba(255,45,45,0.4)]' : 'bg-white/5 border border-white/5 text-gray-500 hover:bg-white/10'}`}
+  >
+  {t.name}
+  </button>
+  ))}
+  </div>
+  </div>
+ )}
  <div className="space-y-4">
  <label className="text-fluid-sm font-semibold tracking-[0.3em] text-gray-500">Categories</label>
  <div className="flex flex-wrap gap-2">
@@ -328,12 +369,14 @@ export default function Browse() {
  </div>
  </div>
  
- {(selectedGenre || selectedCountry || selectedType !== "0") && (
+ {(selectedGenre || selectedCountry || (!isRestrictedView && selectedType !== "0")) && (
  <button
  onClick={() => {
  setSelectedGenre("");
  setSelectedCountry("");
- setSelectedType("0");
+ if (!isRestrictedView) {
+  setSelectedType("0");
+ }
  setShowFilters(false);
  }}
  className="w-full py-4 bg-brand text-white rounded-2xl text-fluid-xs font-semibold tracking-wide shadow-xl glow-brand animate-pulse-subtle"
@@ -357,25 +400,46 @@ export default function Browse() {
  <ErrorMessage message={error} onRetry={() => loadItems(1, true)} />
  </div>
  ) : (
- <div className="space-y-16">
- <div className="flex items-center gap-4 mb-4">
- <div className="w-1 h-8 bg-brand rounded-full" />
- <h2 className="text-fluid-2xl font-semibold tracking-tight">Recommended Gallery</h2>
- </div>
- 
- <PosterGrid items={items} loading={loading} variant="grid" />
- 
- {hasMore && (
- <div ref={lastElementRef} className="flex justify-center pt-16 h-40">
- {loadingMore && (
- <div className="flex flex-col items-center gap-4 text-brand">
- <Loader2 className="w-10 h-10 animate-spin" />
- <span className="text-fluid-sm font-semibold tracking-wide">Sycing Archive...</span>
- </div>
- )}
- </div>
- )}
- </div>
+  showHorizontalSlices ? (
+   <div className="space-y-4">
+    {activeGenres.slice(0, visibleGenresCount).map((g) => (
+     <BrowseGenreRow
+      key={g.id}
+      genreId={g.id}
+      genreName={g.name}
+      subjectType={isMoviePage || selectedType === "1" ? 1 : 2}
+     />
+    ))}
+    {visibleGenresCount < activeGenres.length && (
+     <div ref={bottomTrackerRef} className="py-12 flex flex-col justify-center items-center gap-2">
+      <Loader2 className="w-8 h-8 animate-spin text-brand" />
+      <span className="text-fluid-xs font-bold text-gray-500 tracking-wider">
+       DISCOVERING MORE CATEGORIES...
+      </span>
+     </div>
+    )}
+   </div>
+  ) : (
+   <div className="space-y-16">
+   <div className="flex items-center gap-4 mb-4">
+   <div className="w-1 h-8 bg-brand rounded-full" />
+   <h2 className="text-fluid-2xl font-semibold tracking-tight">Recommended Gallery</h2>
+   </div>
+   
+   <PosterGrid items={items} loading={loading} variant="grid" />
+   
+   {hasMore && (
+   <div ref={lastElementRef} className="flex justify-center pt-16 h-40">
+   {loadingMore && (
+   <div className="flex flex-col items-center gap-4 text-brand">
+   <Loader2 className="w-10 h-10 animate-spin" />
+   <span className="text-fluid-sm font-semibold tracking-wide">Sycing Archive...</span>
+   </div>
+   )}
+   </div>
+   )}
+   </div>
+  )
  )}
  </div>
 

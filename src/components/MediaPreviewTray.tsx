@@ -6,7 +6,7 @@ import {
  ChevronDown, MessageCircle, MoreVertical, MoreHorizontal, Film
 } from "lucide-react";
 import { movieService } from "../services/movieService";
-import { ItemDetails, MediaItem, MediaData } from "../types";
+import { ItemDetails, MediaItem, MediaData, formatDurationToHours } from "../types";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import { useMediaPreview } from "../contexts/MediaPreviewContext";
@@ -195,6 +195,31 @@ export default function MediaPreviewTray() {
  }
  return imgs.filter(Boolean) as string[];
  }, [details]);
+
+const uniqueCast = useMemo(() => {
+if (!details || !Array.isArray(details.cast)) return [];
+const acc: any[] = [];
+details.cast.forEach((actor: any) => {
+const existing = acc.find(a => 
+(a.id && actor.id && String(a.id) === String(actor.id)) || 
+(a.name && actor.name && a.name.toLowerCase() === actor.name.toLowerCase())
+);
+if (existing) {
+if (actor.character && existing.character) {
+const currentChars = existing.character.split('/').map((c: string) => c.trim());
+const newChar = actor.character.trim();
+if (newChar && !currentChars.includes(newChar)) {
+existing.character = `${existing.character} / ${newChar}`;
+}
+} else if (actor.character) {
+existing.character = actor.character;
+}
+} else {
+acc.push({ ...actor });
+}
+});
+return acc;
+}, [details?.cast]);
 
  useEffect(() => {
  if (details && (!trailerUrl || isContinueWatching) && slideImages.length > 1) {
@@ -440,6 +465,11 @@ export default function MediaPreviewTray() {
 
  {/* Detailed Content */}
  <div className="px-fluid py-fluid-sm space-y-6 md:space-y-10">
+			{details && (
+				<h1 className="text-fluid-3xl font-extrabold text-white tracking-tight mb-2 leading-none">
+					{details.title}
+				</h1>
+			)}
  {/* Meta Info Row - Based on reference image */}
  <div className="flex flex-col gap-1.5 md:gap-2">
  <div className="flex flex-wrap items-center gap-2 text-fluid-sm font-bold text-gray-300">
@@ -457,7 +487,7 @@ export default function MediaPreviewTray() {
  {details?.duration && (
  <>
  <span className="text-gray-700 font-normal">|</span>
- <span>{details.duration}</span>
+ <span>{formatDurationToHours(details.duration)}</span>
  </>
  )}
  {details?.imdbRatingValue && (
@@ -496,7 +526,7 @@ export default function MediaPreviewTray() {
  Watch Now
  </button>
  <button 
- onClick={autoDownload}
+ onClick={() => setIsDownloadTrayOpen(true)}
  className="flex-1 flex items-center justify-center gap-2 md:gap-3 bg-white/10 hover:bg-white/20 text-white py-3.5 md:py-4 rounded-xl font-semibold tracking-wide md:tracking-wide border border-white/10 active:scale-[0.98] transition-all text-fluid-sm"
  >
  <Download className="w-4 h-4 md:w-5 md:h-5" />
@@ -508,7 +538,7 @@ export default function MediaPreviewTray() {
  <div className="space-y-4 md:space-y-6">
  <h3 className="text-white font-semibold text-fluid-xs tracking-[3px] md:tracking-[4px]">Starring</h3>
  <div className="flex gap-4 md:gap-6 overflow-x-auto no-scrollbar pb-2">
- {Array.isArray(details?.cast) && details.cast.slice(0, 10).map((actor: any, index: number) => (
+ {Array.isArray(uniqueCast) && uniqueCast.slice(0, 10).map((actor: any, index: number) => (
  <div 
  key={`${actor.id}-${index}`} 
  className="flex flex-col items-center gap-3 md:gap-4 min-w-[100px] md:min-w-[120px] group cursor-pointer" 

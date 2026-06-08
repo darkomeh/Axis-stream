@@ -94,22 +94,27 @@ export default function VideoPlayer({
  // Reference for tracking elapsed time for global analytics
  const lastTrackedTimeRef = useRef<number>(0);
 
-   const [forceIframe, setForceIframe] = useState(true);
+   const [forceIframe, setForceIframe] = useState(mediaData?.isBackup ?? false);
 
   // Track if we need to fall back to an iframe instead of direct video play
   const useIframeFallback =
-  isTrailer || forceIframe || (mediaData.sources.length === 0 && !!mediaData.embedUrl);
+    isTrailer || forceIframe || (mediaData.sources.length === 0 && !!mediaData.embedUrl);
+
+  // Update forceIframe dynamically if the API source changes or a new episode starts
+  useEffect(() => {
+    setForceIframe(mediaData?.isBackup ?? false);
+  }, [mediaData?.isBackup, mediaData?.id]);
 
  // Server Selection
  const serversList = mediaData.vidsrcServers && mediaData.vidsrcServers.length > 0 
    ? mediaData.vidsrcServers 
    : [
-       { id: "filmu", name: "Server 1", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://embed.filmu.in/tv/${id}/${s}/${e}` : `https://embed.filmu.in/movie/${id}` },
-       { id: "vidsrc-wiki", name: "vidsrc.wiki", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidsrc.wiki/embed/tv/${id}/${s}/${e}` : `https://vidsrc.wiki/embed/movie/${id}` },
-       { id: "vidsrc-pe", name: "vidsrc.pe", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidsrc.pe/embed/tv/${id}/${s}/${e}` : `https://vidsrc.pe/embed/movie/${id}` },
-       { id: "vidsrcme-ru", name: "vidsrc.ru", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidsrcme.ru/embed/tv/${id}/${s}/${e}` : `https://vidsrcme.ru/embed/movie/${id}` },
-       { id: "vidsrcme-su", name: "vidsrc.su", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidsrcme.su/embed/tv/${id}/${s}/${e}` : `https://vidsrcme.su/embed/movie/${id}` },
-       { id: "vidsrc-me-ru", name: "vidsrc-me.ru", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidsrc-me.ru/embed/tv/${id}/${s}/${e}` : `https://vidsrc-me.ru/embed/movie/${id}` }
+       { id: "filmu", name: "Server 1", url: (type: string, id: string, s: number, e: number) => (type === "series" || type === "tv" || type === "show") ? `https://embed.filmu.in/tv/${id}/${s}/${e}` : `https://embed.filmu.in/movie/${id}` },
+       { id: "vidsrc-wiki", name: "vidsrc.wiki", url: (type: string, id: string, s: number, e: number) => (type === "series" || type === "tv" || type === "show") ? `https://vidsrc.wiki/embed/tv/${id}/${s}/${e}` : `https://vidsrc.wiki/embed/movie/${id}` },
+       { id: "vidsrc-pe", name: "vidsrc.pe", url: (type: string, id: string, s: number, e: number) => (type === "series" || type === "tv" || type === "show") ? `https://vidsrc.pe/embed/tv/${id}/${s}/${e}` : `https://vidsrc.pe/embed/movie/${id}` },
+       { id: "vidsrcme-ru", name: "vidsrc.ru", url: (type: string, id: string, s: number, e: number) => (type === "series" || type === "tv" || type === "show") ? `https://vidsrcme.ru/embed/tv/${id}/${s}/${e}` : `https://vidsrcme.ru/embed/movie/${id}` },
+       { id: "vidsrcme-su", name: "vidsrc.su", url: (type: string, id: string, s: number, e: number) => (type === "series" || type === "tv" || type === "show") ? `https://vidsrcme.su/embed/tv/${id}/${s}/${e}` : `https://vidsrcme.su/embed/movie/${id}` },
+       { id: "vidsrc-me-ru", name: "vidsrc-me.ru", url: (type: string, id: string, s: number, e: number) => (type === "series" || type === "tv" || type === "show") ? `https://vidsrc-me.ru/embed/tv/${id}/${s}/${e}` : `https://vidsrc-me.ru/embed/movie/${id}` }
      ];
  const defaultServerId = serversList.find((s: any) => s.name?.toLowerCase().includes("pro") || s.id?.toLowerCase().includes("server_"))?.id || serversList[0]?.id || "";
  const [activeServer, setActiveServer] = useState<string>(defaultServerId);
@@ -769,6 +774,15 @@ export default function VideoPlayer({
  };
  }, [selectedSourceIdx, mediaData.sources, initialTime, id, preferences.dataSaver]);
 
+ useEffect(() => {
+  if (useIframeFallback && loading) {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }
+ }, [useIframeFallback, loading, actualIframeUrl]);
+
  // Handle Audio Track Change (Reloading stream)
  const handleAudioTrackChangeInternal = (track: any) => {
  if (track.subjectId && onAudioTrackChange) {
@@ -972,7 +986,7 @@ export default function VideoPlayer({
     src={actualIframeUrl}
     className="w-full h-full border-none absolute inset-0 z-10"
     allowFullScreen
-    allow="autoplay; encrypted-media; fullscreen"
+    allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
     sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
     onLoad={() => setLoading(false)}
     style={{
@@ -1525,7 +1539,7 @@ export default function VideoPlayer({
  { id: 'audio', label: 'Audio', value: mediaData.audioTracks?.[currentAudioTrack]?.language || "Default" },
  { id: 'subtitles', label: 'Captions', value: currentSubtitleTrack === -1 ? "Off" : sortedSubtitles[currentSubtitleTrack]?.displayName || "English" },
  { id: 'caption-settings', label: 'Caption Style', value: '' },
- { id: 'quality', label: 'Quality', value: hlsRef.current && hlsRef.current.currentLevel === -1 ? "Auto" : (hlsRef.current ? `${hlsLevels[hlsCurrentLevel]?.height}p` : `${mediaData.sources[selectedSourceIdx]?.quality || 'Original'}`) },
+ { id: 'quality', label: 'Quality', value: hlsRef.current && hlsRef.current.currentLevel === -1 ? "Auto" : (hlsRef.current ? `${hlsLevels[hlsCurrentLevel]?.height}p` : `${mediaData.sources[selectedSourceIdx]?.quality ? (isNaN(Number(mediaData.sources[selectedSourceIdx]?.quality)) ? mediaData.sources[selectedSourceIdx]?.quality : mediaData.sources[selectedSourceIdx]?.quality + 'p') : 'Original'}`) },
  { id: 'speed', label: 'Speed', value: playbackSpeed === 1 ? 'Normal' : `${playbackSpeed}x` },
  ].map((item) => (
  <button
@@ -1875,7 +1889,7 @@ export default function VideoPlayer({
  }}
  className={`w-full flex items-center justify-between px-4 py-2 hover:bg-white/5 transition-colors ${selectedSourceIdx === idx ? "text-brand bg-brand/5" : "text-white/70"}`}
  >
- <span className={`text-fluid-xs ${selectedSourceIdx === idx ? 'font-semibold ' : 'font-medium'}`}>{source.quality}p</span>
+ <span className={`text-fluid-xs ${selectedSourceIdx === idx ? 'font-semibold ' : 'font-medium'}`}>{source.quality ? (isNaN(Number(source.quality)) ? source.quality : `${source.quality}p`) : 'Original'}</span>
  {selectedSourceIdx === idx && <Check className="w-3 h-3" />}
  </button>
  ))

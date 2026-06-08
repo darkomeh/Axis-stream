@@ -83,7 +83,7 @@ function AppContent() {
   }, [siteConfig]);
 
   // Routes where BottomNav should be visible
-  const showNavRoutes = ["/", "/search", "/browse", "/anime", "/toons", "/playlist", "/profile", "/ranking", "/live", "/trails"];
+  const showNavRoutes = ["/", "/search", "/browse", "/anime", "/toons", "/playlist", "/profile", "/ranking", "/live"];
   const shouldShowNav = showNavRoutes.includes(location.pathname);
 
   return (

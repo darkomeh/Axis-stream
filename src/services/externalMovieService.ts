@@ -229,16 +229,31 @@ export const externalMovieService = {
     if (!query || !query.trim()) return [];
     try {
       const isBackup = currentApiSource === 'backup';
+      
+      let mappedSubjectType = 'ALL';
+      if (subjectType === 1 || String(subjectType) === '1' || String(subjectType).toUpperCase() === 'MOVIE') {
+        mappedSubjectType = 'MOVIE';
+      } else if (subjectType === 2 || String(subjectType) === '2' || String(subjectType).toUpperCase() === 'TV' || String(subjectType).toUpperCase() === 'SERIES') {
+        mappedSubjectType = 'TV';
+      }
+
       const params = isBackup 
-        ? { query, page, perPage, subjectType: 'ALL' } 
-        : { keyword: query, page, perPage, subjectType };
+        ? { query, page, perPage: perPage * 3, subjectType: mappedSubjectType } 
+        : { keyword: query, page, perPage: perPage * 2, subjectType };
       
       const response = await fetchWithRetry({ 
         url: `/search`, 
         params 
       });
       const items = response.data?.data?.items || [];
-      return Array.isArray(items) ? items.map(normalizeItem) : [];
+      const normalized = Array.isArray(items) ? items.map(normalizeItem) : [];
+      
+      // Filter out mismatches to prevent any leakage
+      const filtered = normalized.filter(item => {
+        const tLower = String(item.type || "").toLowerCase(); const sStr = String(subjectType).toUpperCase(); if (subjectType === 1 || sStr === "1" || sStr === "MOVIE") return tLower.includes("movie") || tLower === "1"; if (subjectType === 2 || sStr === "2" || sStr === "TV" || sStr === "SERIES") return tLower.includes("series") || tLower.includes("tv") || tLower === "2";
+        return true;
+      });
+      return filtered.slice(0, perPage);
     } catch (e: any) {
       console.error("Error in search:", e.message || e);
       return [];
@@ -424,19 +439,40 @@ export const externalMovieService = {
 
   async browse(genre?: string, country?: string, page = 1, perPage = 12, subjectType = 2): Promise<MediaItem[]> {
     try {
+      const numericType = Number(subjectType);
+      
       if (currentApiSource === 'backup') {
         if (genre || country) {
-          return this.search(genre || country || '', page, perPage, 'ALL' as any);
+          // Increase perPage to get a large pool, filter, then slice
+          const data = await this.search(genre || country || '', page, perPage * 3, numericType);
+          const filtered = data.filter(item => {
+            const tLower = String(item.type || "").toLowerCase(); if (numericType === 1) return tLower.includes("movie") || tLower === "1"; if (numericType === 2) return tLower.includes("series") || tLower.includes("tv") || tLower === "2";
+            return true;
+          });
+          return filtered.slice(0, perPage);
         }
-        return this.getTrending(page, perPage);
+        
+        const trendingData = await this.getTrending(page, perPage * 3);
+        const filtered = trendingData.filter(item => {
+          const tLower = String(item.type || "").toLowerCase(); if (numericType === 1) return tLower.includes("movie") || tLower === "1"; if (numericType === 2) return tLower.includes("series") || tLower.includes("tv") || tLower === "2";
+          return true;
+        });
+        return filtered.slice(0, perPage);
       }
       
       const response = await fetchWithRetry({ 
         url: `/browse`, 
-        params: { subjectType, genre, countryName: country, page, perPage } 
+        params: { subjectType: numericType, genre, countryName: country, page, perPage: perPage * 2 } 
       });
       const list = response.data?.data?.items || [];
-      return Array.isArray(list) ? list.map(normalizeItem) : [];
+      const normalized = Array.isArray(list) ? list.map(normalizeItem) : [];
+      
+      // Filter out mismatches as a safety guarantee
+      const filtered = normalized.filter(item => {
+        const tLower = String(item.type || "").toLowerCase(); if (numericType === 1) return tLower.includes("movie") || tLower === "1"; if (numericType === 2) return tLower.includes("series") || tLower.includes("tv") || tLower === "2";
+        return true;
+      });
+      return filtered.slice(0, perPage);
     } catch (e: any) {
       // console.error("Error in browse:", e.message || e);
       return [];
@@ -530,7 +566,8 @@ export const externalMovieService = {
           sources, 
           subtitles,
           embedUrl,
-          audioTracks
+          audioTracks,
+          isBackup: currentApiSource === 'backup'
         };
       }
     } catch (e: any) {
@@ -563,7 +600,8 @@ export const externalMovieService = {
     return {
       sources: constructedSources,
       subtitles: [],
-      embedUrl: season ? `https://vidsrc.wiki/embed/tv/${subjectId}/${season}/${episode || 1}` : `https://vidsrc.wiki/embed/movie/${subjectId}`
+      embedUrl: season ? `https://vidsrc.wiki/embed/tv/${subjectId}/${season}/${episode || 1}` : `https://vidsrc.wiki/embed/movie/${subjectId}`,
+      isBackup: currentApiSource === 'backup'
     };
   },
 

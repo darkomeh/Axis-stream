@@ -1170,6 +1170,14 @@ export default function VideoPlayer({
  </AnimatePresence>
 
  {/* Controls Overlay */}
+  {onClose && (
+    <button
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
+      className="absolute top-6 left-6 z-[9999] p-3 hover:bg-black/90 backdrop-blur-xl rounded-full transition-all text-white shadow-2xl pointer-events-auto flex items-center justify-center bg-black/60 border border-white/20 group cursor-pointer"
+    >
+      <ArrowLeft className="w-5 h-5 md:w-6 md:h-6 group-hover:scale-110 transition-transform drop-shadow-md" />
+    </button>
+  )}
  <AnimatePresence>
  {showControls && !isLocked && (
  <motion.div
@@ -1194,52 +1202,6 @@ export default function VideoPlayer({
  </div>
  </div>
 
- {(mediaData?.embedUrl || (mediaData?.sources && mediaData.sources.length > 0)) && (
-					<button
-						onClick={() => setForceIframe(!forceIframe)}
-						className={`px-3 py-1.5 md:px-4 md:py-2 text-[10px] md:text-xs font-bold rounded-full border transition-all active:scale-95 flex items-center gap-1.5 backdrop-blur-md shadow-lg ${
-							forceIframe 
-								? "bg-brand/90 text-white border-brand/50 hover:bg-brand shadow-brand/20" 
-								: "bg-white/10 text-white hover:bg-white/20 border-white/20"
-						}`}
-					>
-						{forceIframe ? "🛡️ Ad-Free Server" : "⚡ HLS Player"}
-					</button>
-				)}
-
-				{(useIframeFallback && mediaData?.tmdbId) && (
-					<div className="relative ml-2">
-						<button
-							onClick={() => setActiveMenu(activeMenu === "server" ? null : "server")}
-							className="px-3 py-1.5 md:px-4 md:py-2 text-[10px] md:text-xs font-bold rounded-full border bg-white/10 text-white hover:bg-white/20 border-white/20 transition-all flex items-center gap-1.5 backdrop-blur-md shadow-lg"
-						>
-							<Globe className="w-3 h-3 md:w-4 md:h-4" />
-							<span>{serversList.find((s: any) => s.id === activeServer)?.name || "Server"}</span>
-							<ChevronDown className="w-3 h-3" />
-						</button>
-						<AnimatePresence>
-							{activeMenu === "server" && (
-								<motion.div
-									initial={{ opacity: 0, y: -10 }}
-									animate={{ opacity: 1, y: 0 }}
-									exit={{ opacity: 0, y: -10 }}
-									className="absolute top-full right-0 mt-2 w-48 bg-black/90 border border-white/10 rounded-lg shadow-xl overflow-hidden z-50 pointer-events-auto max-h-64 overflow-y-auto"
-								>
-									{serversList.map((s: any) => (
-										<button
-											key={s.id}
-											onClick={() => { setActiveServer(s.id); setActiveMenu(null); setLoading(true); }}
-											className={`w-full text-left px-4 py-3 text-xs md:text-sm hover:bg-white/10 transition-colors border-b border-white/5 last:border-0 ${activeServer === s.id ? 'text-brand font-medium bg-brand/10' : 'text-white'}`}
-										>
-											{s.name}
-										</button>
-									))}
-								</motion.div>
-							)}
-						</AnimatePresence>
-					</div>
-				)}
-				
 				{!useIframeFallback && (
 					<div className="flex items-center gap-2 md:gap-4">
 						<button

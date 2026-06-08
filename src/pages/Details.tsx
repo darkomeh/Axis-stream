@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { movieService } from "../services/movieService";
-import { ItemDetails, MediaData, MediaItem, formatDurationToHours } from "../types";
+import { ItemDetails, MediaData, MediaItem, formatDurationToHours, slugify } from "../types";
 import VideoPlayer from "../components/VideoPlayer";
 import PosterGrid from "../components/PosterGrid";
 import EpisodeSelector from "../components/EpisodeSelector";
@@ -157,10 +157,31 @@ return acc;
  // Scroll to top on new item
  window.scrollTo(0, 0);
 
+ let resolvedId = id;
+ if (id && (isNaN(Number(id)) || id.includes("-"))) {
+  try {
+   const searchTitle = id.replace(/-/g, " ");
+   const searchResults = await movieService.search(searchTitle);
+   if (searchResults && searchResults.length > 0) {
+    const bestMatch = searchResults.find(m => 
+     slugify(m.title) === id.toLowerCase()
+    ) || searchResults[0];
+    resolvedId = bestMatch.id;
+   }
+  } catch (e) {
+   console.warn("Slug lookup failed, trying direct ID fetch", e);
+  }
+ }
+
+ // Save to recently viewed
+ try {
+  localStorage.setItem('axis_last_viewed_id', resolvedId);
+ } catch (e) {}
+
  const [itemDetails, itemRecs, itemRichDetails] = await Promise.all([
- movieService.getDetails(id),
- movieService.getRecommendations(id).catch(() => []),
- movieService.getRichDetails(id).catch(() => null)
+ movieService.getDetails(resolvedId),
+ movieService.getRecommendations(resolvedId).catch(() => []),
+ movieService.getRichDetails(resolvedId).catch(() => null)
  ]);
 
  setDetails(itemDetails);
@@ -185,7 +206,7 @@ return acc;
  let initialTime = 0;
 
  // Check for saved progress
- const savedProgress = continueWatching.find(i => i.id === id);
+ const savedProgress = continueWatching.find(i => i.id === resolvedId);
  if (savedProgress) {
  if (isSeries) {
  s = savedProgress.season || 1;

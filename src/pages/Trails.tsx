@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { 
   Heart, MessageCircle, Share2, Bookmark, Star, Download, Plus, Play, Check, 
   ChevronLeft, Users, Video, Send, X, Volume2, VolumeX, Flame, Verified,
@@ -12,7 +12,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import Navbar from "../components/Navbar";
 import { MetaVerifiedBadge } from "../components/MetaVerifiedBadge";
-import { formatDurationToHours } from "../types";
+import { formatDurationToHours, slugify } from "../types";
 
 interface TrailItem {
   id: string;
@@ -89,6 +89,7 @@ function getEmbedUrl(url: string, autoplay = true, muted = true, isDataSaver = t
 
 export default function Trails() {
   const navigate = useNavigate();
+  const { movieSlug } = useParams();
   const { showToast } = useToast();
   const { user, isInWatchlist, addToWatchlist, removeFromWatchlist } = useAuth();
   
@@ -96,7 +97,13 @@ export default function Trails() {
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(() => {
+    try {
+      return localStorage.getItem('axis_followed_axistrails') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [showCreatorPanel, setShowCreatorPanel] = useState(false);
   const [showFollowingModal, setShowFollowingModal] = useState(false);
   const [showComments, setShowComments] = useState(false);
@@ -199,19 +206,16 @@ export default function Trails() {
     async function loadFeed() {
       try {
         setLoading(true);
-        const [homepage, trending, hot] = await Promise.all([
-          movieService.getHomepage().catch(() => ({ topPickList: [], homeList: [], latestMovies: [], latestSeries: [] })),
-          movieService.getTrending(1, 40).catch(() => []),
-          movieService.getHot().catch(() => ({ movies: [], series: [] }))
-        ]);
+        const hot = await movieService.getHot().catch(() => ({ movies: [], series: [] }));
+        
+        let firstHotId = hot.movies[0]?.id || hot.series[0]?.id || "default_id";
+        
+        // Fetch recommendations based on the first hot item
+        const recommendations = await movieService.getRecommendations(firstHotId, 1, 30).catch(() => []);
         
         // Accumulate unique items
         const rawList = [
-          ...(homepage.topPickList || []),
-          ...(homepage.homeList || []),
-          ...(homepage.latestMovies || []),
-          ...(homepage.latestSeries || []),
-          ...(trending || []),
+          ...(recommendations || []),
           ...(hot.movies || []),
           ...(hot.series || [])
         ];
@@ -297,17 +301,119 @@ export default function Trails() {
           });
         }
 
-        setItems(trailItems);
+        let finalList = trailItems;
+        if (movieSlug) {
+          try {
+            const searchTitle = movieSlug.replace(/-/g, " ");
+            const searchResults = await movieService.search(searchTitle);
+            if (searchResults && searchResults.length > 0) {
+              const bestMatch = searchResults.find(m => 
+                slugify(m.title) === movieSlug.toLowerCase()
+              ) || searchResults[0];
+              
+              const details = await movieService.getDetails(bestMatch.id);
+              const rawTrailer = details.trailerUrl || details.detailPath || "";
+              const finalTrailer = rawTrailer ? rawTrailer : (FALLBACK_TRAILERS["1"] || "");
+              
+              const sharedItem: TrailItem = {
+                id: bestMatch.id,
+                title: bestMatch.title,
+                poster: bestMatch.poster || details.poster || "",
+                background: details.background || bestMatch.poster || "",
+                rating: details.rating || bestMatch.rating || "8.5",
+                releaseYear: details.year || bestMatch.year || "2026",
+                genres: details.genres || (bestMatch.category ? [bestMatch.category] : ["Premiere"]),
+                description: details.description || bestMatch.description || "A masterfully curated theatrical release showing exclusively on Axis TV.",
+                type: String(details.type || (bestMatch.type === "Series" || bestMatch.type === 2 ? "Series" : "Movie")),
+                trailerUrl: finalTrailer,
+                likes: Math.floor(Math.random() * 25000) + 1200,
+                commentsCount: Math.floor(Math.random() * 25) + 5,
+                shares: 110,
+                saves: 85,
+                isLikedByMe: false,
+                isSavedByMe: false,
+                myRating: null,
+                duration: details.duration,
+                contentRating: details.contentRating || "16+",
+              };
+              
+              finalList = [sharedItem, ...trailItems.filter(t => t.id !== sharedItem.id)];
+            }
+          } catch (e) {
+            console.warn("Shared slug load failed", e);
+          }
+        }
+
+        setItems(finalList);
+        setActiveIndex(0);
         
         // Populate initial comments
         const initialComments: Record<string, any> = {};
-        trailItems.forEach(item => {
-          initialComments[item.id] = [
-            { id: "c1", name: "Chidi_Axis", text: "Genuinely excited for this! Cinematography looks legendary 🔥", time: "2h ago" },
-            { id: "c2", name: "Axis Trails", text: "Premiering next Friday under Axis TV Exclusives. Set your timers!", time: "1h ago", isOfficial: true },
-            { id: "c3", name: "Aisha_O", text: "The audio pacing is so tense. Definitely watching.", time: "1h ago" },
-            { id: "c4", name: "greatmayuku2", text: "The streaming pipeline is fully optimized for this release! Stunning fidelity 🛸", time: "2h ago", isDev: true }
-          ];
+        
+        const possibleCreators = [
+          "chidi_axis", "aisha_o", "alex_cinemafan", "movie_buff99", 
+          "cinephile_pro", "tokyo_dreamer", "sarah_k", "david_film", 
+          "k_drama_lover", "anime_stan", "marcus_reviews", "watch_tracker", 
+          "scifi_geek", "axis_premiumer", "g_streamer", "reel_magic", "popcorn_time",
+          "stellar_spectator", "theatre_kid", "screensmith", "retro_flicker"
+        ];
+        
+        const possiblePhrases = [
+          "Genuinely excited for this! Cinematography looks legendary 🔥",
+          "The audio pacing is so tense. Definitely watching.",
+          "The streaming pipeline is fully optimized for this release! Stunning fidelity 🛸",
+          "Absolutely stunning trailer. The visual clarity in 1080p is wild!",
+          "This is what real entertainment feels like. Great job compiling this!",
+          "The transition score is pure gold.",
+          "Honestly, this is a masterpiece in the making! 🤯",
+          "Def adding this to my watchlist right now!",
+          "Wait, is this coming to the anime section as well?",
+          "The color grading fits the narrative perfectly.",
+          "10/10 for the casting!",
+          "Wait, is this an exclusive or a simulcast?",
+          "Simply magnificent. Highly recommended!",
+          "My jaw dropped during the action sequence.",
+          "The sound design is next level.",
+          "This page has pristine video loading speeds, loving the user feel!",
+          "The plot twist in this trailer has me fully hooked.",
+          "Who else is bingeing the release the second it drops?",
+          "Axis TV really hit a home run with this selection!"
+        ];
+        
+        const possibleTimes = ["1m ago", "5m ago", "15m ago", "35m ago", "1h ago", "2h ago", "4h ago", "12h ago", "1d ago"];
+
+        finalList.forEach(item => {
+          const generatedComments: any[] = [];
+          
+          // 1. Add official Axis Trails comment
+          generatedComments.push({
+            id: `official-${item.id}`,
+            name: "Axis Trails",
+            text: `🎯 Axis TV Selects: Presenting "${item.title}" (${item.releaseYear}). Genre: ${item.genres.join(', ')}. IMDb prediction: ${item.rating || '8.8'}/10. Description: ${item.description.slice(0, 85)}... Watch this movie now!`,
+            time: "1h ago",
+            isOfficial: true
+          });
+          
+          // 2. Add randomized community comments to meet exactly item.commentsCount
+          const itemCreators = [...possibleCreators].sort(() => Math.random() - 0.5);
+          const itemPhrases = [...possiblePhrases].sort(() => Math.random() - 0.5);
+          
+          const maxRemaining = Math.max(0, item.commentsCount - 1);
+          for (let k = 0; k < maxRemaining; k++) {
+            const commenter = itemCreators[k % itemCreators.length];
+            const textPhrase = itemPhrases[k % itemPhrases.length];
+            const timeVal = possibleTimes[k % possibleTimes.length];
+            
+            generatedComments.push({
+              id: `c-${item.id}-${k}`,
+              name: commenter,
+              text: textPhrase,
+              time: timeVal,
+              isOfficial: false
+            });
+          }
+          
+          initialComments[item.id] = generatedComments;
         });
         setCommentsMap(initialComments);
 
@@ -318,7 +424,7 @@ export default function Trails() {
       }
     }
     loadFeed();
-  }, []);
+  }, [movieSlug]);
 
   // Handle snapping / scroll event for calculating active slide index
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -411,7 +517,7 @@ export default function Trails() {
   };
 
   const handleShare = (item: TrailItem) => {
-    const shareUrl = `${window.location.origin}/details/${item.id}`;
+    const shareUrl = `${window.location.origin}/trails/${slugify(item.title)}`;
     navigator.clipboard.writeText(shareUrl).then(() => {
       showToast("Cinematic link copied to clipboard!", "success");
       setItems(prev => prev.map(t => t.id === item.id ? { ...t, shares: t.shares + 1 } : t));
@@ -484,9 +590,11 @@ export default function Trails() {
   };
 
   const followCreator = () => {
-    const nextFollow = !isFollowing;
-    setIsFollowing(nextFollow);
-    showToast(nextFollow ? "Followed Axis Trails!" : "Unfollowed creator section", "success");
+    setIsFollowing(true);
+    try {
+      localStorage.setItem('axis_followed_axistrails', 'true');
+    } catch {}
+    showToast("Permanently followed Axis Trails!", "success");
   };
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>, item: TrailItem) => {
@@ -510,6 +618,16 @@ export default function Trails() {
     setTimeout(() => {
       setFloatingHearts(prev => prev.filter(h => h.id !== newHeart.id));
     }, 800);
+  };
+
+  const formatShortNumber = (num: number): string => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + "M";
+    }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + "K";
+    }
+    return num.toString();
   };
 
   return (
@@ -768,7 +886,7 @@ export default function Trails() {
                       <Heart className={`w-5 h-5 ${item.isLikedByMe ? "fill-current" : ""}`} />
                     </button>
                     <span className="text-[10px] font-black text-white/90 drop-shadow mt-1 select-none font-mono">
-                      {item.isLikedByMe ? "24.8K" : "24.7K"}
+                      {formatShortNumber(item.likes)}
                     </span>
                   </div>
 
@@ -781,54 +899,24 @@ export default function Trails() {
                       <MessageCircle className="w-5 h-5" />
                     </button>
                     <span className="text-[10px] font-black text-white/90 drop-shadow mt-1 select-none font-mono">
-                      {item.commentsCount}
+                      {formatShortNumber(item.commentsCount)}
                     </span>
                   </div>
 
                   {/* BOOKMARK BUTTON Playlist sheet trigger */}
                   <div className="flex flex-col items-center select-none group">
                     <button 
-                      onClick={() => setShowPlaylistSheet(true)}
+                      onClick={() => toggleSave(item.id)}
                       className={`w-11 h-11 rounded-full flex items-center justify-center border transition-all duration-200 active:scale-75 shadow-lg backdrop-blur-md ${
-                        localPlaylists.some(p => p.checked)
+                        isInWatchlist(item.id)
                           ? "bg-amber-500/10 border-amber-500 text-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.4)]" 
                           : "bg-black/35 border-white/10 text-white hover:bg-black/55 group-hover:scale-105"
                       }`}
                     >
-                      <Bookmark className={`w-5 h-5 ${localPlaylists.some(p => p.checked) ? "fill-current" : ""}`} />
+                      <Bookmark className={`w-5 h-5 ${isInWatchlist(item.id) ? "fill-current" : ""}`} />
                     </button>
                     <span className="text-[10px] font-black text-white/90 drop-shadow mt-1 select-none font-mono">
-                      8.9K
-                    </span>
-                  </div>
-
-                  {/* STAR RATING trigger */}
-                  <div className="flex flex-col items-center select-none group">
-                    <button 
-                      onClick={() => setShowRatingPicker(true)}
-                      className={`w-11 h-11 rounded-full flex items-center justify-center border transition-all duration-200 active:scale-75 shadow-lg backdrop-blur-md ${
-                        item.myRating 
-                          ? "bg-[#00f2fe]/20 border-[#00f2fe] text-[#00f2fe] shadow-[0_0_12px_rgba(0,242,254,0.4)]" 
-                          : "bg-black/35 border-white/10 text-[#00f2fe] hover:bg-black/55 group-hover:scale-105"
-                      }`}
-                    >
-                      <Star className={`w-5 h-5 ${item.myRating ? "fill-current" : "fill-current text-[#00f2fe]/25"}`} />
-                    </button>
-                    <span className="text-[10px] font-black text-[#00f2fe] drop-shadow mt-1 select-none font-mono">
-                      {item.myRating ? `${item.myRating}.0` : item.rating}
-                    </span>
-                  </div>
-
-                  {/* DOWNLOAD BUTTON */}
-                  <div className="flex flex-col items-center select-none group">
-                    <button 
-                      onClick={() => setShowDownloadPanel(true)}
-                      className="w-11 h-11 rounded-full flex items-center justify-center border border-white/10 text-[#25f4ee] bg-black/35 hover:bg-black/55 group-hover:scale-105 transition-all duration-200 active:scale-75 shadow-lg backdrop-blur-md"
-                    >
-                      <Download className="w-5 h-5" />
-                    </button>
-                    <span className="text-[10px] font-black text-[#25f4ee] drop-shadow mt-1 select-none">
-                      DL
+                      {formatShortNumber(item.saves)}
                     </span>
                   </div>
 
@@ -841,7 +929,7 @@ export default function Trails() {
                       <Share2 className="w-5 h-5" />
                     </button>
                     <span className="text-[10px] font-black text-white/90 drop-shadow mt-1 select-none font-mono">
-                      3.6K
+                      {formatShortNumber(item.shares)}
                     </span>
                   </div>
 
@@ -892,7 +980,7 @@ export default function Trails() {
                   {/* Metallic instant watch cyan button pill with *add to playlist* */}
                   <div className="pt-1 flex flex-wrap items-center gap-2 pointer-events-auto">
                     <Link
-                      to={`/details/${item.id}`}
+                      to={`/watch/${slugify(item.title)}`}
                       className="inline-flex items-center justify-center gap-2 py-2 px-4.5 rounded-full bg-gradient-to-r from-[#25f4ee] to-[#00f2fe] text-black font-black text-[9px] tracking-widest uppercase transition-all shadow-[0_4px_12px_rgba(37,244,238,0.25)] hover:scale-105 active:scale-95 translate-y-0.5 shrink-0"
                     >
                       <span>Stream Full Release</span>
@@ -900,11 +988,11 @@ export default function Trails() {
                     </Link>
 
                     <button
-                      onClick={() => setShowPlaylistSheet(true)}
+                      onClick={() => toggleSave(item.id)}
                       className="inline-flex items-center justify-center gap-1.5 py-2 px-4 rounded-full bg-white/10 hover:bg-white/20 text-white font-black text-[9px] tracking-widest uppercase transition-all border border-white/10 hover:scale-105 active:scale-95 translate-y-0.5 shrink-0"
                     >
-                      <span>Add to Playlist</span>
-                      <Bookmark className="w-2.5 h-2.5 text-amber-400" />
+                      <span>{isInWatchlist(item.id) ? 'Saved to List' : 'Add to List'}</span>
+                      <Bookmark className={`w-2.5 h-2.5 ${isInWatchlist(item.id) ? "fill-current text-white" : "text-white"}`} />
                     </button>
                   </div>
 
@@ -970,7 +1058,7 @@ export default function Trails() {
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-white/90 text-xs font-extrabold flex items-center gap-1 select-text">
                           @{commenterName.toLowerCase()}
-                          {(isCommenterDev || (user && comm.name === user.username)) && (
+                          {(isCommenterDev || (user && comm.name === user.username) || comm.isOfficial || commenterName.toLowerCase() === "axis trails") && (
                             <MetaVerifiedBadge className="w-3.5 h-3.5" />
                           )}
                         </span>
@@ -1438,24 +1526,17 @@ export default function Trails() {
                   <h3 className="text-white/45 text-[10px] font-black uppercase tracking-widest pl-1">
                     Connect Channels
                   </h3>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="grid grid-cols-1 gap-2 text-xs">
                     <a 
-                      href="https://youtube.com" 
+                      href="https://whatsapp.com/channel/0029VaF7r7n1iUxcwZZs8F03" 
                       target="_blank" 
                       rel="noreferrer" 
-                      className="flex items-center gap-2 p-3 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/5 text-white/80 transition-colors"
+                      className="flex items-center justify-center gap-3 p-3.5 rounded-2xl bg-[#25D366]/10 border border-[#25D366]/20 hover:bg-[#25D366]/20 text-[#25D366] transition-all"
                     >
-                      <span className="text-red-500">📺</span>
-                      <span className="font-bold">YouTube</span>
-                    </a>
-                    <a 
-                      href="https://telegram.org" 
-                      target="_blank" 
-                      rel="noreferrer" 
-                      className="flex items-center gap-2 p-3 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/5 text-white/80 transition-colors"
-                    >
-                      <span className="text-sky-400">💬</span>
-                      <span className="font-bold">Telegram</span>
+                      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.06-.173-.299-.018-.461.13-.611.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
+                      </svg>
+                      <span className="font-extrabold text-sm tracking-wide">Axis TV WhatsApp Channel</span>
                     </a>
                   </div>
                 </div>

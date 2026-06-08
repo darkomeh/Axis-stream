@@ -157,10 +157,24 @@ export function formatDurationToHours(val: string | undefined | null): string {
   }
   
   if (totalMinutes > 0) {
-    const hrs = (totalMinutes / 60).toFixed(1);
-    const formatted = hrs.endsWith(".0") ? hrs.slice(0, -2) : hrs;
-    return `${formatted} ${parseFloat(formatted) === 1 ? 'hour' : 'hours'}`;
+    const hrs = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    if (hrs > 0 && mins > 0) {
+      return `${hrs} hr ${mins} min`;
+    } else if (hrs > 0) {
+      return `${hrs} hr`;
+    } else {
+      return `${mins} min`;
+    }
   }
   
   return val;
+}
+
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }

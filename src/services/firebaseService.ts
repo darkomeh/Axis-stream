@@ -2,15 +2,9 @@ import {
   signInWithPopup, 
   GoogleAuthProvider, 
   OAuthProvider,
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged,
-  User as FirebaseUser,
-  sendPasswordResetEmail,
-  sendSignInLinkToEmail,
-  isSignInWithEmailLink,
-  signInWithEmailLink
+  User as FirebaseUser
 } from 'firebase/auth';
 import { 
   doc, 
@@ -115,8 +109,8 @@ export const logPlatformError = async (message: string, stack?: string, componen
       message,
       stack: stack || 'No stack trace',
       componentName: componentName || 'Unknown',
-      userId: auth.currentUser?.uid || 'guest',
-      userEmail: auth.currentUser?.email || 'guest',
+      userId: auth.currentUser?.uid || 'anonymous',
+      userEmail: auth.currentUser?.email || 'anonymous',
       url: window.location.href,
       userAgent: navigator.userAgent,
       timestamp: serverTimestamp(),
@@ -146,15 +140,6 @@ export const trackSessionDuration = async (seconds: number) => {
     }
   } catch (error) {
     console.warn("Session tracking failed", error);
-  }
-};
-
-export const resetPassword = async (email: string) => {
-  try {
-    await sendPasswordResetEmail(auth, email);
-  } catch (error) {
-    console.error("Password reset error", error);
-    throw error;
   }
 };
 
@@ -194,19 +179,6 @@ export const trackWatchTime = async (seconds: number) => {
     });
   } catch (error) {
     console.warn("Watch time tracking failed", error);
-  }
-};
-
-export const logGuestCreation = async () => {
-  const path = 'analytics/global';
-  try {
-    const statsRef = doc(db, path);
-    await updateDoc(statsRef, {
-      totalGuests: increment(1),
-      activeGuests: increment(1)
-    });
-  } catch (error) {
-    console.warn("Guest tracking failed", error);
   }
 };
 
@@ -341,77 +313,6 @@ export const loginWithGoogle = async () => {
     console.error("Google Login Error", error);
     throw error;
   }
-};
-
-export const signupWithEmail = async (email: string, pass: string, name: string) => {
-  if (!/^[a-zA-Z][a-zA-Z0-9._]*@gmail\.com$/i.test(email)) {
-    throw new Error("Only valid Gmail addresses are allowed.");
-  }
-  try {
-    const result = await createUserWithEmailAndPassword(auth, email, pass);
-    await saveUser(result.user, name);
-    return result.user;
-  } catch (error) {
-    console.error("Signup Error", error);
-    throw error;
-  }
-};
-
-export const loginWithEmail = async (email: string, pass: string) => {
-  if (!/^[a-zA-Z][a-zA-Z0-9._]*@gmail\.com$/i.test(email)) {
-    throw new Error("Only valid Gmail addresses are allowed.");
-  }
-  try {
-    const result = await signInWithEmailAndPassword(auth, email, pass);
-    await saveUser(result.user);
-    return result.user;
-  } catch (error) {
-    console.error("Login Error", error);
-    throw error;
-  }
-};
-
-export const sendMagicLink = async (email: string, name?: string) => {
-  if (!/^[a-zA-Z][a-zA-Z0-9._]*@gmail\.com$/i.test(email)) {
-    throw new Error("Only valid Gmail addresses are allowed.");
-  }
-  try {
-    const actionCodeSettings = {
-      url: window.location.href, // Redirects back to the current setup
-      handleCodeInApp: true,
-    };
-    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-    window.localStorage.setItem('emailForSignIn', email);
-    if (name) {
-      window.localStorage.setItem('nameForSignIn', name);
-    }
-  } catch (error) {
-    console.error("Error sending magic link", error);
-    throw error;
-  }
-};
-
-export const completeMagicLinkSignIn = async (url: string) => {
-  try {
-    if (isSignInWithEmailLink(auth, url)) {
-      let email = window.localStorage.getItem('emailForSignIn');
-      if (!email) {
-        email = window.prompt('Please provide your email for confirmation');
-      }
-      if (email) {
-        const result = await signInWithEmailLink(auth, email, url);
-        window.localStorage.removeItem('emailForSignIn');
-        const nameForSignIn = window.localStorage.getItem('nameForSignIn');
-        await saveUser(result.user, nameForSignIn || undefined);
-        window.localStorage.removeItem('nameForSignIn');
-        return result.user;
-      }
-    }
-  } catch (error) {
-    console.error("Error completing magic link sign-in", error);
-    throw error;
-  }
-  return null;
 };
 
 export const logoutUser = async () => {

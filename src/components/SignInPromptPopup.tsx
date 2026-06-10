@@ -12,7 +12,6 @@ interface Props {
 
 export default function SignInPromptPopup({ isOpen, onClose, onConfirm }: Props) {
  const navigate = useNavigate();
- const { loginAsGuest } = useAuth();
 
  if (!isOpen) return null;
 
@@ -57,12 +56,6 @@ export default function SignInPromptPopup({ isOpen, onClose, onConfirm }: Props)
  className="w-full py-4 bg-brand text-white rounded-lg font-semibold tracking-wide text-fluid-sm hover:bg-brand-hover transition-all shadow-[0_0_20px_rgba(229,9,20,0.3)]"
  >
  Create Your Account
- </button>
- <button
- onClick={() => { loginAsGuest(); onClose(); }}
- className="w-full py-3 text-white/50 hover:text-white text-fluid-xs font-bold tracking-wide transition-colors"
- >
- Continue as Guest
  </button>
  </div>
  </div>

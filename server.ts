@@ -10,6 +10,36 @@ const app = express();
 app.use(compression());
 app.use(express.json());
 
+// Basic Rate Limiting & Anti-Scraping Middleware
+const rateLimits = new Map<string, { requests: number, lastRequest: number }>();
+app.use((req, res, next) => {
+  if (req.url.startsWith('/api')) {
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const userLimit = rateLimits.get(ip) || { requests: 0, lastRequest: now };
+    
+    // Reset if more than 1 minute has passed
+    if (now - userLimit.lastRequest > 60000) {
+      userLimit.requests = 0;
+      userLimit.lastRequest = now;
+    }
+    
+    userLimit.requests++;
+    rateLimits.set(ip, userLimit);
+
+    if (userLimit.requests > 100) { // Limit to 100 req/min/IP
+      return res.status(429).json({ error: "Too many requests. Please slow down." });
+    }
+    
+    // Basic User-Agent check
+    const ua = req.headers['user-agent'] || '';
+    if (ua.toLowerCase().includes('python') || ua.toLowerCase().includes('bot') && !ua.toLowerCase().includes('googlebot')) {
+      return res.status(403).json({ error: "Automated access restricted." });
+    }
+  }
+  next();
+});
+
 // Vercel Serverless Function Path Fixer Middleware
 // Sometimes Vercel's Edge/Serverless Router strips the /api/ prefix or rewrites to query params.
 app.use((req, res, next) => {

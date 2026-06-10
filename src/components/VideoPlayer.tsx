@@ -1887,7 +1887,7 @@ export default function VideoPlayer({
  key={cat.id}
  onClick={async () => {
  const ok = await movieService.reportIssue(
- user?.id || "guest",
+ user?.id || "anonymous",
  cat.id,
  `Issue on ${title} (${id})`,
  );

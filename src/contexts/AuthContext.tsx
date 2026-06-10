@@ -10,10 +10,6 @@ import {
 } from '../lib/firebase';
 import { 
   loginWithGoogle, 
-  loginWithEmail as firebaseLoginWithEmail, 
-  signupWithEmail as firebaseSignupWithEmail,
-  sendMagicLink as firebaseSendMagicLink,
-  completeMagicLinkSignIn as firebaseCompleteMagicLinkSignIn,
   logoutUser,
   addWatchHistory,
   addFavorite,
@@ -24,15 +20,13 @@ import {
   updateProfile as firebaseUpdateProfile,
   saveContinueWatching as firebaseSaveContinueWatching,
   sendChatMessage as firebaseSendChatMessage,
-  resetPassword as firebaseResetPassword,
   trackVisitor,
   trackWatchTime,
   createSupportTicket,
   getSupportTickets,
   replyToTicket,
   getAdvancedUserStats,
-  getGlobalStats,
-  logGuestCreation
+  getGlobalStats
 } from '../services/firebaseService';
 import { 
   collection, 
@@ -52,7 +46,6 @@ interface User {
   avatar?: string;
   bio?: string;
   role?: 'user' | 'admin' | 'moderator';
-  isGuest?: boolean;
 }
 
 export interface SubtitlePreferences {
@@ -102,13 +95,9 @@ interface AuthContextType {
   user: User | null;
   login: (username: string, email: string, avatar?: string) => void;
   loginWithGoogle: () => Promise<void>;
-  loginWithEmail: (email: string, pass: string) => Promise<void>;
-  signupWithEmail: (email: string, pass: string, name: string) => Promise<void>;
-  sendMagicLink: (email: string, name?: string) => Promise<void>;
   updateProfile: (data: { name?: string, photoURL?: string, bio?: string, username?: string }) => Promise<void>;
   saveContinueWatching: (item: ContinueWatchingItem) => Promise<void>;
   sendChatMessage: (text: string) => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
   submitSupportTicket: (subject: string, message: string) => Promise<void>;
   trackWatchTime: (seconds: number) => Promise<void>;
   getSupportTickets: () => Promise<any[]>;
@@ -151,8 +140,6 @@ interface AuthContextType {
   isLoginPopupOpen: boolean;
   openLoginPopup: () => void;
   closeLoginPopup: () => void;
-  loginAsGuest: () => void;
-  isGuest: boolean;
   deleteProfileData: () => Promise<void>;
 }
 
@@ -203,26 +190,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [siteConfig, setSiteConfig] = useState<{ siteName: string; brandColor: string; tagline: string; logoUrl?: string; }>({ siteName: 'Axis TV', brandColor: '#E50914', tagline: 'Your Movie Plug', logoUrl: 'https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg' });
   const [lastActionType, setLastActionType] = useState<string | null>(null);
   const [isLoginPopupOpen, setIsLoginPopupOpen] = useState(false);
-  const [isGuest, setIsGuest] = useState(false);
 
   const openLoginPopup = useCallback(() => setIsLoginPopupOpen(true), []);
   const closeLoginPopup = useCallback(() => setIsLoginPopupOpen(false), []);
-  const loginAsGuest = useCallback(() => {
-    logGuestCreation();
-    const guestCount = parseInt(localStorage.getItem('axis_guest_count') || '0') + 1;
-    localStorage.setItem('axis_guest_count', guestCount.toString());
-    const name = `Guest ${guestCount > 1 ? guestCount : ''}`.trim();
-    const newUser = {
-      id: `guest_${Date.now()}`,
-      username: name,
-      name,
-      email: 'guest@axis.tv',
-    };
-    setUser(newUser);
-    setIsGuest(true);
-    localStorage.setItem('axis_user', JSON.stringify({ ...newUser, isGuest: true, createdAt: Date.now() }));
-    setIsLoginPopupOpen(false);
-  }, []);
 
   useEffect(() => {
     let retryCount = 0;
@@ -435,30 +405,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await loginWithGoogle();
   }, []);
 
-  const handleLoginWithEmail = useCallback(async (email: string, pass: string) => {
-    await firebaseLoginWithEmail(email, pass);
-  }, []);
-
-  const handleSignupWithEmail = useCallback(async (email: string, pass: string, name: string) => {
-    await firebaseSignupWithEmail(email, pass, name);
-  }, []);
-
-  const handleSendMagicLink = useCallback(async (email: string, name?: string) => {
-    await firebaseSendMagicLink(email, name);
-  }, []);
-
-  useEffect(() => {
-    // Automatically try to verify email link when AuthContext mounts
-    const url = window.location.href;
-    firebaseCompleteMagicLinkSignIn(url).then(user => {
-      if (user) {
-         setSystemMessage('Successfully signed in with email link!');
-      }
-    }).catch(err => {
-         console.error(err);
-    });
-  }, []);
-
   const handleUpdateProfile = useCallback(async (data: { name?: string, photoURL?: string, bio?: string, username?: string }) => {
     await firebaseUpdateProfile(data);
   }, []);
@@ -469,10 +415,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const handleSendChatMessage = useCallback(async (text: string) => {
     await firebaseSendChatMessage(text);
-  }, []);
-
-  const handleResetPassword = useCallback(async (email: string) => {
-    await firebaseResetPassword(email);
   }, []);
 
   const handleSubmitSupportTicket = useCallback(async (subject: string, message: string) => {
@@ -743,13 +685,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user, 
     login, 
     loginWithGoogle: handleLoginWithGoogle,
-    loginWithEmail: handleLoginWithEmail,
-    signupWithEmail: handleSignupWithEmail,
-    sendMagicLink: handleSendMagicLink,
     updateProfile: handleUpdateProfile,
     saveContinueWatching: handleSaveContinueWatching,
     sendChatMessage: handleSendChatMessage,
-    resetPassword: handleResetPassword,
     submitSupportTicket: handleSubmitSupportTicket,
     trackWatchTime: handleTrackWatchTime,
     getSupportTickets: handleGetSupportTickets,
@@ -770,8 +708,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoginPopupOpen,
     openLoginPopup,
     closeLoginPopup,
-    loginAsGuest,
-    isGuest,
     deleteProfileData
   }), [
     user, login, logout, isAdmin,
@@ -788,7 +724,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoginPopupOpen,
     openLoginPopup,
     closeLoginPopup,
-    handleSendMagicLink,
     deleteProfileData
   ]);
 
@@ -798,22 +733,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!hasTracked) {
       trackVisitor();
       sessionStorage.setItem('axis_visitor_tracked', 'true');
-    }
-
-    // Guest Account Expiration Check
-    const userStr = localStorage.getItem('axis_user');
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      if (user.isGuest && user.createdAt) {
-        const now = Date.now();
-        const age = now - user.createdAt;
-        const week = 7 * 24 * 60 * 60 * 1000;
-        if (age > week) {
-          logout();
-        } else if (age > 6 * 24 * 60 * 60 * 1000) {
-          setSystemMessage("Your guest account will expire soon! Sign up to move your watchlist and data.");
-        }
-      }
     }
   }, [logout]);
 

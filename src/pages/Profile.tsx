@@ -61,7 +61,6 @@ export default function Profile() {
   const {
     user,
     loginWithGoogle,
-    sendMagicLink,
     updateProfile,
     logout,
     deleteProfileData,
@@ -75,9 +74,6 @@ export default function Profile() {
     submitSupportTicket,
   } = useAuth();
   const { showToast } = useToast();
-  const [mode, setMode] = useState<"signin" | "signup" | "magic-sent">(
-    "signin",
-  );
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -118,43 +114,6 @@ export default function Profile() {
       } finally {
         setIsLoading(false);
       }
-    }
-  };
-
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-    if (mode === "signup" && !username) {
-      showToast("Please provide a username", "info");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      if (mode === "signin") {
-        await sendMagicLink(email);
-        setMode("magic-sent");
-        showToast("Magic link sent!", "success");
-      } else if (mode === "signup") {
-        await sendMagicLink(email, username);
-        setMode("magic-sent");
-        showToast("Registration link sent!", "success");
-      }
-    } catch (error: any) {
-      if (
-        error.code === "auth/invalid-credential" ||
-        error.message?.includes("invalid-credential")
-      ) {
-        showToast(
-          "No account found. Check your email or sign up below!",
-          "error",
-        );
-        setMode("signup");
-      } else {
-        showToast(error.message || "Authentication failed", "error");
-      }
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -219,108 +178,22 @@ export default function Profile() {
             className="w-full max-w-md bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/10"
           >
             <h2 className="text-fluid-3xl font-semibold text-center mb-8 tracking-tight ">
-              {mode === "magic-sent"
-                ? "Check Inbox"
-                : mode === "signin"
-                  ? "Welcome Back"
-                  : "Create Account"}
+              Join the Elite
             </h2>
+            <p className="text-fluid-sm text-gray-400 font-medium text-center mb-8">
+              Sign in with Google to access premium features and see your profile.
+            </p>
 
-            {mode === "magic-sent" ? (
-              <div className="space-y-6 text-center">
-                <div className="w-20 h-20 bg-brand/10 rounded-full flex items-center justify-center mx-auto border border-brand/20">
-                  <Mail className="w-10 h-10 text-brand animate-pulse" />
-                </div>
-                <div className="space-y-2">
-                  <p className="text-fluid-sm font-bold text-white">
-                    Verification Link Sent!
-                  </p>
-                  <p className="text-fluid-sm text-gray-500 tracking-wide leading-relaxed">
-                    We sent a link to{" "}
-                    <span className="text-brand font-bold">{email}</span>. Click
-                    it to sign in.
-                  </p>
-                </div>
-                <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-2xl">
-                  <p className="text-fluid-sm text-yellow-500 font-semibold tracking-wide mb-1">
-                    Important
-                  </p>
-                  <p className="text-fluid-sm text-yellow-200/80 leading-relaxed">
-                    If you don't see the email, check your{" "}
-                    <span className="text-white font-bold underline">Spam</span>{" "}
-                    or{" "}
-                    <span className="text-white font-bold underline">
-                      Promotions
-                    </span>{" "}
-                    folder.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setMode("signin")}
-                  className="text-fluid-sm font-semibold text-gray-500 tracking-wide hover:text-white transition-colors"
-                >
-                  Back to Sign In
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleAuth} className="space-y-5">
-                {mode === "signup" && (
-                  <div className="space-y-1">
-                    <label className="block text-fluid-sm font-semibold text-gray-500 tracking-wide px-2">
-                      Username
-                    </label>
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:ring-1 focus:ring-brand transition-all text-fluid-sm font-medium"
-                      placeholder="e.g. Great"
-                      required
-                    />
-                  </div>
-                )}
-                <div className="space-y-1">
-                  <label className="block text-fluid-sm font-semibold text-gray-500 tracking-wide px-2">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:ring-1 focus:ring-brand transition-all text-fluid-sm font-medium"
-                    placeholder="great@example.com"
-                    required
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full bg-brand hover:bg-brand/90 disabled:opacity-50 text-white font-semibold py-4 rounded-2xl transition-all mt-4 shadow-[0_10px_20px_rgba(255,45,45,0.3)] tracking-wide text-fluid-sm active:scale-[0.98]"
-                >
-                  {isLoading
-                    ? "Processing..."
-                    : mode === "signin"
-                      ? "Send Magic Link"
-                      : "Create Account"}
-                </button>
-
-                <div className="relative py-4">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-white/10"></div>
-                  </div>
-                  <div className="relative flex justify-center text-fluid-sm font-semibold tracking-wide">
-                    <span className="bg-black/40 backdrop-blur-3xl px-2 text-gray-500">
-                      Or continue with
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleGoogleLogin}
-                  disabled={isLoading}
-                  className="w-full bg-white/5 hover:bg-white/10 text-white font-semibold py-4 rounded-2xl transition-all border border-white/10 flex items-center justify-center gap-3 tracking-wide text-fluid-sm active:scale-[0.98]"
-                >
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={isLoading}
+              className="w-full bg-white text-black hover:bg-gray-200 font-bold py-4 rounded-2xl transition-all border border-white/10 flex items-center justify-center gap-3 tracking-wide text-fluid-sm active:scale-[0.98]"
+            >
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+              ) : (
+                <>
                   <svg
                     width="18"
                     height="18"
@@ -344,24 +217,10 @@ export default function Profile() {
                       fill="#EA4335"
                     />
                   </svg>
-                  Google
-                </button>
-              </form>
-            )}
-
-            {mode !== "magic-sent" && (
-              <div className="mt-8 text-center text-fluid-xs text-gray-500 font-medium">
-                {mode === "signin" ? "First time here?" : "Joined before?"}
-                <button
-                  onClick={() =>
-                    setMode(mode === "signin" ? "signup" : "signin")
-                  }
-                  className="ml-2 text-brand hover:underline font-bold"
-                >
-                  {mode === "signin" ? "Create Account" : "Sign In Now"}
-                </button>
-              </div>
-            )}
+                  Continue with Google
+                </>
+              )}
+            </button>
           </motion.div>
         </div>
       </div>
@@ -456,11 +315,6 @@ export default function Profile() {
                     {user.username}
                     <MetaVerifiedBadge className="w-7 h-7 drop-shadow-[0_0_8px_rgba(0,149,246,0.4)]" />
                   </h2>
-                  {user.isGuest && (
-                    <span className="px-3 py-1 bg-yellow-500/20 text-yellow-500 rounded-full text-fluid-sm font-semibold tracking-wide border border-yellow-500/20">
-                      Guest
-                    </span>
-                  )}
                   {user.email === "greatmayuku2@gmail.com" && (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-600/20 text-blue-400 rounded-full text-fluid-sm font-semibold tracking-wide border border-blue-500/30 shadow-[0_0_12px_rgba(37,99,235,0.2)]">
                       <Shield className="w-3.5 h-3.5 text-blue-400 fill-current" />
@@ -477,21 +331,12 @@ export default function Profile() {
               </div>
 
               <div className="flex flex-wrap justify-center md:justify-start gap-4">
-                {user.isGuest ? (
-                  <button
-                    onClick={handleGoogleLogin}
-                    className="flex items-center gap-2 px-8 py-3.5 bg-white text-black hover:bg-white/90 rounded-full transition-all text-fluid-base font-semibold tracking-wide shadow-[0_10px_20px_rgba(255,255,255,0.2)] active:scale-95"
-                  >
-                    <Award className="w-4 h-4" /> Migrate Account to Google
-                  </button>
-                ) : (
                   <button
                     onClick={logout}
                     className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 glass-button px-6 py-3 text-white"
                   >
                     <LogOut className="w-4 h-4" /> Sign Out
                   </button>
-                )}
                 <button
                   onClick={openEditProfile}
                   className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 glass-button border border-white/10 hover:bg-white/10 text-white/80 hover:text-white rounded-full transition-all text-fluid-base font-semibold tracking-wide active:scale-95"

@@ -18,7 +18,7 @@ import {
  ListSkeleton,
  Skeleton
 } from "../components/Skeleton";
-import { ErrorMessage } from "../components/ErrorMessage";
+import { NoticeMessage } from "../components/NoticeMessage";
 import { Link } from "react-router-dom";
 
 export default function Home() {
@@ -347,7 +347,7 @@ export default function Home() {
  if (error) {
  return (
  <div className="min-h-screen flex items-center justify-center bg-transparent text-white">
- <ErrorMessage message={error} onRetry={loadData} />
+ <NoticeMessage message={error} onRetry={loadData} />
  </div>
  );
  }

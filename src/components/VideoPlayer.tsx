@@ -57,6 +57,9 @@ interface VideoPlayerProps {
  isMiniPlayer?: boolean;
  onCloseMiniPlayer?: () => void;
  initialTime?: number;
+ watchPartyState?: any;
+ onWatchPartySync?: (action: 'PLAY' | 'PAUSE' | 'SEEK', time: number) => void;
+ isHost?: boolean;
 }
 
 export default function VideoPlayer({
@@ -76,6 +79,9 @@ export default function VideoPlayer({
  isMiniPlayer,
  onCloseMiniPlayer,
  initialTime,
+ watchPartyState,
+ onWatchPartySync,
+ isHost,
 }: VideoPlayerProps) {
  const videoRef = useRef<HTMLVideoElement>(null);
  const containerRef = useRef<HTMLDivElement>(null);
@@ -179,7 +185,8 @@ export default function VideoPlayer({
    return () => { mounted = false; };
  }, [useIframeFallback, serversList, hasAutoChecked, mediaData.id, selectedSeason, selectedEpisode]);
 
- const actualIframeUrl = typeof computedEmbedUrl === "function" ? computedEmbedUrl(mediaData.type, mediaData.tmdbId || "0", selectedSeason || 1, selectedEpisode || 1) : computedEmbedUrl;
+ const rawIframeUrl = typeof computedEmbedUrl === "function" ? computedEmbedUrl(mediaData.type, mediaData.tmdbId || "0", selectedSeason || 1, selectedEpisode || 1) : computedEmbedUrl;
+ const actualIframeUrl = rawIframeUrl ? (rawIframeUrl.includes("?") ? `${rawIframeUrl}&quality=sd&sd=1&vq=360` : `${rawIframeUrl}?quality=sd&sd=1&vq=360`) : rawIframeUrl;
 
  const [isPlaying, setIsPlaying] = useState(true);
  const [volume, setVolume] = useState(1);
@@ -190,7 +197,40 @@ export default function VideoPlayer({
  const [isLocked, setIsLocked] = useState(false);
 
  // Quality
- const [selectedSourceIdx, setSelectedSourceIdx] = useState(0);
+ const getLowestQualitySourceIdx = (sourcesList: any[]) => {
+  if (!sourcesList || sourcesList.length === 0) return 0;
+  let lowestRes = Infinity;
+  let lowestIdx = 0;
+  for (let i = 0; i < sourcesList.length; i++) {
+   const q = sourcesList[i].quality;
+   if (q) {
+    const match = String(q).match(/\d+/);
+    if (match) {
+     const res = parseInt(match[0], 10);
+     if (res < lowestRes) {
+      lowestRes = res;
+      lowestIdx = i;
+     }
+    } else {
+     const lowerQ = String(q).toLowerCase();
+     if (lowerQ.includes("sd") || lowerQ.includes("lowest") || lowerQ.includes("ld") || lowerQ.includes("360") || lowerQ.includes("480")) {
+      lowestRes = 360;
+      lowestIdx = i;
+     }
+    }
+   }
+  }
+  return lowestIdx;
+ };
+
+ const [selectedSourceIdx, setSelectedSourceIdx] = useState(() => {
+  return getLowestQualitySourceIdx(mediaData?.sources || []);
+ });
+
+ // Automatically select lowest quality source when sources list updates (e.g. new movie/episode loaded)
+ useEffect(() => {
+  setSelectedSourceIdx(getLowestQualitySourceIdx(mediaData?.sources || []));
+ }, [mediaData.sources]);
  const [hlsLevels, setHlsLevels] = useState<any[]>([]);
  const [hlsCurrentLevel, setHlsCurrentLevel] = useState<number>(-1);
 
@@ -513,19 +553,46 @@ export default function VideoPlayer({
 
  // Video State Handlers
  const togglePlay = useCallback(() => {
+ if (!isHost && watchPartyState?.playbackState) { showToast("Only the host can control playback", "info"); return; }
  if (!videoRef.current) return;
 
  if (videoRef.current.paused) {
  videoRef.current.play().catch(() => {});
+ if (onWatchPartySync) onWatchPartySync('PLAY', videoRef.current.currentTime);
  } else {
  videoRef.current.pause();
+ if (onWatchPartySync) onWatchPartySync('PAUSE', videoRef.current.currentTime);
  }
- }, []);
+ }, [isHost, watchPartyState, onWatchPartySync, showToast]);
 
  const seekTo = useCallback((time: number) => {
+ if (!isHost && watchPartyState?.playbackState) { showToast("Only the host can seek", "info"); return; }
  if (!videoRef.current) return;
  videoRef.current.currentTime = time;
- }, []);
+ if (onWatchPartySync) onWatchPartySync('SEEK', time);
+ }, [isHost, watchPartyState, onWatchPartySync, showToast]);
+
+ useEffect(() => {
+   if (!watchPartyState || isHost || !videoRef.current || useIframeFallback) return;
+   
+   const { status, position, updatedAt } = watchPartyState.playbackState;
+   
+   let expectedPosition = position;
+   if (status === 'PLAYING') {
+      const elapsedSec = (Date.now() - updatedAt) / 1000;
+      expectedPosition += elapsedSec;
+   }
+
+   if (Math.abs(videoRef.current.currentTime - expectedPosition) > 2) {
+      videoRef.current.currentTime = expectedPosition;
+   }
+
+   if (status === 'PLAYING' && videoRef.current.paused) {
+      videoRef.current.play().catch(()=>{});
+   } else if (status === 'PAUSED' && !videoRef.current.paused) {
+      videoRef.current.pause();
+   }
+ }, [watchPartyState, isHost, useIframeFallback]);
 
  const seek = useCallback(
  (seconds: number) => {
@@ -694,20 +761,20 @@ export default function VideoPlayer({
  const hls = new HlsClass({
  enableWorker: true,
  capLevelToPlayerSize: true,
- startLevel: preferences.dataSaver ? 0 : -1, // Lowest if data saver, else Auto
+ startLevel: 0, // ALWAYS force lowest quality (level 0) on start to ensure fast and easy loading
+ autoLevelCapping: 0, // ALWAYS cap at lowest quality
  // LOW DATA SAVING OPTIMIZATIONS
  maxBufferLength: preferences.dataSaver ? 5 : 10, // Small buffer saves data
  maxMaxBufferLength: preferences.dataSaver ? 10 : 20,
  maxBufferSize: preferences.dataSaver ? 15 * 1000 * 1000 : 40 * 1000 * 1000,
  });
- if (isMobile || preferences.dataSaver) {
- hls.autoLevelCapping = 0; // Force lowest on data saver/mobile
- }
  hlsRef.current = hls;
  hls.loadSource(source.url);
  hls.attachMedia(video);
  hls.on(HlsClass.Events.MANIFEST_PARSED, (_, data) => {
  setHlsLevels(data.levels);
+ hls.currentLevel = 0; // Force lowest quality on start to guarantee fast loading
+ setHlsCurrentLevel(0);
  // Only set from HLS if we don't have them in mediaData
  if (
  (!mediaData.audioTracks ||
@@ -871,6 +938,28 @@ export default function VideoPlayer({
  selectedEpisode,
  updateContinueWatching,
  ]);
+
+ // Update continue watching for iframe fallbacks
+ useEffect(() => {
+  if (useIframeFallback && !isTrailer) {
+   // Just log it once when the iframe mounts so it appears in continue watching
+   const timer = setTimeout(() => {
+    updateContinueWatching({
+     id,
+     title,
+     poster: poster || "",
+     description: description || "",
+     type: seasons ? "Series" : "Movie",
+     progress: 0,
+     duration: 100, // Dummy duration to show it hasn't been finished
+     updatedAt: Date.now(),
+     season: selectedSeason,
+     episode: selectedEpisode,
+    });
+   }, 5000); // 5 seconds after mount
+   return () => clearTimeout(timer);
+  }
+ }, [useIframeFallback, isTrailer, id, title, poster, description, seasons, selectedSeason, selectedEpisode, updateContinueWatching]);
 
  // Keyboard Shortcuts
  useEffect(() => {
@@ -1170,14 +1259,6 @@ export default function VideoPlayer({
  </AnimatePresence>
 
  {/* Controls Overlay */}
-  {onClose && (
-    <button
-      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
-      className="absolute top-6 left-6 z-[9999] p-3 hover:bg-black/90 backdrop-blur-xl rounded-full transition-all text-white shadow-2xl pointer-events-auto flex items-center justify-center bg-black/60 border border-white/20 group cursor-pointer"
-    >
-      <ArrowLeft className="w-5 h-5 md:w-6 md:h-6 group-hover:scale-110 transition-transform drop-shadow-md" />
-    </button>
-  )}
  <AnimatePresence>
  {showControls && !isLocked && (
  <motion.div
@@ -1396,8 +1477,7 @@ export default function VideoPlayer({
  value={currentTime}
  onChange={(e) => {
  const time = parseFloat(e.target.value);
- if (videoRef.current)
- videoRef.current.currentTime = time;
+ seekTo(time);
  }}
  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 no-click-toggle"
  />

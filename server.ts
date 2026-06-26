@@ -6,6 +6,30 @@ import axios from "axios";
 import fs from "fs";
 import os from "os";
 
+// Security: SSRF Validation Helper
+function isUrlAllowed(reqUrl: string): boolean {
+  try {
+    const parsed = new URL(reqUrl);
+    
+    // Only allow HTTP/HTTPS
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return false;
+    }
+    
+    // Block common internal IPs and loopback (Basic SSRF protection)
+    const hostname = parsed.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return false;
+    if (hostname.startsWith('10.')) return false;
+    if (hostname.startsWith('192.168.')) return false;
+    if (hostname.startsWith('169.254.')) return false; // Cloud Metadata
+    if (hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) return false; // Private network
+    
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const app = express();
 app.use(compression());
 app.use(express.json());
@@ -259,13 +283,13 @@ app.get("/api/homepage", async (req, res) => {
 });
 
 app.get("/api/trending", async (req, res) => {
-  const { page, perPage } = req.query;
-  const cacheKey = `trending_${page}_${perPage}`;
+  const { page, perPage, genre, subjectType } = req.query;
+  const cacheKey = `trending_${page}_${perPage}_${genre || ''}_${subjectType || ''}`;
   const cachedData = getCached(cacheKey);
   if (cachedData) return res.json(cachedData);
 
   try {
-    const data = await externalMovieService.getTrending(Number(page) || 1, Number(perPage) || 18);
+    const data = await externalMovieService.getTrending(Number(page) || 1, Number(perPage) || 18, genre ? String(genre) : undefined, subjectType ? String(subjectType) : undefined);
     setCached(cacheKey, data);
     res.json(data);
   } catch (error: any) {
@@ -329,12 +353,13 @@ app.get("/api/popular-search", async (req, res) => {
 });
 
 app.get("/api/hot", async (req, res) => {
-  const cacheKey = "hot";
+  const { genre, subjectType } = req.query;
+  const cacheKey = `hot_${genre || ''}_${subjectType || ''}`;
   const cachedData = getCached(cacheKey);
   if (cachedData) return res.json(cachedData);
 
   try {
-    const data = await externalMovieService.getHot();
+    const data = await externalMovieService.getHot(genre ? String(genre) : undefined, subjectType ? String(subjectType) : undefined);
     setCached(cacheKey, data);
     res.json(data);
   } catch (error: any) {
@@ -414,12 +439,13 @@ app.get("/api/browse", async (req, res) => {
 });
 
 app.get("/api/ranking", async (req, res) => {
-  const cacheKey = "ranking";
+  const { genre, subjectType } = req.query;
+  const cacheKey = `ranking_${genre || ''}_${subjectType || ''}`;
   const cachedData = getCached(cacheKey);
   if (cachedData) return res.json(cachedData);
 
   try {
-    const data = await externalMovieService.getRanking();
+    const data = await externalMovieService.getRanking(genre ? String(genre) : undefined, subjectType ? String(subjectType) : undefined);
     setCached(cacheKey, data);
     res.json(data);
   } catch (error: any) {
@@ -570,9 +596,9 @@ app.get("/api/play", async (req, res) => {
 
 app.get("/api/verify-embed", async (req, res) => {
   const { url } = req.query;
-  if (!url) return res.json({ valid: false });
+  if (!url || typeof url !== 'string' || !isUrlAllowed(url)) return res.json({ valid: false });
   try {
-    const response = await axios.get(String(url), { 
+    const response = await axios.get(url, { 
       timeout: 3000, 
       validateStatus: () => true 
     });
@@ -733,6 +759,11 @@ app.get("/api/image-proxy", async (req, res) => {
     return res.send(cached.buffer);
   }
 
+  // SSRF Validation
+  if (!isUrlAllowed(imageUrl)) {
+     return res.status(403).send("Forbidden URL access");
+  }
+
   try {
     // Validate URL
     try {
@@ -809,6 +840,10 @@ app.get("/api/proxy", async (req, res) => {
   const videoUrl = req.query.url as string;
   if (!videoUrl) {
     return res.status(400).send("URL is required");
+  }
+
+  if (!isUrlAllowed(videoUrl)) {
+    return res.status(403).send("Forbidden URL access");
   }
 
   try {

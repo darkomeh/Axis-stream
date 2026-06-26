@@ -6,7 +6,7 @@ import VideoPlayer from "../components/VideoPlayer";
 import PosterGrid from "../components/PosterGrid";
 import EpisodeSelector from "../components/EpisodeSelector";
 import PopcornLoader from "../components/PopcornLoader";
-import { ErrorMessage } from "../components/ErrorMessage";
+import { NoticeMessage } from "../components/NoticeMessage";
 import { SEO } from "../components/SEO";
 import { 
  ArrowLeft, Star, Download, Film, Bookmark, Check, Share2, 
@@ -19,6 +19,7 @@ import { useToast } from "../contexts/ToastContext";
 import { MovieImage } from "../components/MovieImage";
 import { SmartActorImage } from "../components/SmartActorImage";
 import { useMediaPreview } from "../contexts/MediaPreviewContext";
+import { createWatchParty } from "../services/watchPartyService";
 
 export default function Details() {
  const { id } = useParams<{ id: string }>();
@@ -276,6 +277,28 @@ return acc;
  }
  };
 
+ const handleWatchParty = async () => {
+   if (!user) {
+     showToast("You must be signed in to host a Watch Party", "info");
+     navigate("/profile");
+     return;
+   }
+   if (!details || !id) return;
+   
+   try {
+     const partyId = await createWatchParty(
+       id,
+       details.type === 'Series' ? 'series' : 'movie',
+       details.title,
+       details.poster || details.background || ''
+     );
+     navigate(`/watch-party/${partyId}`);
+   } catch (error) {
+     console.error("Failed to create watch party:", error);
+     showToast("Failed to create Watch Party. Please try again.", "error");
+   }
+ };
+
  const downloadPoster = async () => {
  if (!details?.poster) return;
  try {
@@ -382,7 +405,7 @@ return acc;
  return (
  <div className="min-h-screen flex items-center justify-center bg-transparent text-white">
  <div className="text-center max-w-md px-4">
- <ErrorMessage 
+ <NoticeMessage 
  message={error || "Item not found."} 
  onRetry={() => window.location.reload()} 
  />
@@ -494,6 +517,14 @@ return acc;
  <h1 className="text-fluid-3xl font-bold tracking-tight text-white leading-[1.1] drop-shadow-md flex-1">
  {details.title}
  </h1>
+ <div className="flex items-center gap-2">
+ <button 
+ onClick={() => handleWatchParty()}
+ className="p-3.5 rounded-full transition-all flex-none border shadow-[0_4px_16px_rgba(0,0,0,0.4)] h-fit bg-brand text-white border-transparent hover:bg-brand-hover"
+ title="Watch Party"
+ >
+ <Users className="w-[22px] h-[22px]" />
+ </button>
  <button 
  onClick={toggleWatchlist}
  className={`p-3.5 rounded-full transition-all flex-none border shadow-[0_4px_16px_rgba(0,0,0,0.4)] h-fit ${isInWatchlist(details.id) ? 'bg-white text-black border-transparent' : 'glass-button text-white border-white/20 hover:bg-white/10'}`}
@@ -502,6 +533,7 @@ return acc;
  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill={isInWatchlist(details.id) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
  </div>
  </button>
+ </div>
  </div>
  
  <div className="flex flex-col gap-4">

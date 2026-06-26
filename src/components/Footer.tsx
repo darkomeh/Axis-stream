@@ -103,11 +103,6 @@ function Footer() {
  Rankings
  </Link>
  </li>
- <li>
- <Link to="/live" className="text-white/60 hover:text-white transition-colors text-fluid-base">
- Live Sports
- </Link>
- </li>
  </ul>
  </div>
 

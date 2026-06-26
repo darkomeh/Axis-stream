@@ -10,7 +10,7 @@ import { Search, ArrowLeft, Loader2 } from "lucide-react";
 import { processSearchResults } from "../lib/searchUtils";
 import { SEO } from "../components/SEO";
 
-import { ErrorMessage } from "../components/ErrorMessage";
+import { NoticeMessage } from "../components/NoticeMessage";
 import { ListSkeleton } from "../components/Skeleton";
 
 export default function Anime() {
@@ -142,7 +142,7 @@ export default function Anime() {
  </form>
 
  {error ? (
- <ErrorMessage message={error} onRetry={() => loadAnime(1, true)} />
+ <NoticeMessage message={error} onRetry={() => loadAnime(1, true)} />
  ) : loading && items.length === 0 ? (
  <ListSkeleton count={12} />
  ) : items.length > 0 ? (

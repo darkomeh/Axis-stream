@@ -91,6 +91,18 @@ service cloud.firestore {
              data.createdAt == request.time;
     }
 
+    function isValidWatchParty(data) {
+      return data.hostId is string && data.mediaId is string;
+    }
+
+    function isValidPartyParticipant(data) {
+      return data.uid is string && data.displayName is string;
+    }
+
+    function isValidPartyMessage(data) {
+      return data.uid == request.auth.uid && data.text is string;
+    }
+
     // --- Collections ---
 
     match /users/{userId} {
@@ -171,6 +183,25 @@ service cloud.firestore {
       allow get: if isAdmin();
       allow create: if isSignedIn() && isValidReport(incoming());
       allow update: if isAdmin();
+    }
+
+    match /watchParties/{partyId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidWatchParty(incoming()) && incoming().hostId == request.auth.uid;
+      allow update: if isSignedIn() && (resource.data.hostId == request.auth.uid || isAdmin());
+      allow delete: if isSignedIn() && (resource.data.hostId == request.auth.uid || isAdmin());
+
+      match /participants/{participantId} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn() && participantId == request.auth.uid && isValidPartyParticipant(incoming());
+        allow delete: if isSignedIn() && (participantId == request.auth.uid || get(/databases/$(database)/documents/watchParties/$(partyId)).data.hostId == request.auth.uid || isAdmin());
+      }
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && isValidPartyMessage(incoming());
+        allow delete: if isAdmin() || get(/databases/$(database)/documents/watchParties/$(partyId)).data.hostId == request.auth.uid;
+      }
     }
   }
 }

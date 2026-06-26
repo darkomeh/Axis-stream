@@ -133,9 +133,62 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "category", "detail", "status", "createdAt"]
+    },
+    "WatchParty": {
+      "title": "WatchParty",
+      "description": "Watch party room",
+      "type": "object",
+      "properties": {
+        "hostId": { "type": "string" },
+        "mediaId": { "type": "string" },
+        "mediaType": { "type": "string" },
+        "mediaTitle": { "type": "string" },
+        "posterUrl": { "type": "string" },
+        "playbackState": { "type": "object" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["hostId", "mediaId", "playbackState", "createdAt"]
+    },
+    "PartyParticipant": {
+      "title": "PartyParticipant",
+      "description": "Watch party participant",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "isOnline": { "type": "boolean" },
+        "joinedAt": { "type": "number" }
+      },
+      "required": ["uid", "displayName", "isOnline", "joinedAt"]
+    },
+    "PartyMessage": {
+      "title": "PartyMessage",
+      "description": "Watch party chat message",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["uid", "displayName", "text", "createdAt"]
     }
   },
   "firestore": {
+    "watchParties/{partyId}": {
+      "schema": "WatchParty",
+      "description": "Active watch party rooms"
+    },
+    "watchParties/{partyId}/participants/{participantId}": {
+      "schema": "PartyParticipant",
+      "description": "Watch party participants"
+    },
+    "watchParties/{partyId}/messages/{messageId}": {
+      "schema": "PartyMessage",
+      "description": "Watch party live chat messages"
+    },
     "users/{userId}": {
       "schema": "User",
       "description": "Collection of user profiles"

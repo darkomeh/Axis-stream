@@ -7,7 +7,7 @@ import TopTenGrid from "../components/TopTenGrid";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import PopcornLoader from "../components/PopcornLoader";
-import { ErrorMessage } from "../components/ErrorMessage";
+import { NoticeMessage } from "../components/NoticeMessage";
 import { SEO } from "../components/SEO";
 import { Filter, ChevronDown, X, Loader2, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -397,7 +397,7 @@ export default function Browse() {
 
  {error ? (
  <div className="py-20">
- <ErrorMessage message={error} onRetry={() => loadItems(1, true)} />
+ <NoticeMessage message={error} onRetry={() => loadItems(1, true)} />
  </div>
  ) : (
   showHorizontalSlices ? (

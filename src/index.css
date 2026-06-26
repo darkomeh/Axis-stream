@@ -178,3 +178,12 @@
 .glow-brand {
   box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
 }
+
+/* Accessibility: Keyboard focus boundaries */
+*:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 4px;
+}
+*:focus:not(:focus-visible) {
+  outline: none;
+}

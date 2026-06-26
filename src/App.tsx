@@ -53,6 +53,7 @@ const Ranking = lazyWithRetry(() => import("./pages/Ranking"));
 const Legal = lazyWithRetry(() => import("./pages/Legal"));
 const Admin = lazyWithRetry(() => import("./pages/Admin"));
 const Trails = lazyWithRetry(() => import("./pages/Trails"));
+const WatchPartyPage = lazyWithRetry(() => import("./pages/WatchParty"));
 
 import { useAuth } from "./contexts/AuthContext";
 
@@ -122,6 +123,7 @@ function AppContent() {
             <Route path="/ranking" element={<Ranking />} />
             <Route path="/trails" element={<Trails />} />
             <Route path="/trails/:movieSlug" element={<Trails />} />
+            <Route path="/watch-party/:partyId" element={<WatchPartyPage />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/legal/:type" element={<Legal />} />
             {/* Fallback routes for movies/series/trending to browse for now */}

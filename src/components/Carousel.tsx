@@ -51,7 +51,7 @@ export default function Carousel({ items }: CarouselProps) {
 
  return (
  <div 
- className="relative w-full h-[70vh] md:h-[95vh] overflow-hidden bg-bg-base transition-all group"
+ className="relative w-full h-[70vh] sm:h-[80vh] md:h-[90vh] lg:h-[95vh] xl:h-[100vh] overflow-hidden bg-bg-base transition-all group"
  onMouseEnter={() => setIsHovered(true)}
  onMouseLeave={() => setIsHovered(false)}
  >
@@ -103,18 +103,18 @@ export default function Carousel({ items }: CarouselProps) {
  className="max-w-2xl lg:max-w-3xl"
  >
  <div className="mb-3 flex items-center gap-3">
- <span className="px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-white/90 font-bold text-fluid-sm tracking-wide border border-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
+ <span className="px-2.5 py-0.5 bg-white/10 backdrop-blur-md rounded-full text-white/90 font-bold text-fluid-xs tracking-wide border border-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
  {getBadges(currentItem)}
  </span>
  </div>
 
- <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-2 md:mb-4 tracking-tight leading-[1.1] drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+ <h1 className="text-fluid-2xl sm:text-fluid-3xl md:text-fluid-4xl lg:text-fluid-5xl xl:text-fluid-6xl font-bold text-white mb-1.5 md:mb-3 tracking-tight leading-[1.1] drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
  {currentItem.title}
  </h1>
  
- <div className="flex flex-wrap items-center gap-3 md:gap-5 text-white/70 mb-5 md:mb-8 font-medium tracking-wide text-fluid-base">
+ <div className="flex flex-wrap items-center gap-2 md:gap-4 text-white/70 mb-4 md:mb-6 font-medium tracking-wide text-fluid-xs sm:text-fluid-sm">
  {currentItem.rating && (
- <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-brand/15 border border-brand/40 text-brand font-bold rounded tracking-tight text-fluid-sm shadow-[0_0_15px_rgba(255,45,45,0.2)]">
+ <span className="flex items-center gap-1 px-2 py-0.5 bg-brand/15 border border-brand/40 text-brand font-bold rounded tracking-tight text-fluid-xs shadow-[0_0_15px_rgba(255,45,45,0.2)]">
  IMDb {currentItem.rating}
  </span>
  )}
@@ -122,24 +122,16 @@ export default function Carousel({ items }: CarouselProps) {
  <span>{currentItem.year || '2024'}</span>
  <span className="text-white/20">•</span>
  <span className=" tracking-wide">{currentItem.category || (currentItem.type == 2 || currentItem.type === 'Series' ? 'Series' : 'Movie')}</span>
- <span className="text-white/20">•</span>
- <span className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded font-mono text-xs uppercase text-white/60 tracking-wider">
- UHD 4K
- </span>
- <span className="text-white/20">•</span>
- <span className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded font-mono text-xs uppercase text-white/60 tracking-wider">
- Dolby Atmos
- </span>
  </div>
 
- <p className="text-white/80 line-clamp-3 mb-8 md:mb-10 max-w-2xl leading-relaxed font-normal text-fluid-lg">
+ <p className="text-white/80 line-clamp-2 md:line-clamp-3 mb-5 md:mb-7 max-w-2xl leading-relaxed font-normal text-fluid-sm sm:text-fluid-base">
  {currentItem.description || ''}
  </p>
 
  <div className="flex items-center gap-3 md:gap-4">
  <Link
  to={`/details/${currentItem.id}`}
- className="flex items-center justify-center gap-2 px-6 py-3.5 md:px-8 md:py-4 bg-white text-black rounded-full font-semibold transition-all active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)] hover:bg-white/90 text-fluid-lg"
+ className="flex items-center justify-center gap-1.5 px-4 sm:px-6 py-2.5 sm:py-3.5 bg-white text-black rounded-full font-semibold transition-all active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)] hover:bg-white/90 text-fluid-sm sm:text-fluid-base"
  >
  <Play className="w-5 h-5 fill-current" />
  Play Now
@@ -158,7 +150,7 @@ export default function Carousel({ items }: CarouselProps) {
  showToast("Added to My List", "success");
  }
  }}
- className={`flex items-center justify-center gap-2 px-6 py-3.5 md:px-8 md:py-4 rounded-full font-semibold transition-all active:scale-95 border ${isInWatchlist(currentItem.id) ? 'bg-white/20 border-white/40 text-white backdrop-blur-xl' : 'bg-black/40 backdrop-blur-3xl border-white/20 text-white hover:bg-white/10 hover:border-white/40 shadow-[0_4px_24px_rgba(0,0,0,0.5)]'} text-fluid-lg`}
+ className={`flex items-center justify-center gap-1.5 px-4 sm:px-6 py-2.5 sm:py-3.5 rounded-full font-semibold transition-all active:scale-95 border ${isInWatchlist(currentItem.id) ? 'bg-white/20 border-white/40 text-white backdrop-blur-xl' : 'bg-black/40 backdrop-blur-3xl border-white/20 text-white hover:bg-white/10 hover:border-white/40 shadow-[0_4px_24px_rgba(0,0,0,0.5)]'} text-fluid-sm sm:text-fluid-base`}
  >
  {isInWatchlist(currentItem.id) ? (
  <>

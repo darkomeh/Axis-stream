@@ -264,19 +264,24 @@ export const movieService = {
     }
   },
 
-  async getTrending(page = 1, perPage = 18): Promise<MediaItem[]> {
+  async getTrending(page = 1, perPage = 18, genre?: string, subjectType?: number | string): Promise<MediaItem[]> {
     const TTL = 5 * 60 * 1000;
+    const cacheKey = `trending_${page}_${perPage}_${genre || ''}_${subjectType || ''}`;
+    // Initialize cache map if not exists
+    if (!(this as any)._trendingCacheMap) (this as any)._trendingCacheMap = {};
+    const cacheMap = (this as any)._trendingCacheMap;
+
     // Only cache page 1
-    if (page === 1 && this._trendingCache && Date.now() - this._trendingCache.timestamp < TTL) {
-      return this._trendingCache.data;
+    if (page === 1 && cacheMap[cacheKey] && Date.now() - cacheMap[cacheKey].timestamp < TTL) {
+      return cacheMap[cacheKey].data;
     }
     try {
       const data = await fetchWithRetry({ 
         url: `/trending`, 
-        params: { page, perPage } 
+        params: { page, perPage, genre, subjectType } 
       });
       const list = Array.isArray(data) ? data : [];
-      if (page === 1) this._trendingCache = { data: list, timestamp: Date.now() };
+      if (page === 1) cacheMap[cacheKey] = { data: list, timestamp: Date.now() };
       return list;
     } catch (e: any) {
       console.error("Error in getTrending:", e.message || e);
@@ -304,18 +309,22 @@ export const movieService = {
     }
   },
 
-  async getHot(): Promise<{ movies: MediaItem[], series: MediaItem[] }> {
+  async getHot(genre?: string, subjectType?: number | string): Promise<{ movies: MediaItem[], series: MediaItem[] }> {
     const TTL = 5 * 60 * 1000;
-    if (this._hotCache && Date.now() - this._hotCache.timestamp < TTL) {
-      return this._hotCache.data;
+    const cacheKey = `hot_${genre || ''}_${subjectType || ''}`;
+    if (!(this as any)._hotCacheMap) (this as any)._hotCacheMap = {};
+    const cacheMap = (this as any)._hotCacheMap;
+
+    if (cacheMap[cacheKey] && Date.now() - cacheMap[cacheKey].timestamp < TTL) {
+      return cacheMap[cacheKey].data;
     }
     try {
-      const data = await fetchWithRetry({ url: `/hot` });
+      const data = await fetchWithRetry({ url: `/hot`, params: { genre, subjectType } });
       const hot = {
         movies: Array.isArray(data?.movies) ? data.movies : [],
         series: Array.isArray(data?.series) ? data.series : []
       };
-      this._hotCache = { data: hot, timestamp: Date.now() };
+      cacheMap[cacheKey] = { data: hot, timestamp: Date.now() };
       return hot;
     } catch (e: any) {
       console.error("Error in getHot:", e.message || e);
@@ -405,15 +414,19 @@ export const movieService = {
 
   _rankingCache: null as { data: RankingItem[], timestamp: number } | null,
 
-  async getRanking(): Promise<RankingItem[]> {
+  async getRanking(genre?: string, subjectType?: number | string): Promise<RankingItem[]> {
     const TTL = 5 * 60 * 1000;
-    if (this._rankingCache && Date.now() - this._rankingCache.timestamp < TTL) {
-      return this._rankingCache.data;
+    const cacheKey = `ranking_${genre || ''}_${subjectType || ''}`;
+    if (!(this as any)._rankingCacheMap) (this as any)._rankingCacheMap = {};
+    const cacheMap = (this as any)._rankingCacheMap;
+
+    if (cacheMap[cacheKey] && Date.now() - cacheMap[cacheKey].timestamp < TTL) {
+      return cacheMap[cacheKey].data;
     }
     try {
-      const data = await fetchWithRetry({ url: `/ranking` });
+      const data = await fetchWithRetry({ url: `/ranking`, params: { genre, subjectType } });
       const list = Array.isArray(data) ? data : [];
-      this._rankingCache = { data: list, timestamp: Date.now() };
+      cacheMap[cacheKey] = { data: list, timestamp: Date.now() };
       return list;
     } catch (e: any) {
       console.error("Error in getRanking:", e.message || e);

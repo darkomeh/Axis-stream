@@ -72,6 +72,7 @@ export default function Profile() {
     updatePreferences,
     removeFromHistory,
     submitSupportTicket,
+    isAdmin,
   } = useAuth();
   const { showToast } = useToast();
   const [username, setUsername] = useState("");
@@ -313,7 +314,7 @@ export default function Profile() {
                 <div className="flex flex-col md:flex-row md:items-center gap-3">
                   <h2 className="text-fluid-4xl font-semibold tracking-tight inline-flex items-center gap-1.5 justify-center md:justify-start">
                     {user.username}
-                    <MetaVerifiedBadge className="w-7 h-7 drop-shadow-[0_0_8px_rgba(0,149,246,0.4)]" />
+                    {isAdmin && <MetaVerifiedBadge className="w-7 h-7 drop-shadow-[0_0_8px_rgba(0,149,246,0.4)]" />}
                   </h2>
                   {user.email === "greatmayuku2@gmail.com" && (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-600/20 text-blue-400 rounded-full text-fluid-sm font-semibold tracking-wide border border-blue-500/30 shadow-[0_0_12px_rgba(37,99,235,0.2)]">

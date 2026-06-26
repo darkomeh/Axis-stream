@@ -16,7 +16,7 @@ const isToon = (item: MediaItem) => {
  return !isBad;
 };
 
-import { ErrorMessage } from "../components/ErrorMessage";
+import { NoticeMessage } from "../components/NoticeMessage";
 import { ListSkeleton } from "../components/Skeleton";
 
 export default function Toons() {
@@ -143,7 +143,7 @@ export default function Toons() {
  </form>
 
  {error ? (
- <ErrorMessage message={error} onRetry={() => loadToons(1, true)} />
+ <NoticeMessage message={error} onRetry={() => loadToons(1, true)} />
  ) : loading && items.length === 0 ? (
  <ListSkeleton count={12} />
  ) : items.length > 0 ? (

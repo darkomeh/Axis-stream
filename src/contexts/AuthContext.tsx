@@ -251,11 +251,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const unsubscribe = onSnapshot(userRef, (snap) => {
         if (snap.exists()) {
           const data = snap.data();
+          const isOwner = (data.email || firebaseUser.email || '').toLowerCase() === 'greatmayuku2@gmail.com';
           const newUser = {
             id: firebaseUser.uid,
-            username: data.username || data.name || 'User',
-            name: data.name || data.username || 'User',
-            email: data.email || '',
+            username: isOwner ? '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' : (data.username || data.name || 'User'),
+            name: isOwner ? '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' : (data.name || data.username || 'User'),
+            email: data.email || firebaseUser.email || '',
             avatar: data.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.uid}`,
             bio: data.bio || '',
             role: data.role || 'user'
@@ -389,10 +390,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, watchlist.length, history.length, stats, preferences, isBanned, lastActionType]);
 
   const login = useCallback((username: string, email: string, avatar?: string) => {
+    const isOwner = email.toLowerCase() === 'greatmayuku2@gmail.com';
     const newUser = { 
       id: email, 
-      username, 
-      name: username,
+      username: isOwner ? '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' : username, 
+      name: isOwner ? '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' : username,
       email, 
       avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}` 
     };

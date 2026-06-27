@@ -12,6 +12,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import Navbar from "../components/Navbar";
 import { MetaVerifiedBadge } from "../components/MetaVerifiedBadge";
+import { Skeleton, ListSkeleton, CardSkeleton } from "../components/Skeleton";
 import { formatDurationToHours, slugify } from "../types";
 
 interface TrailItem {
@@ -673,11 +674,31 @@ export default function Trails() {
         
         {/* Loading overlay panel */}
         {loading && (
-          <div className="absolute inset-0 bg-[#04060c]/98 z-50 flex flex-col items-center justify-center gap-4">
-            <Radio className="w-12 h-12 text-brand animate-pulse" />
-            <div className="text-center space-y-1">
-              <p className="text-sm font-black uppercase tracking-widest text-brand">Axis Trails</p>
-              <p className="text-xs text-white/50 animate-pulse">Syncing vertical cinema stream...</p>
+          <div className="absolute inset-0 bg-[#04060c]/98 z-50 p-6 flex flex-col justify-between">
+            <div className="flex justify-between items-center">
+              <Skeleton className="w-10 h-10 rounded-full" />
+              <div className="flex gap-2">
+                <Skeleton className="w-24 h-8 rounded-full" />
+                <Skeleton className="w-24 h-8 rounded-full" />
+              </div>
+            </div>
+            <div className="flex flex-col md:flex-row gap-8 items-end w-full mb-12">
+              <div className="flex-1 space-y-4">
+                <Skeleton className="h-12 w-2/3 rounded-lg" />
+                <div className="flex gap-3">
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                  <Skeleton className="h-6 w-24 rounded-full" />
+                </div>
+                <div className="space-y-2 max-w-xl">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                </div>
+              </div>
+              <div className="w-full md:w-80 shrink-0 space-y-4">
+                <Skeleton className="h-10 w-full rounded-xl" />
+                <Skeleton className="h-10 w-full rounded-xl" />
+              </div>
             </div>
           </div>
         )}
@@ -952,8 +973,12 @@ export default function Trails() {
 
                     <div className="flex items-center gap-2 text-[8px] font-bold text-white/50 pt-0.5 font-mono">
                       <span>{item.releaseYear}</span>
-                      <span>•</span>
-                      <span>{item.duration ? formatDurationToHours(item.duration) : "2.8 hours"}</span>
+                      {item.duration && (
+                        <>
+                          <span>•</span>
+                          <span>{formatDurationToHours(item.duration)}</span>
+                        </>
+                      )}
                     </div>
 
                     <div className="pt-1 flex flex-wrap items-center gap-2 pointer-events-auto">
@@ -1212,8 +1237,12 @@ export default function Trails() {
                         <span>{item.releaseYear}</span>
                         <span className="text-slate-700">|</span>
                         <span className="bg-white/5 border border-white/10 px-2 py-0.5 rounded text-[10px] font-extrabold text-white">{item.contentRating || "16+"}</span>
-                        <span className="text-slate-700">|</span>
-                        <span>{item.duration ? formatDurationToHours(item.duration) : "2.6 hours"}</span>
+                        {item.duration && (
+                          <>
+                            <span className="text-slate-700">|</span>
+                            <span>{formatDurationToHours(item.duration)}</span>
+                          </>
+                        )}
                       </div>
 
                       {/* Genres list */}

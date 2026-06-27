@@ -5,7 +5,6 @@ import { MediaItem } from "../types";
 import PosterGrid from "../components/PosterGrid";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import PopcornLoader from "../components/PopcornLoader";
 import { Search, ArrowLeft, Loader2 } from "lucide-react";
 import { processSearchResults } from "../lib/searchUtils";
 import { SEO } from "../components/SEO";

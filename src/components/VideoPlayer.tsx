@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import type Hls from "hls.js";
 import { MediaData, ItemDetails } from "../types";
-import PopcornLoader from "./PopcornLoader";
 import {
+ Loader2,
  Download,
  Settings,
  Check,
@@ -762,7 +762,6 @@ export default function VideoPlayer({
  enableWorker: true,
  capLevelToPlayerSize: true,
  startLevel: 0, // ALWAYS force lowest quality (level 0) on start to ensure fast and easy loading
- autoLevelCapping: 0, // ALWAYS cap at lowest quality
  // LOW DATA SAVING OPTIMIZATIONS
  maxBufferLength: preferences.dataSaver ? 5 : 10, // Small buffer saves data
  maxMaxBufferLength: preferences.dataSaver ? 10 : 20,
@@ -1162,7 +1161,9 @@ export default function VideoPlayer({
  exit={{ opacity: 0 }}
  className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-3xl z-40 pointer-events-none"
  >
- <PopcornLoader />
+ <div className="relative w-16 h-16 flex items-center justify-center">
+   <Loader2 className="w-10 h-10 text-brand animate-spin" />
+ </div>
  {isCheckingServers && (
     <motion.p
         initial={{ opacity: 0, y: 10 }}

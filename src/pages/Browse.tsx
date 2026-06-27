@@ -6,7 +6,6 @@ import PosterGrid from "../components/PosterGrid";
 import TopTenGrid from "../components/TopTenGrid";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import PopcornLoader from "../components/PopcornLoader";
 import { NoticeMessage } from "../components/NoticeMessage";
 import { SEO } from "../components/SEO";
 import { Filter, ChevronDown, X, Loader2, ArrowLeft } from "lucide-react";

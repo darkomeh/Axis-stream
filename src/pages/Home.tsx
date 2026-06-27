@@ -8,7 +8,6 @@ import TopTenGrid from "../components/TopTenGrid";
 import ContinueWatchingGrid from "../components/ContinueWatchingGrid";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import PopcornLoader from "../components/PopcornLoader";
 import { useAuth } from "../contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 import { SEO } from "../components/SEO";

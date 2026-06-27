@@ -4,7 +4,7 @@ import { getAdminConfig } from "../services/firebaseService";
 import { RankingItem } from "../types";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import PopcornLoader from "../components/PopcornLoader";
+import { Skeleton, ListSkeleton, CardSkeleton } from "../components/Skeleton";
 import { 
   Trophy, 
   Star, 
@@ -260,9 +260,18 @@ export default function Ranking() {
         </div>
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-40 gap-6">
-            <PopcornLoader />
-            <span className="text-fluid-xs font-black uppercase text-gray-400 tracking-[0.3em] animate-pulse">Assembling Grand Rankings...</span>
+          <div className="space-y-12 py-12 max-w-[1300px] mx-auto px-4">
+            {/* Podium skeletons */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end min-h-[300px] md:min-h-[450px]">
+              <Skeleton className="h-64 rounded-3xl" />
+              <Skeleton className="h-80 rounded-3xl" />
+              <Skeleton className="h-56 rounded-3xl" />
+            </div>
+            {/* Grid list skeletons */}
+            <div className="space-y-4 pt-8">
+              <Skeleton className="h-6 w-48 rounded" />
+              <ListSkeleton count={6} />
+            </div>
           </div>
         ) : sortedItems.length > 0 ? (
           <div>
@@ -420,12 +429,12 @@ export default function Ranking() {
               </div>
 
               {/* Mobile Fallback: Stacked Podium Cards */}
-              <div className="grid grid-cols-1 gap-6 md:hidden">
+              <div className="grid grid-cols-1 gap-4 md:hidden">
                 {podiumItems.map((item, index) => {
                   const colors = [
-                    { border: "border-yellow-500/50", medal: "🏆 Gold Champion", badge: "bg-yellow-500 text-black" },
-                    { border: "border-slate-400/40", medal: "🥈 Silver Leader", badge: "bg-slate-400 text-black" },
-                    { border: "border-amber-700/40", medal: "🥉 Bronze Star", badge: "bg-amber-600 text-white" }
+                    { border: "border-yellow-500/40", medal: "🏆 Gold Champion", badge: "bg-yellow-500 text-black", text: "text-yellow-500" },
+                    { border: "border-slate-400/30", medal: "🥈 Silver Leader", badge: "bg-slate-400 text-black", text: "text-slate-300" },
+                    { border: "border-amber-700/30", medal: "🥉 Bronze Star", badge: "bg-amber-600 text-white", text: "text-amber-500" }
                   ];
                   return (
                     <motion.div
@@ -434,29 +443,37 @@ export default function Ranking() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.1 }}
                       onClick={() => openPreview(item.id)}
-                      className={`relative flex items-center gap-4 p-4 rounded-3xl bg-white/[0.04] border ${colors[index]?.border || "border-white/5"} backdrop-blur-xl cursor-pointer`}
+                      className={`relative flex items-center gap-4 p-3.5 rounded-2xl bg-white/[0.03] border ${colors[index]?.border || "border-white/5"} backdrop-blur-xl cursor-pointer hover:bg-white/[0.06] transition-all`}
                     >
-                      <div className={`w-12 h-12 rounded-2xl flex flex-col items-center justify-center font-black ${colors[index]?.badge || "bg-white/10"}`}>
-                        <span className="text-xs uppercase leading-none">Rank</span>
-                        <span className="text-lg leading-none">{index + 1}</span>
+                      {/* Left Rank Display */}
+                      <div className="flex flex-col items-center justify-center pl-1 flex-shrink-0">
+                        <span className="text-[10px] font-black uppercase text-gray-500 leading-none">Rank</span>
+                        <span className={`text-2xl font-black ${colors[index]?.text || "text-white"} leading-tight`}>{index + 1}</span>
                       </div>
                       
-                      <div className="w-32 h-48 rounded-xl overflow-hidden border border-white/10 flex-shrink-0">
+                      {/* Compact Poster */}
+                      <div className="w-16 h-24 rounded-xl overflow-hidden border border-white/10 flex-shrink-0 shadow-md">
                         <MovieImage src={item.cover || item.poster} alt={item.title} className="w-full h-full object-cover" />
                       </div>
 
-                      <div className="flex-1 space-y-1 text-left">
-                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{colors[index]?.medal}</span>
-                        <h4 className="font-bold text-fluid-sm line-clamp-1">{item.title}</h4>
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          <span>{item.year}</span>
-                          <span className="w-1 h-3 bg-white/10" />
+                      {/* Info & Metadata */}
+                      <div className="flex-1 min-w-0 text-left space-y-1">
+                        <span className="text-[9px] font-black tracking-widest text-gray-400 uppercase">
+                          {colors[index]?.medal}
+                        </span>
+                        <h4 className="font-extrabold text-sm text-white line-clamp-1 group-hover:text-brand transition-colors">
+                          {item.title}
+                        </h4>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 font-semibold">
+                          <span>{item.year || "2024"}</span>
+                          <span className="w-1.5 h-1.5 bg-white/10 rounded-full" />
                           <span>{(item as any).formattedType}</span>
                         </div>
                       </div>
 
-                      <div className="bg-[#f5c518]/10 text-[#f5c518] border border-[#f5c518]/20 px-2.5 py-1.5 rounded-lg text-xs font-black flex items-center gap-1 flex-shrink-0">
-                        <Star className="w-3.5 h-3.5 fill-[#f5c518]" />
+                      {/* Rating Badge */}
+                      <div className="bg-white/5 border border-white/10 px-2.5 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 flex-shrink-0">
+                        <Star className="w-3.5 h-3.5 fill-[#f5c518] text-[#f5c518]" />
                         {item.score || item.rating || "9.5"}
                       </div>
                     </motion.div>
@@ -496,7 +513,7 @@ export default function Ranking() {
                           </div>
 
                           {/* Image with mini play symbol */}
-                          <div className="relative w-22 h-32 md:w-28 md:h-40 rounded-lg md:rounded-xl overflow-hidden flex-shrink-0 border border-white/10 shadow-md">
+                          <div className="relative w-20 h-28 md:w-28 md:h-40 rounded-lg md:rounded-xl overflow-hidden flex-shrink-0 border border-white/10 shadow-md">
                             <MovieImage src={item.cover || item.poster} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                               <Play className="w-4 h-4 fill-white text-white" />
@@ -543,9 +560,9 @@ export default function Ranking() {
             </div>
           </div>
         ) : (
-          <div className="text-center py-32 bg-white/[0.02] border border-white/5 rounded-[40px] backdrop-blur-xl">
-            <PopcornLoader />
-            <p className="text-gray-400 font-bold uppercase tracking-[0.2em] mt-8 text-fluid-xs">Empty Database Archive...</p>
+          <div className="text-center py-20 bg-white/[0.02] border border-white/5 rounded-[40px] backdrop-blur-xl flex flex-col items-center justify-center gap-4">
+            <Trophy className="w-12 h-12 text-white/20" />
+            <p className="text-gray-400 font-bold uppercase tracking-[0.2em] text-fluid-xs">Empty Database Archive...</p>
           </div>
         )}
       </div>

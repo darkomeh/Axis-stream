@@ -4,14 +4,13 @@
  */
 
 import React, { Suspense, lazy, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ToastProvider } from "./contexts/ToastContext";
-import { MediaPreviewProvider } from "./contexts/MediaPreviewContext";
+import { MediaPreviewProvider, useMediaPreview } from "./contexts/MediaPreviewContext";
 import BottomNav from "./components/BottomNav";
 import MediaPreviewTray from "./components/MediaPreviewTray";
 import SystemAlerts from "./components/SystemAlerts";
-import PopcornLoader from "./components/PopcornLoader";
 import WhatsAppBubble from "./components/WhatsAppBubble";
 // import LoginPopup from "./components/LoginPopup"; // Removing as per request
 import { Analytics } from "./components/Analytics";
@@ -74,6 +73,20 @@ function PageWrapper({ children }: { children: React.ReactNode }) {
 function AppContent() {
   const { siteConfig } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { previewId, triggerSource, closePreview } = useMediaPreview();
+
+  // Redirect any previewId trigger directly to details page or watch page
+  useEffect(() => {
+    if (previewId) {
+      if (triggerSource === 'continue-watching' || triggerSource === 'watchlist') {
+        navigate(`/watch/${previewId}`);
+      } else {
+        navigate(`/details/${previewId}`);
+      }
+      closePreview();
+    }
+  }, [previewId, triggerSource, navigate, closePreview]);
   
   // Apply dynamic brand color and title
   useEffect(() => {
@@ -88,16 +101,27 @@ function AppContent() {
   const shouldShowNav = showNavRoutes.includes(location.pathname);
 
   return (
-    <div className="min-h-screen bg-transparent text-white selection:bg-brand/30 selection:text-white font-sans antialiased pb-20">
+    <div className={`min-h-screen bg-transparent text-white selection:bg-brand/30 selection:text-white font-sans antialiased ${shouldShowNav ? "pb-20" : ""}`}>
       {/* <LoginPopup /> */}
       <Analytics />
       <SystemAlerts />
-      <MediaPreviewTray />
       <WhatsAppBubble />
       <main>
         <Suspense fallback={
-          <div className="min-h-screen flex items-center justify-center bg-transparent">
-            <PopcornLoader />
+          <div className="min-h-screen bg-[#080808] text-white pb-20 overflow-hidden">
+            <div className="relative w-full aspect-[21/9] bg-transparent overflow-hidden mb-12">
+              <div className="animate-pulse bg-white/5 rounded-md absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%)', backgroundSize: '200% 100%' }} />
+            </div>
+            <div className="max-w-[1400px] mx-auto px-6 space-y-12">
+              <div className="animate-pulse bg-white/5 rounded-md h-8 w-48" style={{ background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%)', backgroundSize: '200% 100%' }} />
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="space-y-3">
+                    <div className="animate-pulse bg-white/5 rounded-xl aspect-[2/3] w-full" style={{ background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%)', backgroundSize: '200% 100%' }} />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         }>
       <AnimatePresence mode="wait">
@@ -113,7 +137,6 @@ function AppContent() {
             <Route path="/search" element={<Search />} />
             <Route path="/details/:id" element={<Details />} />
             <Route path="/watch/:id" element={<Details />} />
-            <Route path="/watch/:id/:slug?" element={<Details />} />
             <Route path="/browse" element={<Browse />} />
             <Route path="/anime" element={<Anime />} />
             <Route path="/actor/:id" element={<ActorPage />} />

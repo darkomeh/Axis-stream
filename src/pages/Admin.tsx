@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import Navbar from '../components/Navbar';
-import PopcornLoader from '../components/PopcornLoader';
+import { Skeleton, ListSkeleton } from '../components/Skeleton';
 import ServerHealthMonitor from '../components/admin/ServerHealthMonitor';
 import ApiHealthMonitor from '../components/admin/ApiHealthMonitor';
 import SpotlightManager from '../components/admin/SpotlightManager';
@@ -466,9 +466,17 @@ export default function Admin() {
  </div>
 
  {loading ? (
- <div className="flex items-center justify-center py-40">
- <PopcornLoader />
- </div>
+   <div className="space-y-8 py-8">
+     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+       <Skeleton className="h-32 rounded-3xl animate-pulse" />
+       <Skeleton className="h-32 rounded-3xl animate-pulse" />
+       <Skeleton className="h-32 rounded-3xl animate-pulse" />
+     </div>
+     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+       <Skeleton className="h-96 rounded-[2.5rem] animate-pulse" />
+       <Skeleton className="h-96 rounded-[2.5rem] animate-pulse" />
+     </div>
+   </div>
  ) : data && (
  <div className="space-y-12">
  {activeTab === 'overview' && (

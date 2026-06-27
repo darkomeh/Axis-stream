@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { movieService } from "../services/movieService";
 import { MediaItem } from "../types";
 import PosterGrid from "../components/PosterGrid";
-import PopcornLoader from "../components/PopcornLoader";
 import { 
  Search as SearchIcon, X, TrendingUp, ArrowLeft, Loader2, Filter, 
  Clock, History, ArrowUpRight, User, Menu, Play, Sparkles, 

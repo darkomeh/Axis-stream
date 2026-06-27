@@ -105,7 +105,7 @@ const FALLBACK_SERIES: MediaItem[] = [
   {
     id: "301554-bb",
     title: "Breaking Bad",
-    poster: "https://images.unsplash.com/photo-1520116468419-a5abc8229b34?auto=format&fit=crop&q=80&w=600",
+    poster: "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=600",
     rating: "9.5",
     contentRating: "TV-MA",
     type: "Series",
@@ -421,7 +421,7 @@ export const externalMovieService = {
 
       const params = isBackup 
         ? { query, page, perPage: perPage * 3, subjectType: mappedSubjectType } 
-        : { keyword: query, page, perPage: perPage * 2, subjectType };
+        : { keyword: query, page, perPage: Math.min(50, perPage * 2), subjectType };
       
       const response = await fetchWithRetry({ 
         url: `/search`, 

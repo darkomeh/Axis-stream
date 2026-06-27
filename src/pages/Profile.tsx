@@ -30,6 +30,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { MovieImage } from "../components/MovieImage";
 import { useToast } from "../contexts/ToastContext";
+import { slugify } from "../types";
 
 import Admin from "./Admin";
 import { MetaVerifiedBadge } from "../components/MetaVerifiedBadge";
@@ -182,7 +183,8 @@ export default function Profile() {
               Join the Elite
             </h2>
             <p className="text-fluid-sm text-gray-400 font-medium text-center mb-8">
-              Sign in with Google to access premium features and see your profile.
+              Sign in with Google to access premium features and see your
+              profile.
             </p>
 
             <button
@@ -314,7 +316,9 @@ export default function Profile() {
                 <div className="flex flex-col md:flex-row md:items-center gap-3">
                   <h2 className="text-fluid-4xl font-semibold tracking-tight inline-flex items-center gap-1.5 justify-center md:justify-start">
                     {user.username}
-                    {isAdmin && <MetaVerifiedBadge className="w-7 h-7 drop-shadow-[0_0_8px_rgba(0,149,246,0.4)]" />}
+                    {isAdmin && (
+                      <MetaVerifiedBadge className="w-7 h-7 drop-shadow-[0_0_8px_rgba(0,149,246,0.4)]" />
+                    )}
                   </h2>
                   {user.email === "greatmayuku2@gmail.com" && (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-600/20 text-blue-400 rounded-full text-fluid-sm font-semibold tracking-wide border border-blue-500/30 shadow-[0_0_12px_rgba(37,99,235,0.2)]">
@@ -332,12 +336,12 @@ export default function Profile() {
               </div>
 
               <div className="flex flex-wrap justify-center md:justify-start gap-4">
-                  <button
-                    onClick={logout}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 glass-button px-6 py-3 text-white"
-                  >
-                    <LogOut className="w-4 h-4" /> Sign Out
-                  </button>
+                <button
+                  onClick={logout}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 glass-button px-6 py-3 text-white"
+                >
+                  <LogOut className="w-4 h-4" /> Sign Out
+                </button>
                 <button
                   onClick={openEditProfile}
                   className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 glass-button border border-white/10 hover:bg-white/10 text-white/80 hover:text-white rounded-full transition-all text-fluid-base font-semibold tracking-wide active:scale-95"
@@ -581,7 +585,7 @@ export default function Profile() {
                   key={`${item.id}-${index}`}
                   whileHover={{ y: -5 }}
                   className="group relative rounded-2xl overflow-hidden cursor-pointer"
-                  onClick={() => navigate(`/details/${item.id}`)}
+                  onClick={() => navigate(`/watch/${slugify(item.title)}`)}
                 >
                   <MovieImage
                     src={item.poster}
@@ -633,7 +637,7 @@ export default function Profile() {
                   key={`${item.id}-${index}`}
                   whileHover={{ y: -5, scale: 1.02 }}
                   className="bg-white/5 border border-white/10 rounded-[28px] overflow-hidden flex items-center group relative cursor-pointer"
-                  onClick={() => navigate(`/details/${item.id}`)}
+                  onClick={() => navigate(`/watch/${slugify(item.title)}`)}
                 >
                   <div className="w-28 aspect-[3/4] overflow-hidden">
                     <MovieImage

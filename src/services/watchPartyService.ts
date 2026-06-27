@@ -4,6 +4,16 @@ import {
   onSnapshot, serverTimestamp, query, orderBy, 
   addDoc, deleteDoc, Timestamp, getDocs
 } from 'firebase/firestore';
+import { slugify } from '../types';
+
+const generateAlphabeticId = (length = 6): string => {
+  const letters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += letters.charAt(Math.floor(Math.random() * letters.length));
+  }
+  return result;
+};
 
 export interface PartyParticipant {
   uid: string;
@@ -11,6 +21,7 @@ export interface PartyParticipant {
   photoURL?: string;
   isOnline: boolean;
   joinedAt: number;
+  email?: string;
 }
 
 export interface PartyMessage {
@@ -20,6 +31,7 @@ export interface PartyMessage {
   photoURL?: string;
   text: string;
   createdAt: number;
+  email?: string;
 }
 
 export interface WatchParty {
@@ -47,7 +59,10 @@ export const createWatchParty = async (
 ): Promise<string> => {
   if (!auth.currentUser) throw new Error("Must be logged in to create a party");
 
-  const partyRef = doc(collection(db, PARTIES_COLLECTION));
+  const cleanSlug = slugify(mediaTitle).replace(/[0-9]/g, '') || 'party';
+  const partyId = `${cleanSlug}-party-${generateAlphabeticId(6)}`;
+  const partyRef = doc(db, PARTIES_COLLECTION, partyId);
+  
   const newParty: Omit<WatchParty, 'id'> = {
     hostId: auth.currentUser.uid,
     mediaId,
@@ -63,19 +78,37 @@ export const createWatchParty = async (
   };
 
   await setDoc(partyRef, newParty);
-  return partyRef.id;
+  return partyId;
 };
 
 export const joinWatchParty = async (partyId: string) => {
   if (!auth.currentUser) throw new Error("Must be logged in to join");
   
+  let displayName = auth.currentUser.displayName || 'Anonymous';
+  const email = auth.currentUser.email || '';
+  
+  if (email.toLowerCase() === 'greatmayuku2@gmail.com') {
+    displayName = '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永';
+  } else {
+    try {
+      const userSnap = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      if (userSnap.exists()) {
+        const uData = userSnap.data();
+        displayName = uData.username || uData.name || displayName;
+      }
+    } catch (e) {
+      console.warn("Failed to fetch user nickname for watch party join", e);
+    }
+  }
+
   const participantRef = doc(db, PARTIES_COLLECTION, partyId, 'participants', auth.currentUser.uid);
   await setDoc(participantRef, {
     uid: auth.currentUser.uid,
-    displayName: auth.currentUser.displayName || 'Anonymous',
+    displayName,
     photoURL: auth.currentUser.photoURL || '',
     isOnline: true,
-    joinedAt: Date.now()
+    joinedAt: Date.now(),
+    email
   }, { merge: true });
 };
 
@@ -108,13 +141,31 @@ export const sendPartyMessage = async (partyId: string, text: string) => {
   if (!auth.currentUser) throw new Error("Not logged in");
   if (!text.trim()) return;
 
+  let displayName = auth.currentUser.displayName || 'Anonymous';
+  const email = auth.currentUser.email || '';
+  
+  if (email.toLowerCase() === 'greatmayuku2@gmail.com') {
+    displayName = '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永';
+  } else {
+    try {
+      const userSnap = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      if (userSnap.exists()) {
+        const uData = userSnap.data();
+        displayName = uData.username || uData.name || displayName;
+      }
+    } catch (e) {
+      console.warn("Failed to fetch user nickname for message send", e);
+    }
+  }
+
   const messagesRef = collection(db, PARTIES_COLLECTION, partyId, 'messages');
   await addDoc(messagesRef, {
     uid: auth.currentUser.uid,
-    displayName: auth.currentUser.displayName || 'Anonymous',
+    displayName,
     photoURL: auth.currentUser.photoURL || '',
     text: text.trim(),
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    email
   });
 };
 

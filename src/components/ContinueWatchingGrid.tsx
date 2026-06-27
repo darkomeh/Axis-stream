@@ -33,8 +33,19 @@ function ContinueWatchingGrid({ title, items }: ContinueWatchingGridProps) {
 
  <div className="flex overflow-x-auto gap-3 md:gap-5 pb-8 pt-2 snap-x snap-mandatory hide-scrollbar -mx-fluid px-fluid">
  {items.slice(0, 10).map((item, index) => {
- const progressPercent = item.duration ? Math.min(100, (item.progress / item.duration) * 100) : 50;
- const timeLeft = item.duration ? Math.max(0, Math.floor((item.duration - item.progress) / 60)) : 0;
+ const progressPercent = item.duration && item.duration > 1 ? Math.min(100, (item.progress / item.duration) * 100) : Math.min(100, item.progress);
+ const timeLeftMinutes = item.duration && item.duration > 1 ? Math.max(0, Math.floor((item.duration - item.progress) / 60)) : 0;
+ const timeLeftHours = Math.floor(timeLeftMinutes / 60);
+ const timeLeftMins = timeLeftMinutes % 60;
+ 
+ let timeLeftStr = 'Resume';
+ if (timeLeftMinutes > 0) {
+  if (timeLeftHours > 0) {
+   timeLeftStr = `${timeLeftHours}h ${timeLeftMins}m left`;
+  } else {
+   timeLeftStr = `${timeLeftMins}m left`;
+  }
+ }
  
  return (
  <div
@@ -86,18 +97,18 @@ function ContinueWatchingGrid({ title, items }: ContinueWatchingGridProps) {
 
  {/* Progress Bar & Time Left */}
  <div className="flex items-center gap-3">
- <div className="flex-1 h-1 bg-white/20 rounded-full overflow-hidden backdrop-blur-md">
+ <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden backdrop-blur-md">
  <motion.div 
  initial={{ width: 0 }}
  whileInView={{ width: `${progressPercent}%` }}
  transition={{ duration: 1, ease: "easeOut" }}
- className="h-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)] relative"
+ className="h-full bg-brand shadow-[0_0_10px_rgba(229,9,20,0.8)] relative"
  >
  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full scale-[1.5] shadow-[0_0_10px_#fff]" />
  </motion.div>
  </div>
  <span className="text-fluid-sm font-semibold text-white/50 whitespace-nowrap">
- {timeLeft > 0 ? `${timeLeft}m left` : 'Resume'}
+ {timeLeftStr}
  </span>
  </div>
  </div>

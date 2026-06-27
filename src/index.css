@@ -46,6 +46,14 @@
   .text-fluid-7xl { font-size: var(--text-fluid-7xl); }
   .px-fluid { padding-left: var(--fluid-px-12); padding-right: var(--fluid-px-12); }
   .px-fluid-sm { padding-left: var(--fluid-px-6); padding-right: var(--fluid-px-6); }
+
+  /* Safe Area Utilities */
+  .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .mt-safe { margin-top: env(safe-area-inset-top, 0px); }
+  .mb-safe { margin-bottom: env(safe-area-inset-bottom, 0px); }
+  .top-safe { top: env(safe-area-inset-top, 0px); }
+  .bottom-safe { bottom: env(safe-area-inset-bottom, 0px); }
   
   /* Fluid Spacing & Margin Utilities */
   .space-y-fluid > :not([hidden]) ~ :not([hidden]) {

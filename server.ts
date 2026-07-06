@@ -38,13 +38,19 @@ const app = express();
 app.use((req, res, next) => {
   if (process.env.VERCEL) {
     let url = req.url;
-    // If it's a rewritten generic slug
-    if (url.startsWith('/?slug=')) {
-      url = '/' + url.split('/?slug=')[1];
+    // If Vercel rewrote it to /?path=... or /?slug=...
+    const match = url.match(/^\/\?(slug|path)=([^&]+)(.*)/);
+    if (match) {
+      url = '/' + decodeURIComponent(match[2]) + match[3].replace(/^&/, '?');
     }
-    // If it doesn't have /api prefix but it's an api request
-    if (!url.startsWith('/api') && url !== '/' && !url.includes('sitemap') && !url.includes('robots')) {
-      req.url = '/api' + url;
+    
+    // Express app has routes defined with /api/ prefix.
+    // If Vercel stripped it, we MUST prepend it back!
+    if (!url.startsWith('/api')) {
+      // Avoid turning / into /api/
+      req.url = url === '/' ? '/api' : '/api' + (url.startsWith('/') ? url : '/' + url);
+    } else {
+      req.url = url;
     }
   }
   next();

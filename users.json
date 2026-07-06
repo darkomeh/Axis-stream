@@ -8,7 +8,7 @@
     "bio": "Your lovely ×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永",
     "role": "admin",
     "watchlistCount": 0,
-    "historyCount": 7,
+    "historyCount": 12,
     "stats": {
       "watchTimeMinutes": 125,
       "totalViews": 35,
@@ -42,10 +42,95 @@
       "theme": "Dark",
       "kidsMode": false
     },
-    "lastAction": "2026-07-06T08:10:09.116Z",
+    "lastAction": "2026-07-06T19:44:13.259Z",
     "lastActionType": null,
     "createdAt": "2026-06-04T20:26:08.846Z",
-    "updatedAt": "2026-07-06T08:10:09.498Z",
+    "updatedAt": "2026-07-06T19:44:13.549Z",
     "joinedAt": "Sat, 25 Apr 2026 17:38:28 GMT"
+  },
+  {
+    "id": "KkVyFXjuBkORMlHUgnTPdDHBRB13",
+    "username": "realdarkomeh",
+    "name": "Dark Omeh",
+    "email": "realdarkomeh@gmail.com",
+    "avatar": "https://lh3.googleusercontent.com/a/ACg8ocLqv7_8ob3FQ9Jf27TAcz1jB3_psUEve9ppd_Eg2Tg5TMoDeg=s96-c",
+    "bio": "",
+    "role": "user",
+    "joinedAt": "Sat, 25 Apr 2026 00:03:59 GMT",
+    "watchlistCount": 0,
+    "historyCount": 4,
+    "stats": {
+      "watchTimeMinutes": 0,
+      "totalViews": 1,
+      "lastWatchDate": "2026-04-30",
+      "currentStreak": 0,
+      "genreProgress": {
+        "Series": 1
+      },
+      "weekendCount": 0,
+      "badges": []
+    },
+    "preferences": {
+      "autoPlayNext": true,
+      "autoPlay": true,
+      "showTrailers": true,
+      "defaultQuality": "auto",
+      "skipIntro": false,
+      "playbackSpeed": 1,
+      "dataSaver": false,
+      "subtitleSettings": {
+        "fontSize": 14,
+        "color": "#ffffff",
+        "backgroundColor": "rgba(0,0,0,0)",
+        "verticalPosition": 4
+      },
+      "theme": "Dark",
+      "accentColor": "Purple"
+    },
+    "lastAction": "2026-07-06T19:45:45.810Z",
+    "lastActionType": null,
+    "createdAt": "2026-07-06T19:44:49.156Z",
+    "updatedAt": "2026-07-06T19:45:46.096Z"
+  },
+  {
+    "id": "0746IR1oy1ZlnLHPRoOBbSNw1kD2",
+    "username": "capeolive205",
+    "name": "Olive Cape",
+    "email": "capeolive205@gmail.com",
+    "avatar": "https://lh3.googleusercontent.com/a/ACg8ocJgJWbwA6SUxfGYj3Qb16Tdr5L9vjlDCsPhYeNJX81zHHGZ4Lc=s96-c",
+    "bio": "",
+    "role": "user",
+    "joinedAt": "Sat, 25 Apr 2026 17:58:39 GMT",
+    "watchlistCount": 0,
+    "historyCount": 0,
+    "stats": {
+      "watchTimeMinutes": 0,
+      "totalViews": 0,
+      "lastWatchDate": null,
+      "currentStreak": 0,
+      "genreProgress": {},
+      "weekendCount": 0,
+      "badges": []
+    },
+    "preferences": {
+      "autoPlayNext": true,
+      "autoPlay": true,
+      "showTrailers": true,
+      "defaultQuality": "auto",
+      "skipIntro": false,
+      "playbackSpeed": 1,
+      "dataSaver": false,
+      "kidsMode": false,
+      "subtitleSettings": {
+        "fontSize": 14,
+        "color": "#ffffff",
+        "backgroundColor": "rgba(0,0,0,0)",
+        "verticalPosition": 4
+      }
+    },
+    "lastAction": "2026-07-06T20:37:14.203Z",
+    "lastActionType": null,
+    "createdAt": "2026-07-06T19:46:04.804Z",
+    "updatedAt": "2026-07-06T20:37:15.178Z"
   }
 ]

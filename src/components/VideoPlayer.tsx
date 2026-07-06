@@ -36,6 +36,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import { movieService } from "../services/movieService";
 import { parseSRT, SubtitleItem } from "../lib/subtitleParser";
+import { useAudioFeedback } from "../hooks/useAudioFeedback";
 
 // Dynamically import Hls to reduce bundle size
 const loadHls = () => import("hls.js").then((m) => m.default);
@@ -94,13 +95,22 @@ export default function VideoPlayer({
  user,
  updateContinueWatching,
  updatePreferences,
+ siteConfig,
  } = useAuth();
  const { showToast } = useToast();
+ const { playInteractionSound } = useAudioFeedback();
 
  // Reference for tracking elapsed time for global analytics
  const lastTrackedTimeRef = useRef<number>(0);
 
-   const [forceIframe, setForceIframe] = useState(mediaData?.isBackup ?? false);
+   const getInitialForceIframe = () => {
+     if (mediaData?.forceIframe) return true;
+     if (siteConfig?.streamSource === 'imbed') return true;
+     if (siteConfig?.streamSource === 'xcasper') return false;
+     return mediaData?.isBackup ?? false;
+   };
+
+   const [forceIframe, setForceIframe] = useState(getInitialForceIframe());
 
   // Track if we need to fall back to an iframe instead of direct video play
   const useIframeFallback =
@@ -108,8 +118,16 @@ export default function VideoPlayer({
 
   // Update forceIframe dynamically if the API source changes or a new episode starts
   useEffect(() => {
-    setForceIframe(mediaData?.isBackup ?? false);
-  }, [mediaData?.isBackup, mediaData?.id]);
+    if (mediaData?.forceIframe) {
+      setForceIframe(true);
+    } else if (siteConfig?.streamSource === 'imbed') {
+      setForceIframe(true);
+    } else if (siteConfig?.streamSource === 'xcasper') {
+      setForceIframe(false);
+    } else {
+      setForceIframe(mediaData?.forceIframe || (mediaData?.isBackup ?? false));
+    }
+  }, [mediaData?.isBackup, mediaData?.forceIframe, mediaData?.id, siteConfig?.streamSource]);
 
  // Server Selection
  const serversList = mediaData.vidsrcServers && mediaData.vidsrcServers.length > 0 
@@ -556,6 +574,8 @@ export default function VideoPlayer({
  if (!isHost && watchPartyState?.playbackState) { showToast("Only the host can control playback", "info"); return; }
  if (!videoRef.current) return;
 
+ playInteractionSound('click');
+
  if (videoRef.current.paused) {
  videoRef.current.play().catch(() => {});
  if (onWatchPartySync) onWatchPartySync('PLAY', videoRef.current.currentTime);
@@ -762,10 +782,13 @@ export default function VideoPlayer({
  enableWorker: true,
  capLevelToPlayerSize: true,
  startLevel: 0, // ALWAYS force lowest quality (level 0) on start to ensure fast and easy loading
- // LOW DATA SAVING OPTIMIZATIONS
- maxBufferLength: preferences.dataSaver ? 5 : 10, // Small buffer saves data
- maxMaxBufferLength: preferences.dataSaver ? 10 : 20,
- maxBufferSize: preferences.dataSaver ? 15 * 1000 * 1000 : 40 * 1000 * 1000,
+ lowLatencyMode: true, // Speeds up startup & lowers buffering requirements
+ // AGGRESSIVE BUFFERING TARGETS FOR LIGHTNING FAST STARTUP (1s target instead of 10s)
+ maxBufferLength: preferences.dataSaver ? 2 : 4, // Download less ahead of time
+ maxMaxBufferLength: preferences.dataSaver ? 5 : 10,
+ maxBufferSize: preferences.dataSaver ? 5 * 1000 * 1000 : 15 * 1000 * 1000, // Small buffer size reduces memory and load times
+ maxBufferHole: 0.5,
+ nudgeMaxRetry: 15,
  });
  hlsRef.current = hls;
  hls.loadSource(source.url);
@@ -810,6 +833,11 @@ export default function VideoPlayer({
  });
  } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
  video.src = source.url;
+ video.onloadedmetadata = () => {
+ if (currentTimeToRestore > 0)
+ video.currentTime = currentTimeToRestore;
+ if (isPlaying) video.play().catch(() => {});
+ };
  }
  } else {
  video.src = source.url;
@@ -950,7 +978,7 @@ export default function VideoPlayer({
      description: description || "",
      type: seasons ? "Series" : "Movie",
      progress: 0,
-     duration: 100, // Dummy duration to show it hasn't been finished
+     duration: 100, // duration to show it hasn't been finished
      updatedAt: Date.now(),
      season: selectedSeason,
      episode: selectedEpisode,

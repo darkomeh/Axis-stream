@@ -38,15 +38,6 @@ interface TrailItem {
 }
 
 // Fallback high quality YouTube trailers matched with popular Axis content
-const FALLBACK_TRAILERS: { [key: string]: string } = {
-  "1": "https://www.youtube.com/watch?v=1V7GgP7A8b4", // Jack Ryan
-  "2": "https://www.youtube.com/watch?v=mqqft2x_Aa4", // The Batman
-  "3": "https://www.youtube.com/watch?v=Way9Dexny3w", // Dune 2
-  "4": "https://www.youtube.com/watch?v=Di310WS8zLk", // Wednesday
-  "5": "https://www.youtube.com/watch?v=oqxAJKy0R4A", // Squid Game
-  "6": "https://www.youtube.com/watch?v=d9MyW72ELq0", // Avatar
-  "7": "https://www.youtube.com/watch?v=JfVOs4VSpmA", // Spider-Man
-};
 
 const DEFAULT_BIOS = "Official previews, trailers, and behind-the-scenes exclusives for high-octane blockbusters, series, and animes. Axis Trails is your premium ticket to cinema's upcoming heavyweights.";
 
@@ -92,7 +83,7 @@ export default function Trails() {
   const navigate = useNavigate();
   const { movieSlug } = useParams();
   const { showToast } = useToast();
-  const { user, isInWatchlist, addToWatchlist, removeFromWatchlist } = useAuth();
+  const { user, preferences, isInWatchlist, addToWatchlist, removeFromWatchlist } = useAuth();
 
   const [isDesktop, setIsDesktop] = useState(() => {
     try {
@@ -266,7 +257,8 @@ export default function Trails() {
             const seed = parseInt(item.id) || i + 3;
             
             // Prefer real trailer URL from API, but fall back to a high-quality trailer if empty
-            const finalTrailer = rawTrailer ? rawTrailer : (FALLBACK_TRAILERS[String(i % 7 + 1)] || FALLBACK_TRAILERS["1"]);
+            if (!rawTrailer) continue;
+            const finalTrailer = rawTrailer;
             
             trailItems.push({
               id: item.id,
@@ -308,7 +300,8 @@ export default function Trails() {
               
               const details = await movieService.getDetails(bestMatch.id);
               const rawTrailer = details.trailerUrl || details.detailPath || "";
-              const finalTrailer = rawTrailer ? rawTrailer : (FALLBACK_TRAILERS["1"] || "");
+              if (!rawTrailer) throw new Error("No trailer");
+              const finalTrailer = rawTrailer;
               
               const sharedItem: TrailItem = {
                 id: bestMatch.id,
@@ -345,37 +338,7 @@ export default function Trails() {
         // Populate initial comments
         const initialComments: Record<string, any> = {};
         
-        const possibleCreators = [
-          "chidi_axis", "aisha_o", "alex_cinemafan", "movie_buff99", 
-          "cinephile_pro", "tokyo_dreamer", "sarah_k", "david_film", 
-          "k_drama_lover", "anime_stan", "marcus_reviews", "watch_tracker", 
-          "scifi_geek", "axis_premiumer", "g_streamer", "reel_magic", "popcorn_time",
-          "stellar_spectator", "theatre_kid", "screensmith", "retro_flicker"
-        ];
         
-        const possiblePhrases = [
-          "Genuinely excited for this! Cinematography looks legendary 🔥",
-          "The audio pacing is so tense. Definitely watching.",
-          "The streaming pipeline is fully optimized for this release! Stunning fidelity 🛸",
-          "Absolutely stunning trailer. The visual clarity in 1080p is wild!",
-          "This is what real entertainment feels like. Great job compiling this!",
-          "The transition score is pure gold.",
-          "Honestly, this is a masterpiece in the making! 🤯",
-          "Def adding this to my watchlist right now!",
-          "Wait, is this coming to the anime section as well?",
-          "The color grading fits the narrative perfectly.",
-          "10/10 for the casting!",
-          "Wait, is this an exclusive or a simulcast?",
-          "Simply magnificent. Highly recommended!",
-          "My jaw dropped during the action sequence.",
-          "The sound design is next level.",
-          "This page has pristine video loading speeds, loving the user feel!",
-          "The plot twist in this trailer has me fully hooked.",
-          "Who else is bingeing the release the second it drops?",
-          "Axis TV really hit a home run with this selection!"
-        ];
-        
-        const possibleTimes = ["1m ago", "5m ago", "15m ago", "35m ago", "1h ago", "2h ago", "4h ago", "12h ago", "1d ago"];
 
         finalList.forEach(item => {
           const generatedComments: any[] = [];
@@ -388,25 +351,6 @@ export default function Trails() {
             time: "1h ago",
             isOfficial: true
           });
-          
-          // 2. Add randomized community comments to meet exactly item.commentsCount
-          const itemCreators = [...possibleCreators].sort(() => Math.random() - 0.5);
-          const itemPhrases = [...possiblePhrases].sort(() => Math.random() - 0.5);
-          
-          const maxRemaining = Math.max(0, item.commentsCount - 1);
-          for (let k = 0; k < maxRemaining; k++) {
-            const commenter = itemCreators[k % itemCreators.length];
-            const textPhrase = itemPhrases[k % itemPhrases.length];
-            const timeVal = possibleTimes[k % possibleTimes.length];
-            
-            generatedComments.push({
-              id: `c-${item.id}-${k}`,
-              name: commenter,
-              text: textPhrase,
-              time: timeVal,
-              isOfficial: false
-            });
-          }
           
           initialComments[item.id] = generatedComments;
         });
@@ -568,20 +512,7 @@ export default function Trails() {
     setItems(prev => prev.map(t => t.id === activeItem.id ? { ...t, commentsCount: t.commentsCount + 1 } : t));
     setNewCommentText("");
 
-    // Simulate official creator response after 2 seconds
-    setTimeout(() => {
-      const respComment = {
-        id: `official-${Date.now()}`,
-        name: "Axis Trails",
-        text: "Thanks for commenting! Ensure to add this to your playlist and toggle reminders.",
-        time: "Just now",
-        isOfficial: true
-      };
-      setCommentsMap(prev => ({
-        ...prev,
-        [activeItem.id]: [...prev[activeItem.id], respComment]
-      }));
-    }, 1500);
+    
   };
 
   const followCreator = () => {
@@ -901,17 +832,19 @@ export default function Trails() {
                       </span>
                     </div>
 
-                    <div className="flex flex-col items-center select-none group">
-                      <button 
-                        onClick={() => setShowComments(true)}
-                        className="w-11 h-11 rounded-full flex items-center justify-center border border-white/10 text-white bg-black/35 hover:bg-black/55 group-hover:scale-105 transition-all duration-200 active:scale-75 shadow-lg backdrop-blur-md"
-                      >
-                        <MessageCircle className="w-5 h-5" />
-                      </button>
-                      <span className="text-[10px] font-black text-white/90 drop-shadow mt-1 select-none font-mono">
-                        {formatShortNumber(item.commentsCount)}
-                      </span>
-                    </div>
+                    {!preferences?.kidsMode && (
+                      <div className="flex flex-col items-center select-none group">
+                        <button 
+                          onClick={() => setShowComments(true)}
+                          className="w-11 h-11 rounded-full flex items-center justify-center border border-white/10 text-white bg-black/35 hover:bg-black/55 group-hover:scale-105 transition-all duration-200 active:scale-75 shadow-lg backdrop-blur-md"
+                        >
+                          <MessageCircle className="w-5 h-5" />
+                        </button>
+                        <span className="text-[10px] font-black text-white/90 drop-shadow mt-1 select-none font-mono">
+                          {formatShortNumber(item.commentsCount)}
+                        </span>
+                      </div>
+                    )}
 
                     <div className="flex flex-col items-center select-none group">
                       <button 
@@ -1381,73 +1314,81 @@ export default function Trails() {
                     </div>
 
                     {/* Live Discussion & Comment section */}
-                    <div className="space-y-3 pt-2">
-                      <div className="flex items-center justify-between select-none border-b border-white/5 pb-2">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-black uppercase tracking-widest font-mono text-slate-400">Live Discussion Timeline</span>
-                          <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-white/5 text-slate-400">{item.commentsCount}</span>
+                    {preferences?.kidsMode ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-center space-y-3 bg-white/5 rounded-2xl p-4 border border-white/5 select-none animate-fade-in">
+                        <span className="text-2xl select-none">🛡️</span>
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-300">Safe Streaming Active</h3>
+                        <p className="text-[10px] text-slate-400 font-medium leading-relaxed max-w-[240px] mx-auto">Comments and community chats are turned off in Kids Mode to keep things completely friendly and safe!</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 pt-2">
+                        <div className="flex items-center justify-between select-none border-b border-white/5 pb-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-black uppercase tracking-widest font-mono text-slate-400">Live Discussion Timeline</span>
+                            <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-white/5 text-slate-400">{item.commentsCount}</span>
+                          </div>
+                          <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Moderated Feed</span>
                         </div>
-                        <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Moderated Feed</span>
-                      </div>
 
-                      {/* Scrollable comments lists */}
-                      <div className="space-y-3.5 max-h-[190px] overflow-y-auto pr-1 hide-scrollbar">
-                        {((commentsMap[item.id]) || []).map((comm) => {
-                          const isCommenterDev = (comm as any).isDev || comm.name.toLowerCase() === "greatmayuku2" || comm.name.toLowerCase() === "greatmayuku2@gmail.com" || (user && user.email === "greatmayuku2@gmail.com" && comm.name === user.username);
-                          const commenterName = (isCommenterDev && user && user.email === "greatmayuku2@gmail.com" && user.username) ? user.username : comm.name;
-                          return (
-                            <div key={`inline-comm-desk-${comm.id}`} className="flex gap-2.5 items-start text-xs text-left">
-                              <div className={`w-6.5 h-6.5 rounded-full flex items-center justify-center text-[9px] font-black select-none shrink-0 ${
-                                comm.isOfficial 
-                                  ? "bg-brand text-black shadow-[0_0_8px_rgba(244,196,48,0.25)]" 
-                                  : isCommenterDev 
-                                    ? "bg-blue-600 text-white shadow-[0_0_8px_rgba(37,99,235,0.3)]" 
-                                    : "bg-white/10 text-white"
-                              }`}>
-                                {comm.isOfficial ? "AT" : isCommenterDev ? "DEV" : commenterName.substring(0, 2).toUpperCase()}
-                              </div>
-                              
-                              <div className="flex-1 min-w-0 space-y-0.5">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="text-white/95 text-[10px] font-black flex items-center gap-1">
-                                    @{commenterName.toLowerCase()}
-                                    {(isCommenterDev || comm.isOfficial || commenterName.toLowerCase() === "axis trails") && (
-                                      <MetaVerifiedBadge className="w-3 h-3" />
-                                    )}
-                                  </span>
-                                  {comm.isOfficial && (
-                                    <span className="bg-brand text-black text-[6px] font-black uppercase px-1 rounded scale-90 origin-left">Creator</span>
-                                  )}
-                                  <span className="text-slate-500 text-[8px] font-medium">{comm.time}</span>
+                        {/* Scrollable comments lists */}
+                        <div className="space-y-3.5 max-h-[190px] overflow-y-auto pr-1 hide-scrollbar">
+                          {((commentsMap[item.id]) || []).map((comm) => {
+                            const isCommenterDev = (comm as any).isDev || comm.name.toLowerCase() === "greatmayuku2" || comm.name.toLowerCase() === "greatmayuku2@gmail.com" || (user && user.email === "greatmayuku2@gmail.com" && comm.name === user.username);
+                            const commenterName = (isCommenterDev && user && user.email === "greatmayuku2@gmail.com" && user.username) ? user.username : comm.name;
+                            return (
+                              <div key={`inline-comm-desk-${comm.id}`} className="flex gap-2.5 items-start text-xs text-left">
+                                <div className={`w-6.5 h-6.5 rounded-full flex items-center justify-center text-[9px] font-black select-none shrink-0 ${
+                                  comm.isOfficial 
+                                    ? "bg-brand text-black shadow-[0_0_8px_rgba(244,196,48,0.25)]" 
+                                    : isCommenterDev 
+                                      ? "bg-blue-600 text-white shadow-[0_0_8px_rgba(37,99,235,0.3)]" 
+                                      : "bg-white/10 text-white"
+                                }`}>
+                                  {comm.isOfficial ? "AT" : isCommenterDev ? "DEV" : commenterName.substring(0, 2).toUpperCase()}
                                 </div>
-                                <p className="text-slate-300 text-[11px] leading-relaxed font-sans pr-2">
-                                  {comm.text}
-                                </p>
+                                
+                                <div className="flex-1 min-w-0 space-y-0.5">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-white/95 text-[10px] font-black flex items-center gap-1">
+                                      @{commenterName.toLowerCase()}
+                                      {(isCommenterDev || comm.isOfficial || commenterName.toLowerCase() === "axis trails") && (
+                                        <MetaVerifiedBadge className="w-3 h-3" />
+                                      )}
+                                    </span>
+                                    {comm.isOfficial && (
+                                      <span className="bg-brand text-black text-[6px] font-black uppercase px-1 rounded scale-90 origin-left">Creator</span>
+                                    )}
+                                    <span className="text-slate-500 text-[8px] font-medium">{comm.time}</span>
+                                  </div>
+                                  <p className="text-slate-300 text-[11px] leading-relaxed font-sans pr-2">
+                                    {comm.text}
+                                  </p>
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                            );
+                          })}
+                        </div>
 
-                      {/* Comment form */}
-                      <form onSubmit={postComment} className="flex gap-2 pt-2 border-t border-white/5 pointer-events-auto">
-                        <input
-                          type="text"
-                          value={newCommentText}
-                          onChange={(e) => setNewCommentText(e.target.value)}
-                          placeholder={user ? `Add comment on ${item.title}...` : "Sign in under profile to comment..."}
-                          disabled={!user}
-                          className="flex-1 bg-white/5 border border-white/5 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:bg-white/10 focus:border-brand/30 transition-all font-sans"
-                        />
-                        <button
-                          type="submit"
-                          disabled={!user || !newCommentText.trim()}
-                          className="px-4.5 rounded-xl bg-brand disabled:bg-white/5 text-black disabled:text-white/30 font-black text-xs uppercase tracking-widest flex items-center justify-center transition-all shadow-[0_3px_10px_rgba(244,196,48,0.15)] active:scale-95 shrink-0"
-                        >
-                          <Send className="w-3 h-3" />
-                        </button>
-                      </form>
-                    </div>
+                        {/* Comment form */}
+                        <form onSubmit={postComment} className="flex gap-2 pt-2 border-t border-white/5 pointer-events-auto">
+                          <input
+                            type="text"
+                            value={newCommentText}
+                            onChange={(e) => setNewCommentText(e.target.value)}
+                            placeholder={user ? `Add comment on ${item.title}...` : "Sign in under profile to comment..."}
+                            disabled={!user}
+                            className="flex-1 bg-white/5 border border-white/5 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:bg-white/10 focus:border-brand/30 transition-all font-sans"
+                          />
+                          <button
+                            type="submit"
+                            disabled={!user || !newCommentText.trim()}
+                            className="px-4.5 rounded-xl bg-brand disabled:bg-white/5 text-black disabled:text-white/30 font-black text-xs uppercase tracking-widest flex items-center justify-center transition-all shadow-[0_3px_10px_rgba(244,196,48,0.15)] active:scale-95 shrink-0"
+                          >
+                            <Send className="w-3 h-3" />
+                          </button>
+                        </form>
+                      </div>
+                    )}
 
                   </div>
 

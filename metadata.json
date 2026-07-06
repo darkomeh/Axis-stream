@@ -1,5 +1,7 @@
 {
   "name": "Λ𝗫𝗜𝗦 𝗦TREAM",
-  "description": "Redefining the cinematic experience. A premium streaming platform inspired by Apple TV+ and Netflix.",
-  "requestFramePermissions": []
+  "description": "Redefining the cinematic experience. A premium streaming platform with dedicated kid-safe modes inspired by Apple TV+.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }

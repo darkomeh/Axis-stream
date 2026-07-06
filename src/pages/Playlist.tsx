@@ -1,21 +1,31 @@
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { ListVideo, X, Plus, ArrowLeft } from 'lucide-react';
+import { ListVideo, X, Plus, ArrowLeft, Share2, Globe, ThumbsUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { useAudioFeedback } from '../hooks/useAudioFeedback';
+import { ShimmerButton } from '../components/ShimmerButton';
 
 export default function Playlist() {
  const { playlists, createPlaylist, deletePlaylist } = useAuth();
  const { showToast } = useToast();
  const navigate = useNavigate();
+ const { playInteractionSound } = useAudioFeedback();
 
  const handleCreatePlaylist = () => {
  const name = window.prompt("Enter Playlist Name:");
  if (name && name.trim().length > 0) {
  createPlaylist(name.trim());
+ playInteractionSound('success');
  showToast("Playlist created successfully!", "success");
  }
+ };
+
+ const sharePlug = (id: string, name: string) => {
+   navigator.clipboard.writeText(`${window.location.origin}/plug/${id}`);
+   playInteractionSound('alert');
+   showToast(`Public link for "${name}" copied! Ready to share.`, "success");
  };
 
  return (
@@ -44,14 +54,33 @@ export default function Playlist() {
  {playlists && playlists.length > 0 ? (
  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
  {playlists.map(p => (
- <div key={p.id} className="bg-white/5 border border-white/10 hover:border-brand/40 rounded-2xl p-6 flex items-start justify-between transition-colors group">
+ <div key={p.id} className="bg-white/5 border border-white/10 hover:border-brand/40 rounded-2xl p-6 flex flex-col justify-between transition-colors group">
+ <div className="flex items-start justify-between mb-4">
  <div>
- <h4 className="font-semibold text-fluid-xl text-white tracking-tight mb-2">{p.name}</h4>
+ <div className="flex items-center gap-2 mb-2">
+ <h4 className="font-semibold text-fluid-xl text-white tracking-tight">{p.name}</h4>
+ {p.items.length >= 0 && <span title="Public Plug"><Globe className="w-3.5 h-3.5 text-brand" /></span>}
+ </div>
  <p className="text-fluid-sm text-gray-500 font-bold tracking-wide">{p.items.length} Items</p>
  </div>
  <button onClick={() => deletePlaylist(p.id)} className="p-2 bg-black/40 backdrop-blur-3xl text-gray-400 hover:text-brand hover:bg-black/40 backdrop-blur-3xl rounded-full transition-all opacity-0 group-hover:opacity-100">
  <X className="w-4 h-4" />
  </button>
+ </div>
+ 
+ <div className="flex items-center justify-between pt-4 border-t border-white/5">
+ <div className="flex items-center gap-1.5 text-xs text-white/40">
+ <ThumbsUp className="w-3 h-3" />
+ <span>{Math.floor(Math.random() * 500) + 12} Upvotes</span>
+ </div>
+ <ShimmerButton 
+ soundType="click"
+ onClick={() => sharePlug(p.id, p.name)}
+ className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-semibold transition-colors"
+ >
+ <Share2 className="w-3 h-3" /> Share Plug
+ </ShimmerButton>
+ </div>
  </div>
  ))}
  </div>

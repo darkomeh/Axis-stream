@@ -5,6 +5,7 @@ import {
   addDoc, deleteDoc, Timestamp, getDocs
 } from 'firebase/firestore';
 import { slugify } from '../types';
+import { handleFirestoreError, OperationType } from './firebaseService';
 
 const generateAlphabeticId = (length = 6): string => {
   const letters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -177,11 +178,14 @@ export const listenToParty = (partyId: string, callback: (party: WatchParty | nu
     } else {
       callback(null);
     }
+  }, (error) => {
+    handleFirestoreError(error, OperationType.GET, `${PARTIES_COLLECTION}/${partyId}`);
   });
 };
 
 export const listenToParticipants = (partyId: string, callback: (participants: PartyParticipant[]) => void) => {
   const participantsRef = collection(db, PARTIES_COLLECTION, partyId, 'participants');
+  const path = `${PARTIES_COLLECTION}/${partyId}/participants`;
   return onSnapshot(participantsRef, (snapshot) => {
     const participants: PartyParticipant[] = [];
     snapshot.forEach((doc) => {
@@ -189,12 +193,15 @@ export const listenToParticipants = (partyId: string, callback: (participants: P
     });
     // Filter out offline users or keep them to show "offline" state
     callback(participants.filter(p => p.isOnline));
+  }, (error) => {
+    handleFirestoreError(error, OperationType.GET, path);
   });
 };
 
 export const listenToMessages = (partyId: string, callback: (messages: PartyMessage[]) => void) => {
   const messagesRef = collection(db, PARTIES_COLLECTION, partyId, 'messages');
   const q = query(messagesRef, orderBy('createdAt', 'asc'));
+  const path = `${PARTIES_COLLECTION}/${partyId}/messages`;
   
   return onSnapshot(q, (snapshot) => {
     const messages: PartyMessage[] = [];
@@ -202,5 +209,7 @@ export const listenToMessages = (partyId: string, callback: (messages: PartyMess
       messages.push({ id: doc.id, ...doc.data() } as PartyMessage);
     });
     callback(messages);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.GET, path);
   });
 };

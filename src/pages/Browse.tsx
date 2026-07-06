@@ -39,24 +39,24 @@ const GENRES = [
 
 const COUNTRIES = [
  { id: "", name: "All Countries" },
- { id: "us", name: "USA" },
- { id: "gb", name: "UK" },
- { id: "cn", name: "China" },
- { id: "kr", name: "Korea" },
- { id: "jp", name: "Japan" },
- { id: "fr", name: "France" },
- { id: "de", name: "Germany" },
- { id: "it", name: "Italy" },
- { id: "es", name: "Spain" },
- { id: "in", name: "India" },
- { id: "ca", name: "Canada" },
- { id: "au", name: "Australia" },
- { id: "br", name: "Brazil" },
- { id: "ru", name: "Russia" },
- { id: "mx", name: "Mexico" },
- { id: "ng", name: "Nigeria" },
- { id: "th", name: "Thailand" },
- { id: "tr", name: "Turkey" },
+ { id: "United States", name: "USA" },
+ { id: "United Kingdom", name: "UK" },
+ { id: "China", name: "China" },
+ { id: "Korea", name: "Korea" },
+ { id: "Japan", name: "Japan" },
+ { id: "France", name: "France" },
+ { id: "Germany", name: "Germany" },
+ { id: "Italy", name: "Italy" },
+ { id: "Spain", name: "Spain" },
+ { id: "India", name: "India" },
+ { id: "Canada", name: "Canada" },
+ { id: "Australia", name: "Australia" },
+ { id: "Brazil", name: "Brazil" },
+ { id: "Russia", name: "Russia" },
+ { id: "Mexico", name: "Mexico" },
+ { id: "Nigeria", name: "Nigeria" },
+ { id: "Thailand", name: "Thailand" },
+ { id: "Turkey", name: "Turkey" },
 ];
 
 const TYPES = [
@@ -67,7 +67,7 @@ const TYPES = [
 
 import { ListSkeleton } from "../components/Skeleton";
 
-export default function Browse() {
+export default function Browse({ isEmbedded = false }: { isEmbedded?: boolean }) {
  const [searchParams, setSearchParams] = useSearchParams();
  const location = useLocation();
  const navigate = useNavigate();
@@ -98,7 +98,7 @@ export default function Browse() {
  const isRestrictedView = isMoviePage || isSeriesPage;
 
  const activeGenres = GENRES.filter(g => g.id !== "");
- const showHorizontalSlices = !selectedGenre && !selectedCountry && (isMoviePage || isSeriesPage || selectedType === "1" || selectedType === "2");
+ const showHorizontalSlices = !selectedGenre && !selectedCountry;
 
  const [visibleGenresCount, setVisibleGenresCount] = useState(4);
  const bottomObserver = useRef<IntersectionObserver | null>(null);
@@ -186,7 +186,7 @@ export default function Browse() {
  selectedCountry || undefined,
  p,
  20,
- type > 0 ? type : 1
+ type
  );
  
  if (reset) {
@@ -207,13 +207,16 @@ export default function Browse() {
  };
 
  return (
- <div className="min-h-screen bg-transparent text-white pb-20 relative overflow-hidden">
+ <div className={`text-white relative overflow-hidden ${isEmbedded ? '' : 'min-h-screen bg-transparent pb-20'}`}>
+ {!isEmbedded && (
  <SEO 
  title={`${selectedGenre || 'Discover'} Movies & Series`}
  description={`Browse our extensive catalog of ${selectedGenre || ''} movies and series on Axis TV. Filter by genre, country, and type to find your next favorite watch.`}
  url="/browse"
  />
+ )}
  {/* Background Poster Collage (Subtle) */}
+ {!isEmbedded && (
  <div className="fixed inset-0 z-0 opacity-10 blur-[80px] pointer-events-none">
  <img 
  src="https://picsum.photos/seed/movie-collage/1920/1080?blur=10" 
@@ -224,10 +227,12 @@ export default function Browse() {
  />
  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
  </div>
+ )}
 
- <Navbar />
+ {!isEmbedded && <Navbar />}
  
- <div className="relative z-10 pt-28 px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto">
+ <div className={`relative z-10 px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto ${isEmbedded ? 'pt-4' : 'pt-28'}`}>
+ {!isEmbedded && (
  <motion.button 
  initial={{ opacity: 0, x: -20 }}
  animate={{ opacity: 1, x: 0 }}
@@ -237,6 +242,7 @@ export default function Browse() {
  <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
  <span className="text-fluid-xs font-semibold tracking-wide">Back</span>
  </motion.button>
+ )}
 
  <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
  <motion.div
@@ -406,7 +412,7 @@ export default function Browse() {
       key={g.id}
       genreId={g.id}
       genreName={g.name}
-      subjectType={isMoviePage || selectedType === "1" ? 1 : 2}
+      subjectType={isMoviePage || selectedType === "1" ? 1 : (isSeriesPage || selectedType === "2" ? 2 : 0)}
      />
     ))}
     {visibleGenresCount < activeGenres.length && (
@@ -442,7 +448,7 @@ export default function Browse() {
  )}
  </div>
 
- <Footer />
+ {!isEmbedded && <Footer />}
  </div>
  );
 }

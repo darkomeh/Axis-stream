@@ -1,199 +1,264 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { 
- Play, MessageCircle, Headphones, ArrowRight, Home, 
- LayoutGrid, Trophy, Radio, Shield, Lock, FileText, 
- HelpCircle, ChevronRight, Crown
+  Play, MessageCircle, Headphones, ArrowRight, Home, 
+  LayoutGrid, Trophy, Radio, Shield, Lock, FileText, 
+  HelpCircle, ChevronRight, Crown, Code, Globe, Sparkles,
+  Tv, Film, ListMusic, Gamepad2, Settings, User
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 
 function Footer() {
- const { showToast } = useToast();
- const WHATSAPP_CHANNEL = "https://whatsapp.com/channel/0029VbC0knY72WU0QUNAid3B";
- const WHATSAPP_CONTACT = "https://wa.me/2348087253512?text=I%20saw%20Axis%20TV%20and%20I'm%20interested%20in...";
+  const { siteConfig } = useAuth();
+  const { showToast } = useToast();
+  
+  const siteName = siteConfig?.siteName || "Axis TV";
+  const tagline = siteConfig?.tagline || "Your Movie Plug";
+  const logoUrl = siteConfig?.logoUrl;
 
- return (
- <footer className="relative bg-black/40 backdrop-blur-3xl border-t border-white/10 pt-16 pb-24 md:pb-12 mt-20 overflow-hidden">
- {/* Background Glow */}
- <div className="absolute top-0 left-1/4 w-96 h-96 bg-white/5 blur-[120px] rounded-full -z-10" />
- <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-white/5 blur-[120px] rounded-full -z-10" />
+  const WHATSAPP_CHANNEL = "https://whatsapp.com/channel/0029VbC0knY72WU0QUNAid3B";
+  const WHATSAPP_CONTACT = "https://wa.me/2348087253512?text=I%20saw%20Axis%20TV%20and%20I'm%20interested%20in...";
 
- <div className="max-w-[1400px] mx-auto px-fluid">
- {/* Top Logo & Branding */}
- <div className="mb-8 md:mb-12">
- <Link to="/" className="flex flex-col gap-1 mb-6 group w-fit">
- <div className="flex items-center gap-3">
- <div className="w-10 h-10 md:w-12 md:h-12 rounded-[14px] bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center transition-transform group-hover:scale-105 duration-500 shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
- <Play className="w-4 h-4 md:w-5 md:h-5 text-white fill-current ml-0.5" />
- </div>
- <span className="text-fluid-2xl font-bold tracking-tight text-white drop-shadow-md">
- Axis TV
- </span>
- </div>
- <span className="font-medium tracking-wide text-white/50 ml-14 md:ml-16 text-fluid-sm">
- Your Movie Plug
- </span>
- </Link>
- <p className="text-white/60 text-fluid-base leading-relaxed max-w-2xl font-normal mt-4">
- Axis TV is your movie plug for premium streaming. Watch the latest movies, series, and exclusive content in high quality with our seamless cinematic interface.
- </p>
- </div>
+  return (
+    <footer className="relative bg-gradient-to-b from-[#060608] to-black border-t border-white/5 pt-24 pb-28 md:pb-16 mt-28 overflow-hidden">
+      {/* Dynamic Background Atmospheric Glows */}
+      <div className="absolute top-0 left-1/12 w-[600px] h-[600px] bg-brand/5 blur-[150px] rounded-full pointer-events-none -z-10" />
+      <div className="absolute bottom-0 right-1/12 w-[500px] h-[500px] bg-purple-500/[0.02] blur-[130px] rounded-full pointer-events-none -z-10" />
+      
+      {/* Decorative Top Accent Light Line */}
+      <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-brand/30 to-transparent pointer-events-none" />
 
- {/* Action Cards */}
- <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-12 md:mb-16">
- <a 
- href={WHATSAPP_CHANNEL} 
- target="_blank" 
- rel="noopener noreferrer"
- className="flex items-center justify-between p-5 md:p-6 bg-white/5 border border-white/10 rounded-3xl group hover:bg-white/10 hover:border-white/20 transition-all duration-300"
- >
- <div className="flex items-center gap-4 md:gap-6">
- <div className="w-12 h-12 md:w-14 md:h-14 rounded-[16px] bg-white/10 flex items-center justify-center text-white group-hover:scale-110 transition-transform">
- <MessageCircle className="w-6 h-6 md:w-7 md:h-7" />
- </div>
- <div>
- <h4 className="text-white font-semibold text-fluid-base tracking-wide mb-1">WhatsApp Channel</h4>
- <p className="text-white/50 text-fluid-sm">Join our channel for updates & news</p>
- </div>
- </div>
- <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-white/40 group-hover:translate-x-2 group-hover:text-white transition-all" />
- </a>
+      <div className="max-w-[1440px] mx-auto px-6 md:px-10 lg:px-16">
+        {/* Top Section: Branding, Details, and Clean Layout Columns */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 mb-20">
+          
+          {/* Brand Identity Panel (5 columns span on large screens) */}
+          <div className="lg:col-span-5 space-y-8 text-left">
+            <Link to="/" className="inline-flex flex-col gap-2 group">
+              <div className="flex items-center gap-3">
+                {logoUrl ? (
+                  <div className="w-12 h-12 rounded-2xl overflow-hidden border border-white/10 shadow-lg group-hover:scale-105 duration-500 transition-transform">
+                    <img 
+                      src={logoUrl} 
+                      alt={siteName} 
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-11 h-11 rounded-[14px] bg-brand/10 border border-brand/20 flex items-center justify-center transition-transform group-hover:scale-105 duration-500 shadow-[0_0_20px_rgba(229,9,20,0.2)]">
+                    <Play className="w-4.5 h-4.5 text-brand fill-current ml-0.5" />
+                  </div>
+                )}
+                <span className="text-2xl font-black tracking-tight text-white group-hover:text-brand transition-colors duration-300">
+                  {siteName}
+                </span>
+              </div>
+              <span className="font-bold tracking-[0.2em] text-[10px] uppercase text-brand ml-1 transition-colors group-hover:text-white">
+                {tagline}
+              </span>
+            </Link>
 
- <a 
- href={WHATSAPP_CONTACT} 
- target="_blank" 
- rel="noopener noreferrer"
- className="flex items-center justify-between p-5 md:p-6 bg-white/5 border border-white/10 rounded-3xl group hover:bg-white/10 hover:border-white/20 transition-all duration-300"
- >
- <div className="flex items-center gap-4 md:gap-6">
- <div className="w-12 h-12 md:w-14 md:h-14 rounded-[16px] bg-white/10 flex items-center justify-center text-white group-hover:scale-110 transition-transform">
- <Headphones className="w-6 h-6 md:w-7 md:h-7" />
- </div>
- <div>
- <h4 className="text-white font-semibold text-fluid-base tracking-wide mb-1">Contact Developer</h4>
- <p className="text-white/50 text-fluid-sm">Need help or want to build a site like this?</p>
- </div>
- </div>
- <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-white/40 group-hover:translate-x-2 group-hover:text-white transition-all" />
- </a>
- </div>
+            <p className="text-white/60 text-sm md:text-base leading-relaxed max-w-md font-medium">
+              Experience the future of seamless entertainment. Stream high-definition movies, complete seasons, and exclusive live sports events with customized playback controls and instant load times.
+            </p>
 
- <div className="h-px bg-white/10 w-full mb-12 md:mb-16" />
+            {/* Micro Social & Connect Buttons */}
+            <div className="flex flex-wrap gap-3 pt-2">
+              <a 
+                href={WHATSAPP_CHANNEL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/[0.03] border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all text-xs font-semibold text-white/90 shadow-md hover:shadow-lg active:scale-95"
+              >
+                <MessageCircle className="w-4 h-4 text-emerald-400" />
+                WhatsApp Hub
+              </a>
+              <a 
+                href={WHATSAPP_CONTACT}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/[0.03] border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all text-xs font-semibold text-white/90 shadow-md hover:shadow-lg active:scale-95"
+              >
+                <Headphones className="w-4 h-4 text-sky-400" />
+                Contact Developer
+              </a>
+            </div>
+          </div>
 
- {/* Main Navigation Grid */}
- <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12 mb-12 md:mb-16">
- <div className="space-y-4 md:space-y-5">
- <h3 className="text-white font-semibold tracking-wide mb-4 text-fluid-base">
- Explore
- </h3>
- <ul className="space-y-3">
- <li>
- <Link to="/" className="text-white/60 hover:text-white transition-colors text-fluid-base">
- Home
- </Link>
- </li>
- <li>
- <Link to="/browse" className="text-white/60 hover:text-white transition-colors text-fluid-base">
- Browse
- </Link>
- </li>
- <li>
- <Link to="/ranking" className="text-white/60 hover:text-white transition-colors text-fluid-base">
- Rankings
- </Link>
- </li>
- </ul>
- </div>
+          {/* Navigation Columns (7 columns span) */}
+          <div className="lg:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-8">
+            
+            {/* Explore Column */}
+            <div className="space-y-4 text-left">
+              <h4 className="text-xs font-extrabold tracking-widest text-white uppercase opacity-90 border-l-2 border-brand pl-3">
+                Discover
+              </h4>
+              <ul className="space-y-3.5 pt-2">
+                <li>
+                  <Link to="/" className="text-sm text-white/50 hover:text-brand transition-colors duration-300 flex items-center gap-2 group">
+                    <Home className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+                    <span className="font-medium">Home</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/browse" className="text-sm text-white/50 hover:text-brand transition-colors duration-300 flex items-center gap-2 group">
+                    <LayoutGrid className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+                    <span className="font-medium">Browse Catalog</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/sports" className="text-sm text-white/50 hover:text-brand transition-colors duration-300 flex items-center gap-2 group">
+                    <Trophy className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+                    <span className="font-medium">Global Rankings</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/live" className="text-sm text-white/50 hover:text-brand transition-colors duration-300 flex items-center gap-2 group">
+                    <Tv className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+                    <span className="font-medium">Live Television</span>
+                  </Link>
+                </li>
+              </ul>
+            </div>
 
- <div className="space-y-4 md:space-y-5">
- <h3 className="text-white font-semibold tracking-wide mb-4 text-fluid-base">
- Legal
- </h3>
- <ul className="space-y-3">
- <li>
- <Link to="/legal/terms" className="text-white/60 hover:text-white transition-colors text-fluid-base">
- Terms of Service
- </Link>
- </li>
- <li>
- <Link to="/legal/privacy" className="text-white/60 hover:text-white transition-colors text-fluid-base">
- Privacy Policy
- </Link>
- </li>
- <li>
- <Link to="/legal/cookies" className="text-white/60 hover:text-white transition-colors text-fluid-base">
- Cookie Policy
- </Link>
- </li>
- <li>
- <Link to="/legal/dmca" className="text-white/60 hover:text-white transition-colors text-fluid-base">
- DMCA Content
- </Link>
- </li>
- </ul>
- </div>
+            {/* Collections Column */}
+            <div className="space-y-4 text-left">
+              <h4 className="text-xs font-extrabold tracking-widest text-white uppercase opacity-90 border-l-2 border-brand pl-3">
+                Categories
+              </h4>
+              <ul className="space-y-3.5 pt-2">
+                <li>
+                  <Link to="/anime" className="text-sm text-white/50 hover:text-brand transition-colors duration-300 flex items-center gap-2 group">
+                    <Sparkles className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+                    <span className="font-medium">Anime Hub</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/toons" className="text-sm text-white/50 hover:text-brand transition-colors duration-300 flex items-center gap-2 group">
+                    <Gamepad2 className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+                    <span className="font-medium">Toons & Kids</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/playlist" className="text-sm text-white/50 hover:text-brand transition-colors duration-300 flex items-center gap-2 group">
+                    <ListMusic className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+                    <span className="font-medium">Playlists</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/profile" className="text-sm text-white/50 hover:text-brand transition-colors duration-300 flex items-center gap-2 group">
+                    <User className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+                    <span className="font-medium">User Profile</span>
+                  </Link>
+                </li>
+              </ul>
+            </div>
 
- {/* Empty Space for desktop layout matching */}
- <div className="hidden lg:block"></div>
- <div className="hidden lg:block"></div>
- </div>
+            {/* Legal Column */}
+            <div className="space-y-4 col-span-2 sm:col-span-1 text-left">
+              <h4 className="text-xs font-extrabold tracking-widest text-white uppercase opacity-90 border-l-2 border-brand pl-3">
+                Legal & Info
+              </h4>
+              <ul className="space-y-3.5 pt-2">
+                <li>
+                  <Link to="/legal/terms" className="text-sm text-white/50 hover:text-brand transition-colors duration-300 flex items-center gap-2 group">
+                    <FileText className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+                    <span className="font-medium">Terms of Service</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/legal/privacy" className="text-sm text-white/50 hover:text-brand transition-colors duration-300 flex items-center gap-2 group">
+                    <Lock className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+                    <span className="font-medium">Privacy Policy</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/legal/cookies" className="text-sm text-white/50 hover:text-brand transition-colors duration-300 flex items-center gap-2 group">
+                    <Shield className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+                    <span className="font-medium">Cookie Policy</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/legal/dmca" className="text-sm text-white/50 hover:text-brand transition-colors duration-300 flex items-center gap-2 group">
+                    <HelpCircle className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+                    <span className="font-medium">DMCA Takedown</span>
+                  </Link>
+                </li>
+              </ul>
+            </div>
 
- {/* Developer Promotion Banner */}
- <div className="bg-white/5 border border-white/10 rounded-3xl p-6 lg:p-8 mb-8 flex flex-col md:flex-row items-center justify-between gap-6 backdrop-blur-[20px]">
- <div className="flex items-center gap-6 text-center md:text-left">
- <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
- <Crown className="w-6 h-6 md:w-8 md:h-8" />
- </div>
- <div>
- <h4 className="text-white font-semibold text-fluid-sm tracking-tight mb-2">Want to create a site like Axis TV?</h4>
- <p className="text-white/60 font-normal leading-relaxed max-w-xl text-fluid-base">
- Contact the developer to get your own premium streaming website or app. Beautifully crafted and highly optimized.
- </p>
- </div>
- </div>
- <a 
- href={WHATSAPP_CONTACT}
- target="_blank"
- rel="noopener noreferrer"
- className="w-full md:w-auto px-8 py-3.5 bg-white text-black font-semibold rounded-full hover:bg-white/90 active:scale-95 transition-all text-center shadow-[0_0_20px_rgba(255,255,255,0.2)] whitespace-nowrap text-fluid-base"
- >
- Contact Developer
- </a>
- </div>
+          </div>
+        </div>
 
- {/* Bottom WhatsApp Channel Persistent Link */}
- <a 
- href={WHATSAPP_CHANNEL}
- target="_blank"
- rel="noopener noreferrer"
- className="flex items-center justify-between p-5 bg-white/5 border border-white/10 rounded-[20px] mb-12 hover:bg-white/10 transition-all group"
- >
- <div className="flex items-center gap-4">
- <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white/50 group-hover:text-white transition-colors">
- <MessageCircle className="w-5 h-5" />
- </div>
- <div>
- <h5 className="text-white font-semibold text-fluid-sm tracking-tight mb-0.5">WhatsApp Channel</h5>
- <p className="text-fluid-base text-white/50">Stay updated with the latest movies, series & more</p>
- </div>
- </div>
- <ChevronRight className="w-5 h-5 text-white/40 group-hover:translate-x-1 group-hover:text-white transition-all" />
- </a>
+        {/* Cohesive Consolidated Developer CTA Banner */}
+        <div className="relative bg-gradient-to-r from-white/[0.02] to-white/[0.01] border border-white/10 rounded-3xl p-6 lg:p-8 mb-12 flex flex-col md:flex-row items-center justify-between gap-6 backdrop-blur-xl overflow-hidden group hover:border-white/15 transition-all duration-500">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-white/[0.01] blur-[60px] rounded-full -z-10 pointer-events-none group-hover:scale-110 transition-transform duration-700" />
+          
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
+            <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white shrink-0 shadow-lg group-hover:scale-105 transition-transform duration-500">
+              <Crown className="w-6 h-6 text-amber-400" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-white font-semibold text-lg tracking-tight">
+                Want to build your own custom streaming app?
+              </h4>
+              <p className="text-white/60 text-sm leading-relaxed max-w-xl">
+                Get a highly optimized, fully featured streaming app customized for your brand with instant load times and seamless premium playback.
+              </p>
+            </div>
+          </div>
+          
+          <div className="w-full md:w-auto flex flex-col sm:flex-row gap-3 items-center shrink-0">
+            <a 
+              href={WHATSAPP_CONTACT}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto px-6 py-3 bg-white text-black hover:bg-neutral-100 active:scale-95 transition-all text-sm font-semibold rounded-2xl shadow-xl flex items-center justify-center gap-2 group/btn"
+            >
+              <Code className="w-4 h-4" />
+              <span>Contact Developer</span>
+              <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+            </a>
+            <a 
+              href={WHATSAPP_CHANNEL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold rounded-2xl transition-all text-sm flex items-center justify-center gap-2"
+            >
+              <MessageCircle className="w-4 h-4 text-emerald-400" />
+              <span>Join Channel</span>
+            </a>
+          </div>
+        </div>
 
- {/* Final Disclaimer & Copyright */}
- <div className="pt-8 border-t border-white/10 text-center">
- <p className="text-white/40 text-fluid-base font-medium tracking-wide mb-4">
- &copy; 2026 Axis TV. All rights reserved.
- </p>
- <p className="text-white/30 leading-relaxed max-w-4xl mx-auto text-fluid-sm">
- This site does not store any files on its server. All contents are provided by non-affiliated third parties.
- </p>
- </div>
- </div>
- </footer>
- );
+        {/* Thin bottom separator */}
+        <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent w-full mb-8" />
+
+        {/* Copyright and Safe Streaming Disclaimer */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-2">
+          <div className="text-center md:text-left space-y-1.5">
+            <p className="text-white/40 text-sm font-medium tracking-wide">
+              &copy; {new Date().getFullYear()} {siteName}. All rights reserved.
+            </p>
+            <p className="text-white/20 text-xs max-w-2xl leading-normal">
+              This site is a custom search engine index. Content streams are handled and hosted securely by non-affiliated third-party providers. We do not store or host any media files directly on our systems.
+            </p>
+          </div>
+          <div className="flex items-center gap-4 text-xs text-white/30 font-medium">
+            <span className="flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5 opacity-60" />
+              English
+            </span>
+            <span className="w-1.5 h-1.5 rounded-full bg-white/10" />
+            <span>Secure Streaming</span>
+          </div>
+        </div>
+
+      </div>
+    </footer>
+  );
 }
 
 export default React.memo(Footer);
-

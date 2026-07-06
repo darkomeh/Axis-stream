@@ -16,6 +16,8 @@ import {
   removeFavorite,
   removeContinueWatching as firebaseRemoveContinueWatching,
   getWatchHistory,
+  removeWatchHistory,
+  clearWatchHistory,
   deleteUserProfileData as firebaseDeleteUserProfileData,
   updateProfile as firebaseUpdateProfile,
   saveContinueWatching as firebaseSaveContinueWatching,
@@ -26,7 +28,9 @@ import {
   getSupportTickets,
   replyToTicket,
   getAdvancedUserStats,
-  getGlobalStats
+  getGlobalStats,
+  handleFirestoreError,
+  OperationType
 } from '../services/firebaseService';
 import { 
   collection, 
@@ -46,6 +50,7 @@ interface User {
   avatar?: string;
   bio?: string;
   role?: 'user' | 'admin' | 'moderator';
+  joinedAt?: string;
 }
 
 export interface SubtitlePreferences {
@@ -64,6 +69,9 @@ export interface UserPreferences {
   playbackSpeed: number;
   dataSaver: boolean;
   subtitleSettings: SubtitlePreferences;
+  theme?: string;
+  accentColor?: string;
+  kidsMode?: boolean;
 }
 
 export interface ContinueWatchingItem extends MediaItem {
@@ -113,6 +121,9 @@ interface AuthContextType {
   removeFromHistory: (id: string) => void;
   clearHistory: () => void;
   
+  featuredCollection: MediaItem[];
+  updateFeaturedCollection: (items: MediaItem[]) => void;
+  
   // New Features
   preferences: UserPreferences;
   updatePreferences: (prefs: Partial<UserPreferences>) => void;
@@ -127,7 +138,7 @@ interface AuthContextType {
   isMaintenance: boolean;
   isBanned: boolean;
   broadcastLevel: 'info' | 'warning' | 'critical';
-  siteConfig: { siteName: string; brandColor: string; tagline: string; logoUrl?: string };
+  siteConfig: { siteName: string; brandColor: string; tagline: string; logoUrl?: string; streamSource?: 'xcasper' | 'imbed' };
   addWatchTime: (minutes: number) => void;
   trackWatchActivity: (item: MediaItem) => void;
   following: string[];
@@ -153,7 +164,7 @@ const initialStats: UserStats = {
   badges: []
 };
 
-const defaultPreferences: UserPreferences = {
+export const defaultPreferences: UserPreferences = {
   autoPlayNext: true,
   autoPlay: true,
   showTrailers: true,
@@ -161,6 +172,7 @@ const defaultPreferences: UserPreferences = {
   skipIntro: false,
   playbackSpeed: 1,
   dataSaver: false,
+  kidsMode: false,
   subtitleSettings: {
     fontSize: 14,
     color: '#ffffff',
@@ -176,6 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [watchlist, setWatchlist] = useState<MediaItem[]>([]);
   const [history, setHistory] = useState<MediaItem[]>([]);
+  const [featuredCollection, setFeaturedCollection] = useState<MediaItem[]>([]);
   
   // New State
   const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
@@ -187,7 +200,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isMaintenance, setIsMaintenance] = useState(false);
   const [isBanned, setIsBanned] = useState(false);
   const [broadcastLevel, setBroadcastLevel] = useState<'info' | 'warning' | 'critical'>('info');
-  const [siteConfig, setSiteConfig] = useState<{ siteName: string; brandColor: string; tagline: string; logoUrl?: string; }>({ siteName: 'Axis TV', brandColor: '#E50914', tagline: 'Your Movie Plug', logoUrl: 'https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg' });
+  const [siteConfig, setSiteConfig] = useState<{ siteName: string; brandColor: string; tagline: string; logoUrl?: string; streamSource?: 'xcasper' | 'imbed'; }>({ siteName: 'Axis TV', brandColor: '#E50914', tagline: 'Your Movie Plug', logoUrl: 'https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg', streamSource: 'xcasper' });
   const [lastActionType, setLastActionType] = useState<string | null>(null);
   const [isLoginPopupOpen, setIsLoginPopupOpen] = useState(false);
 
@@ -259,12 +272,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email: data.email || firebaseUser.email || '',
             avatar: data.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.uid}`,
             bio: data.bio || '',
-            role: data.role || 'user'
+            role: data.role || 'user',
+            joinedAt: firebaseUser.metadata.creationTime || new Date().toISOString()
           };
           setUser(newUser);
           setIsBanned(data.isBanned || false);
           localStorage.setItem('axis_user', JSON.stringify(newUser));
+        } else {
+          const isOwner = (firebaseUser.email || '').toLowerCase() === 'greatmayuku2@gmail.com';
+          const newUser = {
+            id: firebaseUser.uid,
+            username: isOwner ? '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' : (firebaseUser.displayName || 'User'),
+            name: isOwner ? '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' : (firebaseUser.displayName || 'User'),
+            email: firebaseUser.email || '',
+            avatar: firebaseUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.uid}`,
+            bio: '',
+            role: 'user' as const,
+            joinedAt: firebaseUser.metadata.creationTime || new Date().toISOString()
+          };
+          setUser(newUser);
+          setIsBanned(false);
+          localStorage.setItem('axis_user', JSON.stringify(newUser));
         }
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
       });
       return () => unsubscribe();
     }
@@ -288,6 +319,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } as MediaItem));
         setWatchlist(items);
         localStorage.setItem(`axis_watchlist_${firebaseUser.uid}`, JSON.stringify(items));
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}/favorites`);
       });
       return () => unsubscribe();
     }
@@ -305,10 +338,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const items = snapshot.docs.map(doc => ({
           id: doc.data().movieId,
           title: doc.data().title,
-          type: 'Movie' as const
+          type: doc.data().type || 'Movie',
+          poster: doc.data().poster || '',
+          year: doc.data().year || '',
+          rating: doc.data().rating || ''
         } as MediaItem));
         setHistory(items);
         localStorage.setItem(`axis_history_${firebaseUser.uid}`, JSON.stringify(items));
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}/watchHistory`);
       });
       return () => unsubscribe();
     }
@@ -340,6 +378,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } as ContinueWatchingItem));
         setContinueWatching(items);
         localStorage.setItem(`axis_continue_watching_${firebaseUser.uid}`, JSON.stringify(items));
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}/continueWatching`);
       });
       return () => unsubscribe();
     }
@@ -479,7 +519,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const addToHistory = useCallback(async (item: MediaItem) => {
     if (!user) return;
     if (firebaseUser) {
-      await addWatchHistory(item.id, item.title);
+      await addWatchHistory(item);
     } else {
       setHistory(prev => {
         const updated = [item, ...prev.filter(i => i.id !== item.id)].slice(0, 50);
@@ -490,27 +530,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, firebaseUser]);
 
-  const removeFromHistory = useCallback((id: string) => {
+  const removeFromHistory = useCallback(async (id: string) => {
     if (!user) return;
-    setHistory(prev => {
-      const updated = prev.filter(item => item.id !== id);
-      setLastActionType(`HISTORY_REMOVE: ${id}`);
-      localStorage.setItem(`axis_history_${user.id}`, JSON.stringify(updated));
-      return updated;
-    });
-  }, [user]);
+    if (firebaseUser) {
+      await removeWatchHistory(id);
+    } else {
+      setHistory(prev => {
+        const updated = prev.filter(item => item.id !== id);
+        setLastActionType(`HISTORY_REMOVE: ${id}`);
+        localStorage.setItem(`axis_history_${user.id}`, JSON.stringify(updated));
+        return updated;
+      });
+    }
+  }, [user, firebaseUser]);
 
-  const clearHistory = useCallback(() => {
+  const clearHistory = useCallback(async () => {
     if (!user) return;
-    setHistory([]);
-    localStorage.removeItem(`axis_history_${user.id}`);
-  }, [user]);
+    if (firebaseUser) {
+      await clearWatchHistory();
+    } else {
+      setHistory([]);
+      localStorage.removeItem(`axis_history_${user.id}`);
+    }
+  }, [user, firebaseUser]);
 
   const updatePreferences = useCallback((prefs: Partial<UserPreferences>) => {
-    if (!user) return;
     setPreferences(prev => {
       const updated = { ...prev, ...prefs };
-      localStorage.setItem(`axis_prefs_${user.id}`, JSON.stringify(updated));
+      const key = user ? `axis_prefs_${user.id}` : `axis_prefs_guest`;
+      localStorage.setItem(key, JSON.stringify(updated));
       return updated;
     });
   }, [user]);
@@ -528,19 +576,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     setStats(prev => {
       const now = new Date();
-      const today = now.toISOString().split('T')[0];
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const today = `${year}-${month}-${day}`;
       const isWeekend = now.getDay() === 0 || now.getDay() === 6;
       
       let newStreak = prev.currentStreak;
       if (prev.lastWatchDate) {
-        const lastDate = new Date(prev.lastWatchDate);
-        const diffTime = Math.abs(now.getTime() - lastDate.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        if (diffDays === 1) {
-          newStreak += 1;
-        } else if (diffDays > 1) {
-          newStreak = 1;
+        if (prev.lastWatchDate === today) {
+          // Already watched today, keep current streak
+          newStreak = prev.currentStreak || 1;
+        } else {
+          const parts = prev.lastWatchDate.split('-');
+          const lastDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+          const todayDate = new Date(year, now.getMonth(), now.getDate());
+          const diffTime = todayDate.getTime() - lastDate.getTime();
+          const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+          
+          if (diffDays === 1) {
+            newStreak = (prev.currentStreak || 0) + 1;
+          } else {
+            newStreak = 1;
+          }
         }
       } else {
         newStreak = 1;
@@ -683,6 +741,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, firebaseUser, logout]);
 
+  const updateFeaturedCollection = useCallback((items: MediaItem[]) => {
+    if (items.length > 6) return; // Enforce limit
+    setFeaturedCollection(items);
+    if (user) {
+      localStorage.setItem(`axis_featured_${user.id}`, JSON.stringify(items));
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      const storedFeatured = localStorage.getItem(`axis_featured_${user.id}`);
+      if (storedFeatured) setFeaturedCollection(JSON.parse(storedFeatured));
+      
+      const storedPrefs = localStorage.getItem(`axis_prefs_${user.id}`);
+      if (storedPrefs) setPreferences(JSON.parse(storedPrefs));
+      
+      const storedStats = localStorage.getItem(`axis_stats_${user.id}`);
+      if (storedStats) {
+        const statsData = JSON.parse(storedStats);
+        if (statsData.lastWatchDate) {
+          const parts = statsData.lastWatchDate.split('-');
+          const lastDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+          const now = new Date();
+          const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const diffTime = todayDate.getTime() - lastDate.getTime();
+          const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+          if (diffDays > 1) {
+            statsData.currentStreak = 0;
+            localStorage.setItem(`axis_stats_${user.id}`, JSON.stringify(statsData));
+          }
+        }
+        setStats(statsData);
+      }
+      
+      const storedPlaylists = localStorage.getItem(`axis_playlists_${user.id}`);
+      if (storedPlaylists) setPlaylists(JSON.parse(storedPlaylists));
+      
+      const storedFollowing = localStorage.getItem(`axis_following_${user.id}`);
+      if (storedFollowing) setFollowing(JSON.parse(storedFollowing));
+    } else {
+      setFeaturedCollection([]);
+      const storedPrefs = localStorage.getItem('axis_prefs_guest');
+      if (storedPrefs) {
+        setPreferences(JSON.parse(storedPrefs));
+      } else {
+        setPreferences(defaultPreferences);
+      }
+      setStats(initialStats);
+      setPlaylists([]);
+      setFollowing([]);
+    }
+  }, [user]);
+
   const value = useMemo(() => ({
     user, 
     login, 
@@ -701,6 +812,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     broadcastLevel, siteConfig,
     watchlist, addToWatchlist, removeFromWatchlist, isInWatchlist,
     history, addToHistory, removeFromHistory, clearHistory,
+    featuredCollection, updateFeaturedCollection,
     preferences, updatePreferences,
     stats, addWatchTime, trackWatchActivity,
     playlists, createPlaylist, deletePlaylist, addToPlaylist, removeFromPlaylist,

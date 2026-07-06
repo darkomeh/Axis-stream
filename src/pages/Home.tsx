@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { movieService } from "../services/movieService";
 import { getAdminConfig } from "../services/firebaseService";
 import { HomepageData, MediaItem } from "../types";
@@ -9,7 +9,7 @@ import ContinueWatchingGrid from "../components/ContinueWatchingGrid";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { useAuth } from "../contexts/AuthContext";
-import { Loader2 } from "lucide-react";
+import { Loader2, TrendingUp } from "lucide-react";
 import { SEO } from "../components/SEO";
 
 import { 
@@ -20,53 +20,91 @@ import {
 import { NoticeMessage } from "../components/NoticeMessage";
 import { Link } from "react-router-dom";
 
+// Module-level persistent cache for instant rendering when navigating back to the Home page
+let cachedHomepageData: HomepageData | null = null;
+let cachedTrending: MediaItem[] = [];
+let cachedRanking: MediaItem[] = [];
+let cachedHotMovies: MediaItem[] = [];
+let cachedHotSeries: MediaItem[] = [];
+let cachedDynamicSections: { title: string; items: MediaItem[]; link?: string }[] = [];
+let cachedRecommendations: MediaItem[] = [];
+let cachedPopularSearches: string[] = [];
+let cachedDiscoverItems: MediaItem[] = [];
+let cachedDiscoverPage = 1;
+let cachedHasMore = true;
+
+const isItemKidSafe = (item: MediaItem) => {
+  if (!item) return false;
+  const title = (item.title || (item as any).name || '').toLowerCase();
+  const category = (item.category || '').toLowerCase();
+  
+  // Non-kid keywords to filter out of kids feed
+  const blockedKeywords = [
+    'horror', 'thriller', 'crime', 'murder', 'slasher', 'gore', 'sexy', 'erotic', 'adult', 'rated r', 'restricted', 'violence',
+    'zombie', 'demonic', 'evil', 'blood', 'scary', 'psycho', 'killer', 'drugs', 'mafia', 'gangster', 'sex', 'kill', 'devil',
+    'satan', 'demon', 'vampire', 'ghost', 'haunt', 'dead', 'death', 'sinister', 'nightmare', 'paranormal', 'insidious', 'scream',
+    'conjuring', 'purge', 'saw', 'annabelle', 'dracula', 'frankenstein', 'witch', 'occult', 'brutal', 'slay', 'suicide', 'lucifer'
+  ];
+  
+  for (const keyword of blockedKeywords) {
+    if (title.includes(keyword) || category.includes(keyword)) {
+      return false;
+    }
+  }
+  return true;
+};
+
 export default function Home() {
- const [homepageData, setHomepageData] = useState<HomepageData | null>(null);
- const [trending, setTrending] = useState<MediaItem[]>([]);
- const [ranking, setRanking] = useState<MediaItem[]>([]);
- const [hotMovies, setHotMovies] = useState<MediaItem[]>([]);
- const [hotSeries, setHotSeries] = useState<MediaItem[]>([]);
- const [dynamicSections, setDynamicSections] = useState<{ title: string; items: MediaItem[]; link?: string }[]>([]);
- const [recommendations, setRecommendations] = useState<MediaItem[]>([]);
- const [popularSearches, setPopularSearches] = useState<string[]>([]);
- const [loading, setLoading] = useState(true);
- const [error, setError] = useState<string | null>(null);
- const { user, history, continueWatching, watchlist } = useAuth();
+  const [homepageData, setHomepageData] = useState<HomepageData | null>(cachedHomepageData);
+  const [trending, setTrending] = useState<MediaItem[]>(cachedTrending);
+  const [ranking, setRanking] = useState<MediaItem[]>(cachedRanking);
+  const [hotMovies, setHotMovies] = useState<MediaItem[]>(cachedHotMovies);
+  const [hotSeries, setHotSeries] = useState<MediaItem[]>(cachedHotSeries);
+  const [dynamicSections, setDynamicSections] = useState<{ title: string; items: MediaItem[]; link?: string }[]>(cachedDynamicSections);
+  const [recommendations, setRecommendations] = useState<MediaItem[]>(cachedRecommendations);
+  const [popularSearches, setPopularSearches] = useState<string[]>(cachedPopularSearches);
+  const [loading, setLoading] = useState(!cachedHomepageData);
+  const [error, setError] = useState<string | null>(null);
+  const { user, history, continueWatching, watchlist, preferences } = useAuth();
 
- // Infinite scroll for "Discover More"
- const [discoverItems, setDiscoverItems] = useState<MediaItem[]>([]);
- const [page, setPage] = useState(1);
- const [hasMore, setHasMore] = useState(true);
- const [loadingMore, setLoadingMore] = useState(false);
- const observer = useRef<IntersectionObserver | null>(null);
+  // Infinite scroll for "Discover More"
+  const [discoverItems, setDiscoverItems] = useState<MediaItem[]>(cachedDiscoverItems);
+  const [page, setPage] = useState(cachedDiscoverPage);
+  const [hasMore, setHasMore] = useState(cachedHasMore);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const observer = useRef<IntersectionObserver | null>(null);
 
- const lastElementRef = useCallback((node: HTMLDivElement) => {
- if (loadingMore) return;
- if (observer.current) observer.current.disconnect();
- observer.current = new IntersectionObserver(entries => {
- if (entries[0].isIntersecting && hasMore) {
- setPage(prevPage => prevPage + 1);
- }
- });
- if (node) observer.current.observe(node);
- }, [loadingMore, hasMore]);
+  const lastElementRef = useCallback((node: HTMLDivElement) => {
+    if (loadingMore) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setPage(prevPage => {
+          const nextPage = prevPage + 1;
+          cachedDiscoverPage = nextPage;
+          return nextPage;
+        });
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [loadingMore, hasMore]);
 
- const loadData = async () => {
- try {
- if (!homepageData) setLoading(true);
- setError(null);
- 
- const trendPage = Math.floor(Math.random() * 4) + 1;
- const [homeResult, trendResult, hotResult, popularResult, adminConfigResult, rankingResult] = await Promise.allSettled([
- movieService.getHomepage(),
- movieService.getTrending(trendPage, 30),
- movieService.getHot(),
- movieService.getPopularSearch(),
- getAdminConfig(),
- movieService.getRanking()
- ]);
+  const loadData = async () => {
+    try {
+      if (!homepageData) setLoading(true);
+      setError(null);
+      
+      const trendPage = Math.floor(Math.random() * 4) + 1;
+      const [homeResult, trendResult, hotResult, popularResult, adminConfigResult, rankingResult] = await Promise.allSettled([
+        movieService.getHomepage(),
+        movieService.getTrending(trendPage, 30),
+        movieService.getHot(),
+        movieService.getPopularSearch(),
+        getAdminConfig(),
+        movieService.getRanking()
+      ]);
 
- if (homeResult.status === 'fulfilled') {
+      if (homeResult.status === 'fulfilled') {
  const h = homeResult.value;
  // Filter "Upcoming Calendar" section to only show recent films (year >= current year - 1)
  if (h.operatingList) {
@@ -86,10 +124,13 @@ export default function Home() {
  });
  }
  setHomepageData(h);
+ cachedHomepageData = h;
  }
  
  if (trendResult.status === 'fulfilled') {
- setTrending(trendResult.value.sort(() => 0.5 - Math.random()));
+ const sortedT = trendResult.value.sort(() => 0.5 - Math.random());
+ setTrending(sortedT);
+ cachedTrending = sortedT;
  }
 
  let computedHotMovies: MediaItem[] = [];
@@ -158,8 +199,12 @@ export default function Home() {
  return true;
  });
 
- setHotMovies(computedHotMovies.sort(() => 0.5 - Math.random()));
- setHotSeries(computedHotSeries.sort(() => 0.5 - Math.random()));
+ const sortedM = computedHotMovies.sort(() => 0.5 - Math.random());
+ const sortedS = computedHotSeries.sort(() => 0.5 - Math.random());
+ setHotMovies(sortedM);
+ setHotSeries(sortedS);
+ cachedHotMovies = sortedM;
+ cachedHotSeries = sortedS;
 
  if (rankingResult.status === 'fulfilled') {
  // Finalize ranking (pad if < 20)
@@ -184,7 +229,10 @@ export default function Home() {
   })));
  }
  
- if (popularResult.status === 'fulfilled') setPopularSearches(popularResult.value);
+ if (popularResult.status === 'fulfilled') {
+  setPopularSearches(popularResult.value);
+  cachedPopularSearches = popularResult.value;
+ }
  
  if (adminConfigResult.status === 'fulfilled') {
  if (adminConfigResult.value?.spotlights?.carousel?.length > 0) {
@@ -211,7 +259,9 @@ export default function Home() {
 
  // Load 3 completely random, rotating discovery genre categories per session
  try {
- const RANDOM_GENRES = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Drama", "Fantasy", "Horror", "Sci-Fi", "Thriller", "Romance", "Mystery"];
+ const RANDOM_GENRES = preferences?.kidsMode
+    ? ["Animation", "Comedy", "Adventure", "Fantasy"]
+    : ["Action", "Adventure", "Animation", "Comedy", "Crime", "Drama", "Fantasy", "Horror", "Sci-Fi", "Thriller", "Romance", "Mystery"];
  const selectedGenres = [...RANDOM_GENRES].sort(() => 0.5 - Math.random()).slice(0, 3);
  
  const genrePromises = selectedGenres.map(async (genre) => {
@@ -231,19 +281,25 @@ export default function Home() {
  .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && r.value?.items?.length > 0)
  .map(r => r.value);
  setDynamicSections(activeSecs);
+ cachedDynamicSections = activeSecs;
  } catch (err) {
  console.error("Failed to load discovery categories", err);
  }
 
  const lastViewedId = localStorage.getItem('axis_last_viewed_id');
  if (lastViewedId) {
- movieService.getRecommendations(lastViewedId).then(setRecommendations).catch(() => {});
+ movieService.getRecommendations(lastViewedId).then(recs => {
+  setRecommendations(recs);
+  cachedRecommendations = recs;
+ }).catch(() => {});
  }
 
  if (discoverItems.length === 0) {
  movieService.browse(undefined, "2", 1).then(discover => {
  setDiscoverItems(discover);
+ cachedDiscoverItems = discover;
  setHasMore(discover.length > 0);
+ cachedHasMore = discover.length > 0;
  }).catch(() => {});
  }
  } catch (err) {
@@ -255,9 +311,25 @@ export default function Home() {
  }
  };
 
- useEffect(() => {
- loadData();
- }, []);
+  useEffect(() => {
+    // Reset global module caching when Kids Mode state changes to prevent cross-contamination
+    cachedHomepageData = null;
+    cachedTrending = [];
+    cachedRanking = [];
+    cachedHotMovies = [];
+    cachedHotSeries = [];
+    cachedDiscoverItems = [];
+    cachedDynamicSections = [];
+    
+    setHomepageData(null);
+    setTrending([]);
+    setRanking([]);
+    setHotMovies([]);
+    setHotSeries([]);
+    setDiscoverItems([]);
+    setDynamicSections([]);
+    loadData();
+  }, [preferences?.kidsMode]);
 
  useEffect(() => {
  if (page === 1 || !hasMore) return;
@@ -351,6 +423,146 @@ export default function Home() {
  );
  }
 
+ // Build list of active homepage elements dynamically to support clean separators
+ const activeSections: React.ReactNode[] = [];
+
+ const isKids = preferences?.kidsMode;
+
+ const filteredCarouselItems = isKids ? carouselItems.filter(isItemKidSafe) : carouselItems;
+ const filteredWatchlist = isKids ? watchlist.filter(isItemKidSafe) : watchlist;
+ const filteredContinueWatching = isKids ? continueWatching.filter(isItemKidSafe) : continueWatching;
+ const filteredRanking = isKids ? ranking.filter(isItemKidSafe) : ranking;
+ const filteredTrending = isKids ? trending.filter(isItemKidSafe) : trending;
+ const filteredRecommendations = isKids ? recommendations.filter(isItemKidSafe) : recommendations;
+ const filteredHotSeries = isKids ? hotSeries.filter(isItemKidSafe) : hotSeries;
+ const filteredDiscoverItems = isKids ? discoverItems.filter(isItemKidSafe) : discoverItems;
+
+ const filteredHomepageData = homepageData && isKids
+   ? {
+       ...homepageData,
+       topPickList: homepageData.topPickList ? homepageData.topPickList.filter(isItemKidSafe) : [],
+       latestMovies: homepageData.latestMovies ? homepageData.latestMovies.filter(isItemKidSafe) : [],
+       latestSeries: homepageData.latestSeries ? homepageData.latestSeries.filter(isItemKidSafe) : [],
+       operatingList: homepageData.operatingList
+         ? homepageData.operatingList.map((section: any) => ({
+             ...section,
+             subjects: (section.subjects || []).filter(isItemKidSafe)
+           })).filter((section: any) => section.subjects && section.subjects.length > 0)
+         : []
+     }
+   : homepageData;
+
+ const filteredDynamicSections = isKids 
+   ? dynamicSections.map(sec => ({
+       ...sec,
+       items: sec.items.filter(isItemKidSafe)
+     })).filter(sec => sec.items.length > 0)
+   : dynamicSections;
+
+ if (user && filteredWatchlist.length > 0) {
+   activeSections.push(
+     <PosterGrid key="watchlist" title="My Watchlist" items={filteredWatchlist} viewAllLink="/profile" />
+   );
+ }
+
+ if (user && continueWatching.length > 0) {
+   activeSections.push(
+     <ContinueWatchingGrid key="continue-watching" title="Continue Watching" items={filteredContinueWatching} />
+   );
+ }
+
+ if (ranking.length > 0) {
+   activeSections.push(
+     <TopTenGrid key="top10" title="Top 10 on Axis TV" items={filteredRanking.slice(0, 10)} />
+   );
+ }
+
+ if (trending.length > 6) {
+   activeSections.push(
+     <PosterGrid key="trending" title="Trending Now" items={filteredTrending.slice(6)} />
+   );
+ }
+
+ if (recommendations.length > 0) {
+   activeSections.push(
+     <PosterGrid key="recommendations" title="Because You Watched" items={filteredRecommendations} />
+   );
+ }
+
+ if (popularSearches.length > 0) {
+   activeSections.push(
+     <div key="popular-searches" className="max-w-[1400px] mx-auto px-fluid py-2.5 md:py-4 relative z-10 animate-fade-in">
+       <div className="flex items-center justify-between mb-3 md:mb-5 px-1">
+         <div className="flex items-center gap-2">
+           <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-[#F5F5F7]" />
+           <h2 className="text-sm md:text-base font-semibold tracking-tight text-[#F5F5F7]">
+             Popular Searches
+           </h2>
+         </div>
+       </div>
+       <div className="flex flex-wrap gap-2">
+         {Array.isArray(popularSearches) && popularSearches.slice(0, 12).map((search, idx) => (
+           <Link 
+             key={idx} 
+             to={`/search?q=${encodeURIComponent(search)}`}
+             className="px-3 py-1.5 md:px-4 md:py-2 rounded-full border border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/15 transition-all duration-300 shadow-md group active:scale-95 text-[10px] md:text-xs font-semibold tracking-wide"
+           >
+             <span className="text-white/70 group-hover:text-white transition-colors">{search}</span>
+           </Link>
+         ))}
+       </div>
+     </div>
+   );
+ }
+
+ if (homepageData?.latestSeries && homepageData.latestSeries.length > 0) {
+   activeSections.push(
+     <PosterGrid key="latest" title="Latest Featured" items={filteredHomepageData?.latestSeries} viewAllLink="/browse?type=2" />
+   );
+ }
+
+ if (hotSeries.length > 0) {
+   activeSections.push(
+     <PosterGrid key="hot" title="Hot Picks" items={filteredHotSeries} viewAllLink="/series" />
+   );
+ }
+
+ filteredDynamicSections.forEach((section, idx) => {
+   activeSections.push(
+     <PosterGrid 
+       key={`dyn-${section.title}-${idx}`}
+       title={section.title} 
+       items={section.items} 
+       viewAllLink={section.link}
+     />
+   );
+ });
+
+ filteredHomepageData?.operatingList?.forEach((section: any, idx: number) => {
+   activeSections.push(
+     <PosterGrid 
+       key={`op-${section.name || section.title}-${idx}`}
+       title={section.name || section.title} 
+       items={section.subjects || []} 
+     />
+   );
+ });
+
+ // Discover More Section with Infinite Scroll as the final element
+ activeSections.push(
+   <div key="discover" className="space-y-6">
+     <PosterGrid title="Discover More" items={filteredDiscoverItems} variant="grid" />
+     
+     {hasMore && (
+       <div ref={lastElementRef} className="flex justify-center py-6">
+         {loadingMore && (
+           <Loader2 className="w-6 h-6 text-brand animate-spin" />
+         )}
+       </div>
+     )}
+   </div>
+ );
+
  return (
  <div className="min-h-screen bg-transparent text-white pb-10 md:pb-20">
  <SEO />
@@ -360,86 +572,19 @@ export default function Home() {
 
  <Navbar />
  
- <Carousel items={carouselItems} />
+ <Carousel items={filteredCarouselItems} />
  
- <div className="relative z-10 -mt-fluid md:-mt-24 space-y-fluid md:space-y-32 pb-10 md:pb-24">
- {user && watchlist.length > 0 && (
- <PosterGrid title="My Watchlist" items={watchlist} viewAllLink="/profile" />
- )}
-
- {user && continueWatching.length > 0 && (
- <ContinueWatchingGrid title="Continue Watching" items={continueWatching} />
- )}
- 
- {ranking.length > 0 && (
- <TopTenGrid title="Top 10 on Axis TV" items={ranking.slice(0, 10)} />
- )}
-
-
- {trending.length > 6 && (
- <PosterGrid title="Trending Now" items={trending.slice(6)} />
- )}
-
- {recommendations.length > 0 && (
- <PosterGrid title="Because You Watched" items={recommendations} />
- )}
-
- {popularSearches.length > 0 && (
- <div className="px-fluid space-y-5 md:space-y-6 relative z-10">
- <h2 className="font-bold tracking-tight text-white drop-shadow-md text-fluid-2xl">Popular Searches</h2>
- <div className="flex flex-wrap gap-2 md:gap-3">
- {Array.isArray(popularSearches) && popularSearches.slice(0, 10).map((search, idx) => (
- <Link 
- key={idx} 
- to={`/search?q=${encodeURIComponent(search)}`}
- className="glass-button px-5 py-2.5 md:px-6 md:py-3 border border-white/10 rounded-full font-semibold transition-all shadow-sm group hover:border-white/30 text-fluid-lg"
- >
- <span className="text-white/80 group-hover:text-white transition-colors">{search}</span>
- </Link>
- ))}
- </div>
- </div>
- )}
- 
- {homepageData?.latestSeries && homepageData.latestSeries.length > 0 && (
- <PosterGrid title="Latest Featured" items={homepageData.latestSeries} viewAllLink="/browse?type=2" />
- )}
- 
- {hotSeries.length > 0 && (
- <PosterGrid title="Hot Picks" items={hotSeries} viewAllLink="/series" />
- )}
-
- {dynamicSections.map((section, idx) => (
- <div key={`dyn-${section.title}-${idx}`}>
- <PosterGrid 
- title={section.title} 
- items={section.items} 
- viewAllLink={section.link}
- />
- </div>
- ))}
-
- {homepageData?.operatingList?.map((section: any, idx: number) => (
- <div key={`${section.name || section.title}-${idx}`}>
- <PosterGrid 
- title={section.name || section.title} 
- items={section.subjects || []} 
- />
- </div>
- ))}
-
- {/* Discover More Section with Infinite Scroll */}
- <div className="space-y-8">
- <PosterGrid title="Discover More" items={discoverItems} variant="grid" />
- 
- {hasMore && (
- <div ref={lastElementRef} className="flex justify-center py-10">
- {loadingMore && (
- <Loader2 className="w-8 h-8 text-brand animate-spin" />
- )}
- </div>
- )}
- </div>
+ <div className="relative z-10 -mt-fluid md:-mt-24 space-y-4 md:space-y-6 pb-10 md:pb-24">
+   {activeSections.map((section, idx) => (
+     <React.Fragment key={idx}>
+       {idx > 0 && (
+         <div className="max-w-[1400px] mx-auto px-fluid py-2 md:py-3 relative z-10">
+           <div className="h-[1px] bg-gradient-to-r from-transparent via-white/[0.08] to-transparent shadow-[0_1px_3px_rgba(255,255,255,0.02)]" />
+         </div>
+       )}
+       {section}
+     </React.Fragment>
+   ))}
  </div>
 
  <Footer />

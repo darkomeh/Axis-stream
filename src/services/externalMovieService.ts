@@ -197,6 +197,8 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 2, backoff =
         config.url = '/recommendations';
       } else if (config.url === '/detail') {
         config.url = '/item-details';
+      } else if (config.url === '/search/suggest') {
+        config.url = '/search-suggestions';
       } else if (config.url === '/ranking') {
         // Return a processed or empty ranking response safely to avoid 404
         return {
@@ -224,9 +226,7 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 2, backoff =
   } catch (error: any) {
     const isMainDown = currentApiSource === 'main' && (
       !error.response || 
-      (error.response.status >= 500 && error.response.status <= 599) ||
-      error.response.status === 403 ||
-      error.response.status === 404 ||
+      (error.response.status >= 400 && error.response.status <= 599) ||
       error.code === 'ECONNABORTED' ||
       error.code === 'ETIMEDOUT'
     );
@@ -238,7 +238,7 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 2, backoff =
       // Translate URLs for backup API
       if (config.url === '/hot') config.url = '/hot-movies-series';
       if (config.url === '/play') config.url = '/media';
-      if (config.url === '/search/suggest') config.url = '/search'; // Backup uses /search for suggestions
+      if (config.url === '/search/suggest') config.url = '/search-suggestions';
       if (config.url === '/recommend') config.url = '/recommendations';
       if (config.url === '/popular-search') config.url = '/popular-searches';
 
@@ -247,9 +247,7 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 2, backoff =
 
     const isBackupDown = currentApiSource === 'backup' && (
       !error.response || 
-      (error.response.status >= 500 && error.response.status <= 599) ||
-      error.response.status === 403 ||
-      error.response.status === 404 ||
+      (error.response.status >= 400 && error.response.status <= 599) ||
       error.code === 'ECONNABORTED' ||
       error.code === 'ETIMEDOUT'
     );
@@ -261,7 +259,7 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 2, backoff =
       // Translate URLs back to main API
       if (config.url === '/hot-movies-series') config.url = '/hot';
       if (config.url === '/media') config.url = '/play';
-      if (config.url === '/search' && config.params?.query) config.url = '/search/suggest'; // Approximated
+      if (config.url === '/search-suggestions') config.url = '/search/suggest';
       if (config.url === '/recommendations') config.url = '/recommend';
       if (config.url === '/popular-searches') config.url = '/popular-search';
 
@@ -462,7 +460,7 @@ export const externalMovieService = {
       if (isBackup) {
         params.type = 'ALL'; // Fallback type
       } else {
-        params.perPage = perPage * (genre ? 5 : 1); // fetch more if filtering
+        params.perPage = Math.min(50, perPage * (genre ? 5 : 1)); // fetch more if filtering, max 50
       }
       
       const response = await fetchWithRetry({ 
@@ -562,6 +560,16 @@ export const externalMovieService = {
     if (!query || !query.trim()) return [];
     try {
       if (currentApiSource === 'backup') {
+        try {
+          const response = await fetchWithRetry({ 
+            url: `/search/suggest`, 
+            params: { keyword: query } 
+          });
+          const list = response.data?.data || response.data || [];
+          if (Array.isArray(list)) return list;
+        } catch (err) {
+          // ignore and fall back to full search mapping
+        }
         const searchRes = await this.search(query, 1, 5, 'ALL' as any);
         return searchRes.map(item => item.title);
       }

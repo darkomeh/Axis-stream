@@ -12,6 +12,7 @@ export interface MediaItem {
   genres?: string[];
   description?: string;
   avgHueDark?: string;
+  duration?: string | number;
 }
 
 export interface HomepageSection {
@@ -88,6 +89,7 @@ export interface MediaData {
   initialTime?: number;
   vidsrcServers?: any[];
   isBackup?: boolean;
+  forceIframe?: boolean;
 }
 
 export interface Actor {
@@ -186,3 +188,16 @@ export function slugify(text: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+export interface LiveChannel {
+  id: string;
+  name: string;
+  logo: string;
+  url: string;
+  category: string;
+  description: string;
+  currentProgram?: string;
+  country?: string;
+  views?: number;
+}
+

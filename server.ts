@@ -32,7 +32,24 @@ function isUrlAllowed(reqUrl: string): boolean {
 }
 
 const app = express();
-app.use("/api", backendRouter);
+
+// Vercel Serverless Function Path Fixer Middleware (MUST RUN FIRST so req.url is corrected before routing)
+// Sometimes Vercel's Edge/Serverless Router strips the /api/ prefix or rewrites to query params.
+app.use((req, res, next) => {
+  if (process.env.VERCEL) {
+    let url = req.url;
+    // If it's a rewritten generic slug
+    if (url.startsWith('/?slug=')) {
+      url = '/' + url.split('/?slug=')[1];
+    }
+    // If it doesn't have /api prefix but it's an api request
+    if (!url.startsWith('/api') && url !== '/' && !url.includes('sitemap') && !url.includes('robots')) {
+      req.url = '/api' + url;
+    }
+  }
+  next();
+});
+
 app.use(compression());
 app.use(express.json());
 
@@ -66,22 +83,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Vercel Serverless Function Path Fixer Middleware
-// Sometimes Vercel's Edge/Serverless Router strips the /api/ prefix or rewrites to query params.
-app.use((req, res, next) => {
-  if (process.env.VERCEL) {
-    let url = req.url;
-    // If it's a rewritten generic slug
-    if (url.startsWith('/?slug=')) {
-      url = '/' + url.split('/?slug=')[1];
-    }
-    // If it doesn't have /api prefix but it's an api request
-    if (!url.startsWith('/api') && url !== '/' && !url.includes('sitemap') && !url.includes('robots')) {
-      req.url = '/api' + url;
-    }
-  }
-  next();
-});
+app.use("/api", backendRouter);
 
 // Diagnostic endpoint early
 app.get("/api/server-health", (req, res) => {

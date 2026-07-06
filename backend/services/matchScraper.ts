@@ -129,7 +129,7 @@ export class MatchScraper {
       if (now >= this.nuxtCooldownUntil) {
         const res = await axios.get(payloadUrl, {
           headers: config.BROWSER_HEADERS,
-          timeout: 6000,
+          timeout: 2000, // Reduced from 6000ms to 2000ms to fail fast and avoid Vercel timeouts
           responseType: "json"
         });
 

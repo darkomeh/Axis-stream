@@ -12,6 +12,12 @@ export class DiscoveryService {
    */
   static async getBestDomain(): Promise<{ domain: string; time: number } | null> {
     const now = Date.now();
+    
+    // On Vercel, return default domain instantly to eliminate cold start latency and prevent gateway timeouts
+    if (process.env.VERCEL) {
+      return { domain: "https://sportslivetoday.com", time: 0 };
+    }
+
     // Cache the best domain for 10 minutes to avoid spamming HEAD requests
     if (bestDomainCache && now - bestDomainLastCheck < 10 * 60 * 1000) {
       return bestDomainCache;
@@ -23,7 +29,7 @@ export class DiscoveryService {
       try {
         const response = await axios.head(domain, {
           headers: config.BROWSER_HEADERS,
-          timeout: 10000,
+          timeout: 2000, // Reduced from 10000ms to 2000ms to prevent hangs
           maxRedirects: 5
         });
         

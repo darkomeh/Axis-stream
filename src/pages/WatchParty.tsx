@@ -380,7 +380,7 @@ export default function WatchPartyPage() {
                 messages.map((msg, i) => {
                   const isMe = msg.uid === user?.id;
                   const showAvatar = i === 0 || messages[i - 1].uid !== msg.uid;
-                  const isVerified = msg.email === 'greatmayuku2@gmail.com' || msg.displayName?.toLowerCase() === 'greatmayuku2' || (isMe && user?.email === 'greatmayuku2@gmail.com');
+                  const isVerified = msg.email === 'greatmayuku2@gmail.com' || msg.displayName === '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' || msg.displayName?.includes('Busy') || msg.displayName?.toLowerCase() === 'greatmayuku2' || (isMe && user?.email === 'greatmayuku2@gmail.com');
                   const displayNameToRender = msg.displayName;
                   
                   const colors = ["text-[#32D74B]", "text-[#0A84FF]", "text-[#BF5AF2]", "text-[#FF9F0A]", "text-[#FF375F]"];
@@ -469,7 +469,7 @@ export default function WatchPartyPage() {
                   participants.map((p) => {
                     const isMe = p.uid === user?.id;
                     const isHostUser = p.uid === party.hostId;
-                    const isVerified = p.email === 'greatmayuku2@gmail.com' || p.displayName?.toLowerCase() === 'greatmayuku2' || (isMe && user?.email === 'greatmayuku2@gmail.com');
+                    const isVerified = p.email === 'greatmayuku2@gmail.com' || p.displayName === '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' || p.displayName?.includes('Busy') || p.displayName?.toLowerCase() === 'greatmayuku2' || (isMe && user?.email === 'greatmayuku2@gmail.com');
                     const displayNameToRender = p.displayName?.split(" ")[0];
 
                     return (

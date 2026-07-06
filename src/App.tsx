@@ -12,6 +12,7 @@ import MediaPreviewTray from "./components/MediaPreviewTray";
 import SystemAlerts from "./components/SystemAlerts";
 import NotificationListener from "./components/NotificationListener";
 import WhatsAppBubble from "./components/WhatsAppBubble";
+import { InstallAppBanner } from "./components/InstallAppBanner";
 // import LoginPopup from "./components/LoginPopup"; // Removing as per request
 import { Analytics } from "./components/Analytics";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -160,6 +161,7 @@ function AppContent() {
       <NotificationListener />
       <SystemAlerts />
       <WhatsAppBubble />
+      <InstallAppBanner />
       <main>
         <Suspense fallback={
           <div className="min-h-screen bg-[#080808] text-white pb-20 overflow-hidden">

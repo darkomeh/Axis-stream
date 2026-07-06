@@ -1333,7 +1333,7 @@ export default function Trails() {
                         {/* Scrollable comments lists */}
                         <div className="space-y-3.5 max-h-[190px] overflow-y-auto pr-1 hide-scrollbar">
                           {((commentsMap[item.id]) || []).map((comm) => {
-                            const isCommenterDev = (comm as any).isDev || comm.name.toLowerCase() === "greatmayuku2" || comm.name.toLowerCase() === "greatmayuku2@gmail.com" || (user && user.email === "greatmayuku2@gmail.com" && comm.name === user.username);
+                            const isCommenterDev = (comm as any).isDev || comm.name.toLowerCase() === "greatmayuku2" || comm.name.toLowerCase() === "greatmayuku2@gmail.com" || comm.name === "×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永" || comm.name.includes("Busy") || (user && user.email === "greatmayuku2@gmail.com" && comm.name === user.username);
                             const commenterName = (isCommenterDev && user && user.email === "greatmayuku2@gmail.com" && user.username) ? user.username : comm.name;
                             return (
                               <div key={`inline-comm-desk-${comm.id}`} className="flex gap-2.5 items-start text-xs text-left">
@@ -1433,7 +1433,7 @@ export default function Trails() {
             {/* List of comments scrolling viewport */}
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 hide-scrollbar">
               {((commentsMap[activeItem.id]) || []).map((comm) => {
-                const isCommenterDev = (comm as any).isDev || comm.name.toLowerCase() === "greatmayuku2" || comm.name.toLowerCase() === "greatmayuku2@gmail.com" || (user && user.email === "greatmayuku2@gmail.com" && comm.name === user.username);
+                const isCommenterDev = (comm as any).isDev || comm.name.toLowerCase() === "greatmayuku2" || comm.name.toLowerCase() === "greatmayuku2@gmail.com" || comm.name === "×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永" || comm.name.includes("Busy") || (user && user.email === "greatmayuku2@gmail.com" && comm.name === user.username);
                 const commenterName = (isCommenterDev && user && user.email === "greatmayuku2@gmail.com" && user.username) ? user.username : comm.name;
                 return (
                   <div key={comm.id} className="flex gap-3 items-start p-1 relative">

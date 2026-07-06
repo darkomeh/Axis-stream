@@ -7,8 +7,13 @@ import Hls from "hls.js";
 import { LIVE_CHANNELS } from "../data/liveChannels";
 
 export default function LiveTVPlayerScreen() {
-  const { channelId } = useParams();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    navigate("/live", { replace: true });
+  }, [navigate]);
+
+  const { channelId } = useParams();
   const videoRef = useRef<HTMLVideoElement>(null);
     const hlsRef = useRef<Hls | null>(null);
   

@@ -289,6 +289,24 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
     controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000);
   };
 
+  const handlePlayerTap = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (
+      target.closest("button") ||
+      target.closest("input") ||
+      target.closest(".no-click-toggle")
+    ) {
+      return;
+    }
+
+    if (showControls) {
+      setShowControls(false);
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    } else {
+      resetControls();
+    }
+  };
+
   const shareMatch = () => {
     navigator.clipboard.writeText(window.location.href);
     showToast("Match link copied to clipboard!", "success");
@@ -306,7 +324,7 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
         ref={containerRef}
         className={`relative bg-black w-full shrink-0 ${isFullscreen ? 'h-full' : 'h-[30vh] sm:h-[40vh] md:h-[50vh]'} shadow-[0_10px_40px_rgba(0,0,0,0.8)] z-20 group`}
         onMouseMove={resetControls}
-        onClick={resetControls}
+        onClick={handlePlayerTap}
       >
         {user ? (
           <video 
@@ -367,11 +385,18 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
               </div>
 
               {/* Center Play/Pause */}
-              <div className="flex-1 flex items-center justify-center" onClick={togglePlay}>
+              <div className="flex-1 flex items-center justify-center">
                 {user && !isVideoLoading && (
-                  <div className="w-16 h-16 rounded-full bg-black/40 border border-white/10 backdrop-blur-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-2xl">
-                    {isPlaying ? <Pause className="w-8 h-8 text-white ml-0.5" /> : <Play className="w-8 h-8 text-white ml-1" />}
-                  </div>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePlay();
+                      resetControls();
+                    }}
+                    className="w-16 h-16 rounded-full bg-black/60 hover:bg-black/80 border border-white/20 backdrop-blur-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all cursor-pointer shadow-2xl z-30"
+                  >
+                    {isPlaying ? <Pause className="w-8 h-8 text-white" /> : <Play className="w-8 h-8 text-white ml-1" />}
+                  </button>
                 )}
               </div>
 
@@ -593,7 +618,7 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
                       <div className="flex flex-col">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className={`text-xs font-bold ${msg.role === 'admin' ? 'text-[#FF3B30]' : 'text-[#A1A1AA]'}`}>{msg.displayName}</span>
-                          {(msg.email === 'greatmayuku2@gmail.com' || msg.displayName?.toLowerCase() === 'greatmayuku2' || (msg.uid === user?.id && user?.email === 'greatmayuku2@gmail.com')) && <MetaVerifiedBadge className="w-3.5 h-3.5" />}
+                          {(msg.email === 'greatmayuku2@gmail.com' || msg.displayName === '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' || msg.displayName?.includes('Busy') || msg.displayName?.toLowerCase() === 'greatmayuku2' || (msg.uid === user?.id && user?.email === 'greatmayuku2@gmail.com')) && <MetaVerifiedBadge className="w-3.5 h-3.5" />}
                           {msg.role === 'admin' && <span className="px-1.5 py-0.5 bg-[#FF3B30]/20 text-[#FF3B30] text-[8px] font-bold uppercase rounded">Mod</span>}
                         </div>
                         <p className="text-sm text-white mt-1 leading-snug">{msg.text}</p>

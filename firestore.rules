@@ -13,38 +13,30 @@ service cloud.firestore {
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.email == 'greatmayuku2@gmail.com';
+    }
+
     function isAdmin() { 
-      return isSignedIn() && (
-        request.auth.token.email == 'greatmayuku2@gmail.com' ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      return isSuperAdmin() || (
+        isSignedIn() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin'
       ); 
     }
 
     // --- Validation Blueprints ---
     function isValidWatchHistory(data) {
-      return data.keys().hasAll(['movieId', 'title', 'watchedAt']) &&
-             data.keys().size() == 3 &&
-             data.movieId is string && data.movieId.size() <= 128 &&
-             data.title is string && data.title.size() <= 256 &&
-             data.watchedAt == request.time;
+      return data.keys().hasAll(['movieId', 'title', 'watchedAt']);
     }
 
     function isValidFavorite(data) {
-      return data.keys().hasAll(['movieId', 'title', 'addedAt']) &&
-             data.movieId is string && data.movieId.size() <= 128 &&
-             data.title is string && data.title.size() <= 256 &&
-             data.addedAt == request.time;
+      return data.keys().hasAll(['movieId', 'title', 'addedAt']);
     }
     function isValidUser(data) {
-      // Simplified validation to prevent "Missing or insufficient permissions" for valid users
-      let requiredFields = ['uid', 'email', 'name', 'photoURL', 'createdAt', 'lastLogin', 'role', 'isBanned', 'securityInfo'];
+      let requiredFields = ['uid', 'name'];
       return data.keys().hasAll(requiredFields) &&
-             data.uid == request.auth.uid &&
-             data.email is string &&
-             data.name is string &&
-             data.createdAt == request.time &&
-             data.lastLogin == request.time;
+             data.uid == request.auth.uid;
     }
 
     function isValidChatMessage(data) {
@@ -55,9 +47,7 @@ service cloud.firestore {
     }
 
     function isValidContinueWatching(data) {
-      return data.keys().hasAll(['movieId', 'title', 'lastPosition', 'updatedAt']) &&
-             data.movieId is string &&
-             data.updatedAt == request.time;
+      return data.keys().hasAll(['movieId', 'title', 'lastPosition', 'updatedAt']);
     }
 
     function isValidSupportTicket(data) {
@@ -76,10 +66,7 @@ service cloud.firestore {
     }
 
     function isValidPlatformError(data) {
-      return data.keys().hasAll(['message', 'timestamp', 'url', 'userAgent', 'resolved']) &&
-             data.message is string && data.message.size() <= 2000 &&
-             data.timestamp == request.time &&
-             data.resolved == false;
+      return data.keys().hasAll(['message', 'timestamp']);
     }
     
     function isValidReport(data) {
@@ -91,6 +78,34 @@ service cloud.firestore {
              data.createdAt == request.time;
     }
 
+    function isValidWatchParty(data) {
+      return data.hostId is string && data.mediaId is string;
+    }
+
+    function isValidPartyParticipant(data) {
+      return data.uid is string && data.displayName is string;
+    }
+
+    function isValidPartyMessage(data) {
+      return data.uid == request.auth.uid && data.text is string;
+    }
+
+    function isValidPoll(data) {
+      return data.keys().hasAll(['home', 'draw', 'away']) &&
+             data.home is number && data.draw is number && data.away is number;
+    }
+
+    function isValidSportsChatMessage(data) {
+      return data.text is string && data.text.size() <= 500 &&
+             data.uid == request.auth.uid &&
+             data.displayName is string && data.displayName.size() <= 100 &&
+             data.timestamp != null;
+    }
+
+    function isValidSportsViewerSession(data) {
+      return data.keys().hasAll(['joinedAt']) && data.joinedAt != null;
+    }
+
     // --- Collections ---
 
     match /users/{userId} {
@@ -99,10 +114,7 @@ service cloud.firestore {
       
       allow create: if isOwner(userId) && isValidUser(incoming());
       
-      allow update: if isOwner(userId) && (
-        // Action: Update profile info or Heartbeat
-        incoming().lastLogin == request.time
-      ) || isAdmin();
+      allow update: if isOwner(userId) || isAdmin();
       allow delete: if isOwner(userId) || isAdmin();
 
       match /continueWatching/{movieId} {
@@ -114,7 +126,7 @@ service cloud.firestore {
       match /watchHistory/{historyId} {
         allow list: if isOwner(userId) || isAdmin();
         allow get: if isOwner(userId) || isAdmin();
-        allow create: if isOwner(userId) && isValidWatchHistory(incoming());
+        allow create, update: if isOwner(userId) && isValidWatchHistory(incoming());
         allow delete: if isOwner(userId) || isAdmin();
       }
 
@@ -171,6 +183,55 @@ service cloud.firestore {
       allow get: if isAdmin();
       allow create: if isSignedIn() && isValidReport(incoming());
       allow update: if isAdmin();
+    }
+
+    match /watchParties/{partyId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidWatchParty(incoming()) && incoming().hostId == request.auth.uid;
+      allow update: if isSignedIn() && (resource.data.hostId == request.auth.uid || isAdmin());
+      allow delete: if isSignedIn() && (resource.data.hostId == request.auth.uid || isAdmin());
+
+      match /participants/{participantId} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn() && participantId == request.auth.uid && isValidPartyParticipant(incoming());
+        allow delete: if isSignedIn() && (participantId == request.auth.uid || get(/databases/$(database)/documents/watchParties/$(partyId)).data.hostId == request.auth.uid || isAdmin());
+      }
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && isValidPartyMessage(incoming());
+        allow delete: if isAdmin() || get(/databases/$(database)/documents/watchParties/$(partyId)).data.hostId == request.auth.uid;
+      }
+    }
+    
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAdmin() || (isSignedIn() && incoming().userId == request.auth.uid);
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    match /broadcast_notifications/{broadcastId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /sports_polls/{matchId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidPoll(incoming());
+      allow update: if isSignedIn() && isValidPoll(incoming());
+    }
+
+    match /sports_chat/{matchId}/messages/{messageId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidSportsChatMessage(incoming());
+      allow delete, update: if isAdmin();
+    }
+
+    match /sports_viewers/{matchId}/active/{userId} {
+      allow read: if true;
+      allow create, update: if isSignedIn() && userId == request.auth.uid && isValidSportsViewerSession(incoming());
+      allow delete: if isSignedIn() && userId == request.auth.uid;
     }
   }
 }

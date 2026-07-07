@@ -133,9 +133,95 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "category", "detail", "status", "createdAt"]
+    },
+    "WatchParty": {
+      "title": "WatchParty",
+      "description": "Watch party room",
+      "type": "object",
+      "properties": {
+        "hostId": { "type": "string" },
+        "mediaId": { "type": "string" },
+        "mediaType": { "type": "string" },
+        "mediaTitle": { "type": "string" },
+        "posterUrl": { "type": "string" },
+        "playbackState": { "type": "object" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["hostId", "mediaId", "playbackState", "createdAt"]
+    },
+    "PartyParticipant": {
+      "title": "PartyParticipant",
+      "description": "Watch party participant",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "isOnline": { "type": "boolean" },
+        "joinedAt": { "type": "number" }
+      },
+      "required": ["uid", "displayName", "isOnline", "joinedAt"]
+    },
+    "PartyMessage": {
+      "title": "PartyMessage",
+      "description": "Watch party chat message",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["uid", "displayName", "text", "createdAt"]
+    },
+    "SportsPoll": {
+      "title": "SportsPoll",
+      "description": "Poll results for a sports match",
+      "type": "object",
+      "properties": {
+        "home": { "type": "number" },
+        "draw": { "type": "number" },
+        "away": { "type": "number" }
+      },
+      "required": ["home", "draw", "away"]
+    },
+    "SportsChatMessage": {
+      "title": "SportsChatMessage",
+      "description": "Live chat message for a sports match",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["text", "uid", "displayName", "timestamp"]
+    },
+    "SportsViewerSession": {
+      "title": "SportsViewerSession",
+      "description": "Active live stream viewer session",
+      "type": "object",
+      "properties": {
+        "joinedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["joinedAt"]
     }
   },
   "firestore": {
+    "watchParties/{partyId}": {
+      "schema": "WatchParty",
+      "description": "Active watch party rooms"
+    },
+    "watchParties/{partyId}/participants/{participantId}": {
+      "schema": "PartyParticipant",
+      "description": "Watch party participants"
+    },
+    "watchParties/{partyId}/messages/{messageId}": {
+      "schema": "PartyMessage",
+      "description": "Watch party live chat messages"
+    },
     "users/{userId}": {
       "schema": "User",
       "description": "Collection of user profiles"
@@ -179,6 +265,18 @@
     "reports/{reportId}": {
       "schema": "Report",
       "description": "User reports"
+    },
+    "sports_polls/{matchId}": {
+      "schema": "SportsPoll",
+      "description": "Match winner voting poll results"
+    },
+    "sports_chat/{matchId}/messages/{messageId}": {
+      "schema": "SportsChatMessage",
+      "description": "Live match specific chat messages"
+    },
+    "sports_viewers/{matchId}/active/{userId}": {
+      "schema": "SportsViewerSession",
+      "description": "Active viewer presence for a live sports match"
     }
   }
 }

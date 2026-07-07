@@ -2,15 +2,9 @@ import {
   signInWithPopup, 
   GoogleAuthProvider, 
   OAuthProvider,
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged,
-  User as FirebaseUser,
-  sendPasswordResetEmail,
-  sendSignInLinkToEmail,
-  isSignInWithEmailLink,
-  signInWithEmailLink
+  User as FirebaseUser
 } from 'firebase/auth';
 import { 
   doc, 
@@ -60,7 +54,7 @@ export interface FirestoreErrorInfo {
   }
 }
 
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -115,8 +109,8 @@ export const logPlatformError = async (message: string, stack?: string, componen
       message,
       stack: stack || 'No stack trace',
       componentName: componentName || 'Unknown',
-      userId: auth.currentUser?.uid || 'guest',
-      userEmail: auth.currentUser?.email || 'guest',
+      userId: auth.currentUser?.uid || 'anonymous',
+      userEmail: auth.currentUser?.email || 'anonymous',
       url: window.location.href,
       userAgent: navigator.userAgent,
       timestamp: serverTimestamp(),
@@ -146,15 +140,6 @@ export const trackSessionDuration = async (seconds: number) => {
     }
   } catch (error) {
     console.warn("Session tracking failed", error);
-  }
-};
-
-export const resetPassword = async (email: string) => {
-  try {
-    await sendPasswordResetEmail(auth, email);
-  } catch (error) {
-    console.error("Password reset error", error);
-    throw error;
   }
 };
 
@@ -194,19 +179,6 @@ export const trackWatchTime = async (seconds: number) => {
     });
   } catch (error) {
     console.warn("Watch time tracking failed", error);
-  }
-};
-
-export const logGuestCreation = async () => {
-  const path = 'analytics/global';
-  try {
-    const statsRef = doc(db, path);
-    await updateDoc(statsRef, {
-      totalGuests: increment(1),
-      activeGuests: increment(1)
-    });
-  } catch (error) {
-    console.warn("Guest tracking failed", error);
   }
 };
 
@@ -343,77 +315,6 @@ export const loginWithGoogle = async () => {
   }
 };
 
-export const signupWithEmail = async (email: string, pass: string, name: string) => {
-  if (!/^[a-zA-Z][a-zA-Z0-9._]*@gmail\.com$/i.test(email)) {
-    throw new Error("Only valid Gmail addresses are allowed.");
-  }
-  try {
-    const result = await createUserWithEmailAndPassword(auth, email, pass);
-    await saveUser(result.user, name);
-    return result.user;
-  } catch (error) {
-    console.error("Signup Error", error);
-    throw error;
-  }
-};
-
-export const loginWithEmail = async (email: string, pass: string) => {
-  if (!/^[a-zA-Z][a-zA-Z0-9._]*@gmail\.com$/i.test(email)) {
-    throw new Error("Only valid Gmail addresses are allowed.");
-  }
-  try {
-    const result = await signInWithEmailAndPassword(auth, email, pass);
-    await saveUser(result.user);
-    return result.user;
-  } catch (error) {
-    console.error("Login Error", error);
-    throw error;
-  }
-};
-
-export const sendMagicLink = async (email: string, name?: string) => {
-  if (!/^[a-zA-Z][a-zA-Z0-9._]*@gmail\.com$/i.test(email)) {
-    throw new Error("Only valid Gmail addresses are allowed.");
-  }
-  try {
-    const actionCodeSettings = {
-      url: window.location.href, // Redirects back to the current setup
-      handleCodeInApp: true,
-    };
-    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-    window.localStorage.setItem('emailForSignIn', email);
-    if (name) {
-      window.localStorage.setItem('nameForSignIn', name);
-    }
-  } catch (error) {
-    console.error("Error sending magic link", error);
-    throw error;
-  }
-};
-
-export const completeMagicLinkSignIn = async (url: string) => {
-  try {
-    if (isSignInWithEmailLink(auth, url)) {
-      let email = window.localStorage.getItem('emailForSignIn');
-      if (!email) {
-        email = window.prompt('Please provide your email for confirmation');
-      }
-      if (email) {
-        const result = await signInWithEmailLink(auth, email, url);
-        window.localStorage.removeItem('emailForSignIn');
-        const nameForSignIn = window.localStorage.getItem('nameForSignIn');
-        await saveUser(result.user, nameForSignIn || undefined);
-        window.localStorage.removeItem('nameForSignIn');
-        return result.user;
-      }
-    }
-  } catch (error) {
-    console.error("Error completing magic link sign-in", error);
-    throw error;
-  }
-  return null;
-};
-
 export const logoutUser = async () => {
   try {
     await signOut(auth);
@@ -459,7 +360,7 @@ export const saveUser = async (user: FirebaseUser, displayName?: string) => {
   }
 };
 
-export const updateProfile = async (data: { name?: string, photoURL?: string, bio?: string, username?: string }) => {
+export const updateProfile = async (data: { name?: string, photoURL?: string, bio?: string, username?: string, tasteProfile?: string[] }) => {
   if (!auth.currentUser) return;
   const userRef = doc(db, 'users', auth.currentUser.uid);
   try {
@@ -473,40 +374,73 @@ export const updateProfile = async (data: { name?: string, photoURL?: string, bi
 };
 
 export const saveContinueWatching = async (item: import('../contexts/AuthContext').ContinueWatchingItem) => {
-  if (!auth.currentUser) return;
-  const docRef = doc(db, `users/${auth.currentUser.uid}/continueWatching`, item.id);
+  if (!auth.currentUser || !item?.id) return;
+  const docId = String(item.id);
+  const docRef = doc(db, `users/${auth.currentUser.uid}/continueWatching`, docId);
   try {
     await setDoc(docRef, {
-      movieId: item.id,
-      title: item.title,
-      poster: item.poster || '',
-      background: (item as any).background || '',
-      avgHueDark: item.avgHueDark || '',
-      type: item.type || 'Movie',
-      lastPosition: item.progress || 0,
-      duration: item.duration || 1,
-      season: item.season || null,
-      episode: item.episode || null,
-      rating: item.rating || '',
-      year: item.year || '',
+      movieId: docId,
+      title: String(item.title || 'Untitled'),
+      poster: String(item.poster || ''),
+      background: String((item as any).background || ''),
+      avgHueDark: String(item.avgHueDark || ''),
+      type: String(item.type || 'Movie'),
+      lastPosition: Number(item.progress || 0),
+      duration: Number(item.duration || 1),
+      season: item.season !== undefined && item.season !== null ? item.season : null,
+      episode: item.episode !== undefined && item.episode !== null ? item.episode : null,
+      rating: String(item.rating || ''),
+      year: String(item.year || ''),
       updatedAt: serverTimestamp()
     });
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `users/${auth.currentUser.uid}/continueWatching/${item.id}`);
+    handleFirestoreError(error, OperationType.WRITE, `users/${auth.currentUser.uid}/continueWatching/${docId}`);
   }
 };
 
-export const addWatchHistory = async (movieId: string, title: string) => {
-  if (!auth.currentUser) return;
+export const addWatchHistory = async (item: any) => {
+  if (!auth.currentUser || !item?.id) return;
+  const docId = String(item.id);
   const path = `users/${auth.currentUser.uid}/watchHistory`;
   try {
-    await addDoc(collection(db, path), {
-      movieId,
-      title,
+    const docRef = doc(collection(db, path), docId);
+    await setDoc(docRef, {
+      movieId: docId,
+      title: String(item.title || 'Untitled'),
+      type: String(item.type || 'Movie'),
+      poster: String(item.poster || ''),
+      year: String(item.year || ''),
+      rating: String(item.rating || ''),
       watchedAt: serverTimestamp(),
     });
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, path);
+  }
+};
+
+export const removeWatchHistory = async (movieId: string) => {
+  if (!auth.currentUser) return;
+  const path = `users/${auth.currentUser.uid}/watchHistory/${movieId}`;
+  try {
+    await deleteDoc(doc(db, `users/${auth.currentUser.uid}/watchHistory`, movieId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+};
+
+export const clearWatchHistory = async () => {
+  if (!auth.currentUser) return;
+  const path = `users/${auth.currentUser.uid}/watchHistory`;
+  try {
+    const q = query(collection(db, path));
+    const querySnapshot = await getDocs(q);
+    const batch = writeBatch(db);
+    querySnapshot.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
   }
 };
 
@@ -535,21 +469,21 @@ export const removeFavorite = async (movieId: string) => {
 };
 
 export const addFavorite = async (item: import('../types').MediaItem) => {
-  if (!auth.currentUser) return;
+  if (!auth.currentUser || !item?.id) return;
+  const docId = String(item.id);
   const path = `users/${auth.currentUser.uid}/favorites`;
-  // Use the item id as the document id to prevent duplicates easily, or query first
-  const q = query(collection(db, path), where("movieId", "==", item.id));
+  const q = query(collection(db, path), where("movieId", "==", docId));
   try {
     const snap = await getDocs(q);
     if (!snap.empty) return; // already in favs
     
     await addDoc(collection(db, path), {
-      movieId: item.id,
-      title: item.title,
-      poster: item.poster || '',
-      type: item.type || 'Movie',
-      rating: item.rating || '',
-      year: item.year || '',
+      movieId: docId,
+      title: String(item.title || 'Untitled'),
+      poster: String(item.poster || ''),
+      type: String(item.type || 'Movie'),
+      rating: String(item.rating || ''),
+      year: String(item.year || ''),
       addedAt: serverTimestamp(),
     });
   } catch (error) {
@@ -564,8 +498,8 @@ export const sendChatMessage = async (text: string) => {
     await addDoc(collection(db, path), {
       text,
       userId: auth.currentUser.uid,
-      userName: auth.currentUser.displayName || auth.currentUser.email?.split('@')[0],
-      userAvatar: auth.currentUser.photoURL,
+      userName: auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || 'Anonymous',
+      userAvatar: auth.currentUser.photoURL || '',
       createdAt: serverTimestamp()
     });
   } catch (error) {

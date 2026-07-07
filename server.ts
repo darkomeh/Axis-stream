@@ -1,3 +1,4 @@
+import { backendRouter } from "./backend/api/routes.js";
 import express from "express";
 import compression from "compression";
 import path from "path";
@@ -6,26 +7,141 @@ import axios from "axios";
 import fs from "fs";
 import os from "os";
 
-const app = express();
-app.use(compression());
-app.use(express.json());
+// Security: SSRF Validation Helper
+function isUrlAllowed(reqUrl: string): boolean {
+  try {
+    const parsed = new URL(reqUrl);
+    
+    // Only allow HTTP/HTTPS
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return false;
+    }
+    
+    // Block common internal IPs and loopback (Basic SSRF protection)
+    const hostname = parsed.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return false;
+    if (hostname.startsWith('10.')) return false;
+    if (hostname.startsWith('192.168.')) return false;
+    if (hostname.startsWith('169.254.')) return false; // Cloud Metadata
+    if (hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) return false; // Private network
+    
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-// Vercel Serverless Function Path Fixer Middleware
+const app = express();
+
+// Vercel Serverless Function Path Fixer Middleware (MUST RUN FIRST so req.url is corrected before routing)
 // Sometimes Vercel's Edge/Serverless Router strips the /api/ prefix or rewrites to query params.
 app.use((req, res, next) => {
   if (process.env.VERCEL) {
-    let url = req.url;
-    // If it's a rewritten generic slug
-    if (url.startsWith('/?slug=')) {
-      url = '/' + url.split('/?slug=')[1];
-    }
-    // If it doesn't have /api prefix but it's an api request
-    if (!url.startsWith('/api') && url !== '/' && !url.includes('sitemap') && !url.includes('robots')) {
-      req.url = '/api' + url;
+    // 1. Check for any of Vercel's headers containing the original requested path/URI
+    const originalPath = (
+      req.headers["x-vercel-forwarded-path"] ||
+      req.headers["x-forwarded-path"] ||
+      req.headers["x-forwarded-uri"] ||
+      req.headers["x-original-url"] ||
+      req.headers["x-vercel-original-uri"]
+    ) as string;
+
+    if (originalPath) {
+      // Reconstruct original URL with the query string from req.url
+      const queryIndex = req.url.indexOf('?');
+      const queryString = queryIndex !== -1 ? req.url.substring(queryIndex) : '';
+      
+      let cleanPath = originalPath;
+      if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
+        try {
+          cleanPath = new URL(cleanPath).pathname;
+        } catch {}
+      }
+      
+      // Ensure it starts with '/'
+      if (!cleanPath.startsWith('/')) {
+        cleanPath = '/' + cleanPath;
+      }
+      
+      // Keep only path portion if originalPath already has a query string to prevent double query parameters
+      const pathOnlyIndex = cleanPath.indexOf('?');
+      if (pathOnlyIndex !== -1) {
+        cleanPath = cleanPath.substring(0, pathOnlyIndex);
+      }
+      
+      req.url = cleanPath + queryString;
+    } else {
+      // 2. Fallback to matched path check, excluding index.ts/index.js
+      const matchedPath = (req.headers["x-matched-path"] || req.headers["x-vercel-matched-path"]) as string;
+      
+      if (matchedPath && !matchedPath.includes("index.ts") && !matchedPath.includes("index.js") && !matchedPath.includes("index")) {
+        const queryIndex = req.url.indexOf('?');
+        const queryString = queryIndex !== -1 ? req.url.substring(queryIndex) : '';
+        req.url = matchedPath + queryString;
+      } else {
+        let url = req.url;
+        // If Vercel rewrote it to /?path=... or /?slug=...
+        const match = url.match(/^\/\?(slug|path)=([^&]+)(.*)/);
+        if (match) {
+          url = '/' + decodeURIComponent(match[2]) + match[3].replace(/^&/, '?');
+        }
+        
+        // Express app has routes defined with /api/ prefix.
+        // If Vercel stripped it, we MUST prepend it back!
+        if (!url.startsWith('/api')) {
+          req.url = url === '/' ? '/api' : '/api' + (url.startsWith('/') ? url : '/' + url);
+        } else {
+          req.url = url;
+        }
+      }
     }
   }
   next();
 });
+
+app.use(compression());
+
+// Adaptive body parsing middleware to prevent hanging on Vercel Serverless Gateway
+app.use((req, res, next) => {
+  if (req.body !== undefined) {
+    // If the body is already parsed by Vercel or an upstream gateway, bypass express.json() to prevent stream read hang
+    next();
+  } else {
+    express.json()(req, res, next);
+  }
+});
+
+// Basic Rate Limiting & Anti-Scraping Middleware
+const rateLimits = new Map<string, { requests: number, lastRequest: number }>();
+app.use((req, res, next) => {
+  if (req.url.startsWith('/api')) {
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const userLimit = rateLimits.get(ip) || { requests: 0, lastRequest: now };
+    
+    // Reset if more than 1 minute has passed
+    if (now - userLimit.lastRequest > 60000) {
+      userLimit.requests = 0;
+      userLimit.lastRequest = now;
+    }
+    
+    userLimit.requests++;
+    rateLimits.set(ip, userLimit);
+
+    if (userLimit.requests > 600) { // Limit to 600 req/min/IP
+      return res.status(429).json({ error: "Too many requests. Please slow down." });
+    }
+    
+    // Basic User-Agent check
+    const ua = req.headers['user-agent'] || '';
+    if (ua.toLowerCase().includes('python') || ua.toLowerCase().includes('bot') && !ua.toLowerCase().includes('googlebot')) {
+      return res.status(403).json({ error: "Automated access restricted." });
+    }
+  }
+  next();
+});
+
+app.use("/api", backendRouter);
 
 // Diagnostic endpoint early
 app.get("/api/server-health", (req, res) => {
@@ -37,10 +153,34 @@ app.get("/api/server-health", (req, res) => {
       memory: process.memoryUsage(),
       platform: process.platform,
       arch: process.arch,
-      nodeVersion: process.version
+      nodeVersion: process.version,
+      debug: {
+        url: req.url,
+        originalUrl: req.originalUrl,
+        baseUrl: req.baseUrl,
+        method: req.method,
+        headers: req.headers
+      }
     });
   } catch (err) {
     res.status(500).json({ status: "error", error: String(err) });
+  }
+});
+
+app.get("/api/debug", (req, res) => {
+  try {
+    res.json({
+      url: req.url,
+      originalUrl: req.originalUrl,
+      baseUrl: req.baseUrl,
+      method: req.method,
+      headers: req.headers,
+      query: req.query,
+      vercel: process.env.VERCEL ? true : false,
+      env: process.env.NODE_ENV || "unknown"
+    });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
   }
 });
 
@@ -63,6 +203,7 @@ interface AdminState {
     logoUrl?: string;
     allowGuestBrowsing: boolean;
     apiSource?: 'main' | 'backup';
+    streamSource?: 'xcasper' | 'imbed';
   };
   reports: { id: string, userId: string, category: string, detail: string, timestamp: string, status: 'open' | 'closed' }[];
 }
@@ -81,7 +222,8 @@ let adminState: AdminState = {
     tagline: "The Ultimate Streaming Experience",
     logoUrl: "https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg",
     allowGuestBrowsing: true,
-    apiSource: 'backup',
+    apiSource: 'main',
+    streamSource: 'xcasper',
   },
   reports: []
 };
@@ -229,13 +371,13 @@ app.get("/api/homepage", async (req, res) => {
 });
 
 app.get("/api/trending", async (req, res) => {
-  const { page, perPage } = req.query;
-  const cacheKey = `trending_${page}_${perPage}`;
+  const { page, perPage, genre, subjectType } = req.query;
+  const cacheKey = `trending_${page}_${perPage}_${genre || ''}_${subjectType || ''}`;
   const cachedData = getCached(cacheKey);
   if (cachedData) return res.json(cachedData);
 
   try {
-    const data = await externalMovieService.getTrending(Number(page) || 1, Number(perPage) || 18);
+    const data = await externalMovieService.getTrending(Number(page) || 1, Number(perPage) || 18, genre ? String(genre) : undefined, subjectType ? String(subjectType) : undefined);
     setCached(cacheKey, data);
     res.json(data);
   } catch (error: any) {
@@ -299,12 +441,13 @@ app.get("/api/popular-search", async (req, res) => {
 });
 
 app.get("/api/hot", async (req, res) => {
-  const cacheKey = "hot";
+  const { genre, subjectType } = req.query;
+  const cacheKey = `hot_${genre || ''}_${subjectType || ''}`;
   const cachedData = getCached(cacheKey);
   if (cachedData) return res.json(cachedData);
 
   try {
-    const data = await externalMovieService.getHot();
+    const data = await externalMovieService.getHot(genre ? String(genre) : undefined, subjectType ? String(subjectType) : undefined);
     setCached(cacheKey, data);
     res.json(data);
   } catch (error: any) {
@@ -384,12 +527,13 @@ app.get("/api/browse", async (req, res) => {
 });
 
 app.get("/api/ranking", async (req, res) => {
-  const cacheKey = "ranking";
+  const { genre, subjectType } = req.query;
+  const cacheKey = `ranking_${genre || ''}_${subjectType || ''}`;
   const cachedData = getCached(cacheKey);
   if (cachedData) return res.json(cachedData);
 
   try {
-    const data = await externalMovieService.getRanking();
+    const data = await externalMovieService.getRanking(genre ? String(genre) : undefined, subjectType ? String(subjectType) : undefined);
     setCached(cacheKey, data);
     res.json(data);
   } catch (error: any) {
@@ -467,12 +611,24 @@ async function resolveTmdbId(title: string, year: string, type: string): Promise
 app.get("/api/play", async (req, res) => {
   try {
     const { subjectId, detailPath, se, ep, title, year, type } = req.query;
-    const data = await externalMovieService.getPlay(
+    const rawPlayData = await externalMovieService.getPlay(
       String(subjectId || ""),
       detailPath ? String(detailPath) : undefined,
       se ? Number(se) : undefined,
       ep ? Number(ep) : undefined
     );
+    
+    // Clone retrieved object to prevent cache mutations
+    const data = { ...rawPlayData };
+    if (data.sources) {
+      data.sources = [...data.sources];
+    }
+
+    // Apply Stream Source preference (xcasper vs. imbed)
+    if (adminState.siteConfig?.streamSource === 'imbed') {
+      data.sources = [];
+      data.forceIframe = true;
+    }
     
     // Dynamically resolve TMDb ID and construct the clean, ad-free sandboxed embedUrl
     try {
@@ -540,9 +696,9 @@ app.get("/api/play", async (req, res) => {
 
 app.get("/api/verify-embed", async (req, res) => {
   const { url } = req.query;
-  if (!url) return res.json({ valid: false });
+  if (!url || typeof url !== 'string' || !isUrlAllowed(url)) return res.json({ valid: false });
   try {
-    const response = await axios.get(String(url), { 
+    const response = await axios.get(url, { 
       timeout: 3000, 
       validateStatus: () => true 
     });
@@ -703,6 +859,11 @@ app.get("/api/image-proxy", async (req, res) => {
     return res.send(cached.buffer);
   }
 
+  // SSRF Validation
+  if (!isUrlAllowed(imageUrl)) {
+     return res.status(403).send("Forbidden URL access");
+  }
+
   try {
     // Validate URL
     try {
@@ -781,13 +942,18 @@ app.get("/api/proxy", async (req, res) => {
     return res.status(400).send("URL is required");
   }
 
+  if (!isUrlAllowed(videoUrl)) {
+    return res.status(403).send("Forbidden URL access");
+  }
+
   try {
     const range = req.headers.range;
     
     const response = await fetch(videoUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Referer": "https://movieapi.xcasper.space/",
+        "Referer": "https://sportslivetoday.com/",
+        "Origin": "https://sportslivetoday.com",
         "Accept": "*/*",
         "Connection": "keep-alive",
         ...(range && { "Range": range }),
@@ -795,11 +961,38 @@ app.get("/api/proxy", async (req, res) => {
     });
 
     if (!response.ok && response.status !== 206) {
-        // Log error but try to return what we have
         console.warn(`[Proxy] Upstream returned status ${response.status} for ${videoUrl}`);
     }
 
-    // Forward crucial headers
+    const contentType = response.headers.get('content-type') || '';
+    const isM3u8 = videoUrl.includes('.m3u8') || contentType.includes('mpegurl') || contentType.includes('m3u8');
+
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    if (isM3u8 && response.ok) {
+      const text = await response.text();
+      const baseUrl = new URL(videoUrl);
+      
+      const rewritten = text.split('\n').map(line => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) return line;
+        
+        let absoluteUrl = trimmed;
+        if (!trimmed.startsWith('http')) {
+           try {
+             absoluteUrl = new URL(trimmed, baseUrl).toString();
+           } catch (e) {
+             absoluteUrl = baseUrl.toString().substring(0, baseUrl.toString().lastIndexOf('/') + 1) + trimmed;
+           }
+        }
+        return `/api/proxy?url=${encodeURIComponent(absoluteUrl)}`;
+      }).join('\n');
+
+      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+      res.status(response.status).send(rewritten);
+      return;
+    }
+
     const headersToForward = [
       'content-type',
       'content-length',
@@ -809,18 +1002,15 @@ app.get("/api/proxy", async (req, res) => {
       'last-modified',
       'etag'
     ];
-
     headersToForward.forEach(h => {
       const val = response.headers.get(h);
       if (val) res.setHeader(h, val);
     });
     
-    res.setHeader('Access-Control-Allow-Origin', '*');
     res.status(response.status);
 
     if (!response.body) throw new Error("No response body");
 
-    // Optimized streaming
     const { Readable } = await import("stream");
     const reader = Readable.fromWeb(response.body as any);
     
@@ -833,7 +1023,9 @@ app.get("/api/proxy", async (req, res) => {
 
   } catch (error: any) {
     console.error("[Proxy] Error:", error.message);
-    res.status(500).send(error.message);
+    if (!res.headersSent) {
+      res.status(500).send(error.message);
+    }
   }
 });
 

@@ -34,6 +34,26 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Basic anti-scrape / anti-devtools functionality
+      document.addEventListener('contextmenu', event => event.preventDefault()); // Disable right click
+      document.onkeydown = function(e) {
+        if (e.keyCode == 123) { return false; } // F12
+        if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) { return false; } // Ctrl+Shift+I
+        if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) { return false; } // Ctrl+Shift+C
+        if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) { return false; } // Ctrl+Shift+J
+        if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) { return false; } // Ctrl+U (source)
+      };
+      
+      // Simple debugger loop to deter basic devtools inspection
+      let dt = false;
+      const _d = () => {
+        try {
+          (function() { return false; })['constructor']('debugger')();
+        } catch (e) {}
+      };
+      setInterval(_d, 1000);
+    </script>
   </body>
 </html>
 

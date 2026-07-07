@@ -12,6 +12,7 @@ export interface MediaItem {
   genres?: string[];
   description?: string;
   avgHueDark?: string;
+  duration?: string | number;
 }
 
 export interface HomepageSection {
@@ -42,6 +43,8 @@ export interface ItemDetails {
   duration?: string;
   detailPath?: string;
   imdbRatingValue?: string;
+  imdbRatingVotes?: string;
+  country?: string;
   releaseDate?: string;
   subtitles?: string;
   images?: string[];
@@ -86,6 +89,7 @@ export interface MediaData {
   initialTime?: number;
   vidsrcServers?: any[];
   isBackup?: boolean;
+  forceIframe?: boolean;
 }
 
 export interface Actor {
@@ -126,29 +130,35 @@ export function formatDurationToHours(val: string | undefined | null): string {
   if (!val) return "";
   const clean = val.toLowerCase().trim();
   
-  if (clean.includes("hour") || clean.includes("hr") || clean.includes(":")) {
+  if (clean.includes(":")) {
     return val;
   }
   
-  // Parse formats like "2h 45m", "1h 30min"
-  const hMatch = clean.match(/(\d+)\s*h/);
-  const mMatch = clean.match(/(\d+)\s*(m|min)/);
-  
+  // Try to extract pure numbers first to prevent "85hr" returning directly when it actually means 85 minutes
+  const numericOnly = clean.match(/^(\d+)\s*(min|mins|m|hr|hrs|h|hours)?$/);
   let totalMinutes = 0;
-  if (hMatch) {
-    totalMinutes += parseInt(hMatch[1], 10) * 60;
-  }
-  if (mMatch) {
-    totalMinutes += parseInt(mMatch[1], 10);
-  }
   
-  // If we couldn't parse with h and m, check if it's just raw minutes (e.g. "120", "106 min", "120mins")
-  if (totalMinutes === 0) {
-    const onlyDigits = clean.match(/^(\d+)$/) || clean.match(/^(\d+)\s*(min|mins|m)$/);
-    if (onlyDigits) {
-      totalMinutes = parseInt(onlyDigits[1], 10);
+  if (numericOnly) {
+    const num = parseInt(numericOnly[1], 10);
+    // If it says "hr" or "h" but the number is huge (>10), it's probably actually minutes
+    if (numericOnly[2] === "m" || numericOnly[2] === "min" || numericOnly[2] === "mins" || num > 20 || !numericOnly[2]) {
+      totalMinutes = num;
     } else {
-      // Fallback: extract the first number found and assume it's minutes
+      totalMinutes = num * 60; // it actually is hours (e.g., "2 hr")
+    }
+  } else {
+    // Parse formats like "2h 45m", "1h 30min"
+    const hMatch = clean.match(/(\d+)\s*h/);
+    const mMatch = clean.match(/(\d+)\s*(m|min)/);
+    
+    if (hMatch) {
+      totalMinutes += parseInt(hMatch[1], 10) * 60;
+    }
+    if (mMatch) {
+      totalMinutes += parseInt(mMatch[1], 10);
+    }
+    
+    if (totalMinutes === 0) {
       const anyDigit = clean.match(/(\d+)/);
       if (anyDigit) {
         totalMinutes = parseInt(anyDigit[1], 10);
@@ -178,3 +188,16 @@ export function slugify(text: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+export interface LiveChannel {
+  id: string;
+  name: string;
+  logo: string;
+  url: string;
+  category: string;
+  description: string;
+  currentProgram?: string;
+  country?: string;
+  views?: number;
+}
+

@@ -3,10 +3,10 @@
 
 @theme {
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", system-ui, sans-serif;
-  --color-brand: #ffffff; /* Moving away from pure red to white glowing core for iOS feel */
-  --color-brand-hover: #f0f0f0;
+  --color-brand: #FF3B30; /* Deep vibrant red for Axis TV */
+  --color-brand-hover: #FF453A;
   
-  --color-bg-base: #000000;
+  --color-bg-base: #080808;
   --color-bg-sidebar: rgba(20, 20, 20, 0.6);
   --color-card: rgba(30, 30, 30, 0.4);
   
@@ -46,6 +46,14 @@
   .text-fluid-7xl { font-size: var(--text-fluid-7xl); }
   .px-fluid { padding-left: var(--fluid-px-12); padding-right: var(--fluid-px-12); }
   .px-fluid-sm { padding-left: var(--fluid-px-6); padding-right: var(--fluid-px-6); }
+
+  /* Safe Area Utilities */
+  .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .mt-safe { margin-top: env(safe-area-inset-top, 0px); }
+  .mb-safe { margin-bottom: env(safe-area-inset-bottom, 0px); }
+  .top-safe { top: env(safe-area-inset-top, 0px); }
+  .bottom-safe { bottom: env(safe-area-inset-bottom, 0px); }
   
   /* Fluid Spacing & Margin Utilities */
   .space-y-fluid > :not([hidden]) ~ :not([hidden]) {
@@ -61,7 +69,7 @@
   /* ---- iOS 26 LIQUID GLASS & VISIONOS UTILITIES ---- */
   
   .glass-panel {
-    @apply bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)] overflow-hidden;
+    @apply bg-white/[0.08] backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)] overflow-hidden;
     border-radius: var(--radius-card);
   }
 
@@ -99,13 +107,11 @@
 
 @layer base {
   body {
-    @apply bg-black text-white antialiased overflow-x-hidden;
+    @apply bg-[#080808] text-[#F5F5F7] antialiased overflow-x-hidden;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-font-smoothing: antialiased;
     overscroll-behavior-y: none;
-    /* Soft cinema lighting globally */
-    background: radial-gradient(circle at 50% 0%, #1a1a2e 0%, #000000 60%);
-    background-attachment: fixed;
+    background-color: #080808;
   }
 
   /* Global Liquid UI adjustments */
@@ -138,7 +144,7 @@
 
 /* Cinematic Utilities */
 .hero-gradient-mobile {
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.8) 60%, #000000 100%);
+  background: linear-gradient(180deg, rgba(8, 8, 8, 0) 0%, rgba(8, 8, 8, 0.8) 60%, #080808 100%);
 }
 
 .hero-gradient-overlay {
@@ -177,4 +183,19 @@
 
 .glow-brand {
   box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+}
+
+/* Accessibility: Keyboard focus boundaries */
+*:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 4px;
+}
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }

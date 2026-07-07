@@ -44,6 +44,47 @@ interface SportsMatchDetailsProps {
 
 const loadHls = () => import("hls.js").then((m) => m.default);
 
+const formatMatchDate = (dateInput: string | Date | undefined): string => {
+  if (!dateInput) return "TBD";
+  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  if (isNaN(date.getTime())) return "TBD";
+
+  const days = ["Sun.", "Mon.", "Tue.", "Wed.", "Thu.", "Fri.", "Sat."];
+  const months = [
+    "Jan.", "Feb.", "Mar.", "Apr.", "May", "June",
+    "July", "Aug.", "Sept.", "Oct.", "Nov.", "Dec."
+  ];
+
+  const dayName = days[date.getDay()];
+  const dayOfMonth = date.getDate();
+  const monthName = months[date.getMonth()];
+  const year = date.getFullYear();
+
+  let suffix = "th";
+  if (dayOfMonth === 1 || dayOfMonth === 21 || dayOfMonth === 31) {
+    suffix = "st";
+  } else if (dayOfMonth === 2 || dayOfMonth === 22) {
+    suffix = "nd";
+  } else if (dayOfMonth === 3 || dayOfMonth === 23) {
+    suffix = "rd";
+  }
+
+  return `${dayName} ${dayOfMonth}${suffix} ${monthName} ${year}`;
+};
+
+const formatMatchTime = (dateInput: string | Date | undefined): string => {
+  if (!dateInput) return "TBD";
+  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  if (isNaN(date.getTime())) return "TBD";
+
+  let hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  return `${hours}:${minutes} ${ampm}`;
+};
+
 export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: SportsMatchDetailsProps) {
   const { user, loginWithGoogle } = useAuth();
   const { showToast } = useToast();
@@ -76,6 +117,39 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
   const [hasVoted, setHasVoted] = useState<string | null>(null);
 
   const [isVideoLoading, setIsVideoLoading] = useState<boolean>(true);
+  const [timeLeft, setTimeLeft] = useState<string>("");
+
+  useEffect(() => {
+    if (!currentMatch.start_time || currentMatch.status !== "UPCOMING") {
+      setTimeLeft("");
+      return;
+    }
+
+    const updateTimer = () => {
+      const target = new Date(currentMatch.start_time!).getTime();
+      const now = Date.now();
+      const diff = target - now;
+
+      if (diff <= 0) {
+        setTimeLeft("Starting Now");
+        return;
+      }
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      const hStr = String(hours).padStart(2, "0");
+      const mStr = String(minutes).padStart(2, "0");
+      const sStr = String(seconds).padStart(2, "0");
+
+      setTimeLeft(`${hStr}:${mStr}:${sStr}`);
+    };
+
+    updateTimer();
+    const timerId = setInterval(updateTimer, 1000);
+    return () => clearInterval(timerId);
+  }, [currentMatch.start_time, currentMatch.status]);
 
   useEffect(() => {
     setCurrentMatch(match);
@@ -88,9 +162,9 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
     if (!match.id) return;
     const pollLiveMatch = async () => {
       try {
-        const response = await axios.get(`/api/matches/live?sport=${match.sport_type || 'all'}`);
-        const liveMatches: Match[] = response.data.matches || [];
-        const updated = liveMatches.find((m: Match) => m.id === match.id);
+        const response = await axios.get(`/api/matches?sport=${match.sport_type || 'all'}`);
+        const allMatches: Match[] = response.data.matches || [];
+        const updated = allMatches.find((m: Match) => m.id === match.id);
         
         if (updated) {
           setCurrentMatch(prev => {
@@ -327,19 +401,73 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
         onClick={handlePlayerTap}
       >
         {user ? (
-          <video 
-            ref={videoRef} 
-            className="w-full h-full object-contain animate-fade-in" 
-            playsInline 
-            muted={isMuted}
-            onWaiting={handleVideoWaiting}
-            onPlaying={handleVideoPlaying}
-            onLoadedData={handleVideoPlaying}
-            onCanPlay={handleVideoPlaying}
-            onLoadStart={handleVideoWaiting}
-            onSeeking={handleVideoWaiting}
-            onSeeked={handleVideoPlaying}
-          />
+          currentMatch.status === "UPCOMING" ? (
+            <div className="absolute inset-0 bg-gradient-to-br from-[#0c0c12] to-[#040406] flex flex-col items-center justify-center p-6 text-center z-10">
+              <div className="absolute inset-0 bg-cover bg-center opacity-15" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=600&auto=format&fit=crop')` }} />
+              <div className="relative z-10 max-w-lg w-full flex flex-col items-center">
+                {/* League Badge */}
+                <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-[#A1A1AA] font-bold uppercase tracking-widest mb-6">
+                  {currentMatch.league || "International Match"}
+                </span>
+
+                {/* Matchup row */}
+                <div className="flex items-center justify-center gap-6 sm:gap-10 w-full mb-8">
+                  {/* Home */}
+                  <div className="flex flex-col items-center flex-1">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/[0.04] border border-white/10 p-3 flex items-center justify-center">
+                      {currentMatch.home_logo ? (
+                        <img src={currentMatch.home_logo} className="w-full h-full object-contain" alt="" />
+                      ) : (
+                        <span className="text-xl">🛡️</span>
+                      )}
+                    </div>
+                    <span className="text-xs sm:text-sm font-bold mt-2 text-white truncate max-w-[100px] sm:max-w-[140px]">{currentMatch.home_team}</span>
+                  </div>
+
+                  {/* VS / Divider */}
+                  <div className="flex flex-col items-center justify-center">
+                    <span className="text-xl font-black text-[#FF3B30] tracking-wider">VS</span>
+                  </div>
+
+                  {/* Away */}
+                  <div className="flex flex-col items-center flex-1">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/[0.04] border border-white/10 p-3 flex items-center justify-center">
+                      {currentMatch.away_logo ? (
+                        <img src={currentMatch.away_logo} className="w-full h-full object-contain" alt="" />
+                      ) : (
+                        <span className="text-xl">⚔️</span>
+                      )}
+                    </div>
+                    <span className="text-xs sm:text-sm font-bold mt-2 text-white truncate max-w-[100px] sm:max-w-[140px]">{currentMatch.away_team}</span>
+                  </div>
+                </div>
+
+                {/* Countdown display */}
+                <div className="bg-white/[0.02] border border-white/10 rounded-[24px] px-8 py-5 flex flex-col items-center w-full max-w-sm backdrop-blur-md">
+                  <span className="text-[10px] font-bold text-[#FF3B30] tracking-widest uppercase mb-1">Match Starts In</span>
+                  <span className="text-3xl sm:text-4xl font-mono font-bold text-white tracking-widest">{timeLeft || "00:00:00"}</span>
+                </div>
+
+                <p className="text-[11px] text-[#A1A1AA] mt-6 flex items-center gap-1">
+                  <Bell className="w-3.5 h-3.5 text-[#FF3B30]" /> Notifications enabled. We'll alert you the moment kick-off begins.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <video 
+              ref={videoRef} 
+              className="w-full h-full object-contain animate-fade-in" 
+              playsInline 
+              muted={isMuted}
+              onWaiting={handleVideoWaiting}
+              onPlaying={handleVideoPlaying}
+              onLoadedData={handleVideoPlaying}
+              onCanPlay={handleVideoPlaying}
+              onLoadStart={handleVideoWaiting}
+              onSeeking={handleVideoWaiting}
+              onSeeked={handleVideoPlaying}
+            />
+          )
         ) : (
           <div className="absolute inset-0 z-30 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
             <div className="max-w-md bg-white/[0.03] border border-white/10 rounded-[32px] p-8 backdrop-blur-xl flex flex-col items-center shadow-2xl">
@@ -360,7 +488,7 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
           </div>
         )}
 
-        {user && isVideoLoading && (
+        {user && isVideoLoading && currentMatch.status !== "UPCOMING" && (
           <div className="absolute inset-0 z-10 bg-black/80 flex items-center justify-center">
             <div className="w-10 h-10 rounded-full border-4 border-white/20 border-t-[#FF3B30] animate-spin" />
           </div>
@@ -386,7 +514,7 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
 
               {/* Center Play/Pause */}
               <div className="flex-1 flex items-center justify-center">
-                {user && !isVideoLoading && (
+                {user && !isVideoLoading && currentMatch.status !== "UPCOMING" && (
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
@@ -432,21 +560,27 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-8 px-6 py-4 border-b border-white/[0.08] shrink-0 bg-[#080808] z-10 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
-        {["overview", "chat"].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab as any)}
-            className={`relative pb-1 text-sm font-bold uppercase tracking-wider transition-colors ${
-              activeTab === tab ? "text-white" : "text-[#A1A1AA] hover:text-white/80"
-            }`}
-          >
-            {tab}
-            {activeTab === tab && (
-              <motion.div layoutId="activeTabSportsDetails" className="absolute -bottom-[17px] left-0 right-0 h-0.5 bg-[#FF3B30] rounded-t-full shadow-[0_-2px_8px_rgba(255,59,48,0.6)]" />
-            )}
-          </button>
-        ))}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] shrink-0 bg-[#080808] z-10 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center gap-8">
+          {["overview", "chat"].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab as any)}
+              className={`relative pb-1 text-sm font-bold uppercase tracking-wider transition-colors ${
+                activeTab === tab ? "text-white" : "text-[#A1A1AA] hover:text-white/80"
+              }`}
+            >
+              {tab}
+              {activeTab === tab && (
+                <motion.div layoutId="activeTabSportsDetails" className="absolute -bottom-[17px] left-0 right-0 h-0.5 bg-[#FF3B30] rounded-t-full shadow-[0_-2px_8px_rgba(255,59,48,0.6)]" />
+              )}
+            </button>
+          ))}
+        </div>
+        <button onClick={shareMatch} className="flex items-center gap-2 text-xs font-bold text-[#A1A1AA] hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/10">
+          <Share2 className="w-3.5 h-3.5" />
+          SHARE
+        </button>
       </div>
 
       {/* Content */}
@@ -544,8 +678,12 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
                   </div>
                 )}
                 <div className="flex justify-between items-center py-2 border-b border-white/5">
+                  <span className="text-xs text-[#A1A1AA] font-semibold uppercase tracking-wider">Kickoff Date</span>
+                  <span className="text-sm font-bold text-white">{currentMatch.start_time ? formatMatchDate(currentMatch.start_time) : 'TBD'}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-white/5">
                   <span className="text-xs text-[#A1A1AA] font-semibold uppercase tracking-wider">Kickoff Time</span>
-                  <span className="text-sm font-bold text-white">{currentMatch.start_time ? new Date(currentMatch.start_time).toLocaleString() : 'TBD'}</span>
+                  <span className="text-sm font-bold text-white">{currentMatch.start_time ? formatMatchTime(currentMatch.start_time) : 'TBD'}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-white/5">
                   <span className="text-xs text-[#A1A1AA] font-semibold uppercase tracking-wider">Status</span>

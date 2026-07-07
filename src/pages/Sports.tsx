@@ -17,6 +17,124 @@ const getMatchSlug = (home: string, away: string) => {
   return `${home.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')}-vs-${away.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')}`;
 };
 
+export const formatMatchDate = (dateInput: string | Date | undefined): string => {
+  if (!dateInput) return "TBD";
+  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  if (isNaN(date.getTime())) return "TBD";
+
+  const days = ["Sun.", "Mon.", "Tue.", "Wed.", "Thu.", "Fri.", "Sat."];
+  const months = [
+    "Jan.", "Feb.", "Mar.", "Apr.", "May", "June",
+    "July", "Aug.", "Sept.", "Oct.", "Nov.", "Dec."
+  ];
+
+  const dayName = days[date.getDay()];
+  const dayOfMonth = date.getDate();
+  const monthName = months[date.getMonth()];
+  const year = date.getFullYear();
+
+  let suffix = "th";
+  if (dayOfMonth === 1 || dayOfMonth === 21 || dayOfMonth === 31) {
+    suffix = "st";
+  } else if (dayOfMonth === 2 || dayOfMonth === 22) {
+    suffix = "nd";
+  } else if (dayOfMonth === 3 || dayOfMonth === 23) {
+    suffix = "rd";
+  }
+
+  return `${dayName} ${dayOfMonth}${suffix} ${monthName} ${year}`;
+};
+
+export const formatMatchTime = (dateInput: string | Date | undefined): string => {
+  if (!dateInput) return "TBD";
+  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  if (isNaN(date.getTime())) return "TBD";
+
+  let hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  return `${hours}:${minutes} ${ampm}`;
+};
+
+function FeaturedMatchCountdown({ startTime }: { startTime: string }) {
+  const [timeLeft, setTimeLeft] = useState<string>("");
+
+  useEffect(() => {
+    const updateTimer = () => {
+      const target = new Date(startTime).getTime();
+      const now = Date.now();
+      const diff = target - now;
+
+      if (diff <= 0) {
+        setTimeLeft("Starting Now");
+        return;
+      }
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      const hStr = String(hours).padStart(2, "0");
+      const mStr = String(minutes).padStart(2, "0");
+      const sStr = String(seconds).padStart(2, "0");
+
+      setTimeLeft(`${hStr}:${mStr}:${sStr}`);
+    };
+
+    updateTimer();
+    const intervalId = setInterval(updateTimer, 1000);
+    return () => clearInterval(intervalId);
+  }, [startTime]);
+
+  return (
+    <div className="flex flex-col items-center">
+      <span className="text-[10px] font-bold text-[#FF3B30] tracking-widest uppercase mb-1">Starts In</span>
+      <span className="text-2xl sm:text-3xl font-mono font-bold text-white tracking-widest bg-black/40 px-4 py-2 rounded-xl border border-white/10 backdrop-blur-md">
+        {timeLeft}
+      </span>
+    </div>
+  );
+}
+
+function MatchItemCountdown({ startTime }: { startTime: string }) {
+  const [timeLeft, setTimeLeft] = useState<string>("");
+
+  useEffect(() => {
+    const updateTimer = () => {
+      const target = new Date(startTime).getTime();
+      const now = Date.now();
+      const diff = target - now;
+
+      if (diff <= 0) {
+        setTimeLeft("Starts Now");
+        return;
+      }
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      const hStr = String(hours).padStart(2, "0");
+      const mStr = String(minutes).padStart(2, "0");
+      const sStr = String(seconds).padStart(2, "0");
+
+      setTimeLeft(`${hStr}:${mStr}:${sStr}`);
+    };
+
+    updateTimer();
+    const intervalId = setInterval(updateTimer, 1000);
+    return () => clearInterval(intervalId);
+  }, [startTime]);
+
+  return (
+    <span className="text-[10px] font-mono font-bold text-[#FF3B30] bg-[#FF3B30]/10 px-2 py-0.5 rounded">
+      {timeLeft}
+    </span>
+  );
+}
+
 interface Match {
   sport_type?: string;
   home_logo?: string;
@@ -330,7 +448,7 @@ export default function Sports() {
                       </span>
                     )}
                     <span className="flex items-center gap-1.5 text-xs text-[#A1A1AA] font-medium">
-                      <Flame className="w-3.5 h-3.5" /> 12.4K watching
+                      <span className="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-[10px] uppercase tracking-wider">{featuredMatch.league || "Friendly"}</span>
                     </span>
                   </div>
                   <span className="px-2 py-0.5 bg-white/10 border border-white/10 rounded uppercase text-[10px] font-bold tracking-wider text-[#A1A1AA]">
@@ -352,7 +470,10 @@ export default function Sports() {
 
                   <div className="flex flex-col items-center flex-1 px-4">
                     {(featuredMatch.status === "UPCOMING") ? (
-                       <span className="text-2xl sm:text-3xl font-light tracking-tight text-[#A1A1AA] mb-2">VS</span>
+                       <div className="flex flex-col items-center gap-2 mb-2">
+                         <span className="text-2xl sm:text-3xl font-light tracking-tight text-[#A1A1AA]">VS</span>
+                         {featuredMatch.start_time && <FeaturedMatchCountdown startTime={featuredMatch.start_time} />}
+                       </div>
                     ) : (
                       <div className="flex items-center gap-4 text-4xl sm:text-5xl font-bold tracking-tighter text-white drop-shadow-md mb-2">
                         <span>{featuredMatch.home_score}</span>
@@ -384,8 +505,8 @@ export default function Sports() {
                     Watch Live
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-[#A1A1AA] font-medium">
-                    <Activity className="w-3.5 h-3.5" />
-                    {featuredMatch.streams?.length || "Multiple"} Streams
+                    <Activity className="w-3.5 h-3.5 animate-pulse text-[#FF3B30]" />
+                    Live Direct Broadcast
                   </div>
                 </div>
               </div>
@@ -505,7 +626,7 @@ export default function Sports() {
                     
                     <div className="flex justify-between items-center text-[10px] text-[#A1A1AA] pt-3 border-t border-white/[0.06]">
                       <span className="truncate max-w-[120px]">{match.league || "Friendly"}</span>
-                      <span className="flex items-center gap-1"><Tv className="w-3 h-3" /> {match.streams?.length || 1}</span>
+                      <span className="flex items-center gap-1 text-[#00C7BE] font-bold"><Tv className="w-3 h-3" /> Direct HD</span>
                     </div>
                   </div>
                 ))}
@@ -548,9 +669,13 @@ export default function Sports() {
 
                     <div className="flex flex-col items-center justify-center px-4 flex-1">
                       <span className="text-[10px] text-[#A1A1AA] uppercase tracking-wider text-center line-clamp-1 mb-1">{match.league}</span>
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
-                        <CalendarDays className="w-3.5 h-3.5 text-[#00C7BE]" />
-                        {match.start_time ? new Date(match.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'TBD'}
+                      <div className="flex flex-col items-center gap-1.5 text-xs font-semibold text-white">
+                        <div className="flex items-center gap-1 text-[#00C7BE] text-[11px] font-bold">
+                          <CalendarDays className="w-3.5 h-3.5" />
+                          <span>{match.start_time ? formatMatchDate(match.start_time) : 'TBD'}</span>
+                        </div>
+                        <span className="text-[#A1A1AA] text-[11px]">{match.start_time ? formatMatchTime(match.start_time) : 'TBD'}</span>
+                        {match.start_time && <MatchItemCountdown startTime={match.start_time} />}
                       </div>
                     </div>
 

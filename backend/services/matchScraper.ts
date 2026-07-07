@@ -125,6 +125,7 @@ export class MatchScraper {
 
     const mergedMatches = new Map<string, Match>();
 
+    // 1. Fetch from Nuxt Payload Scraper
     try {
       if (now >= this.nuxtCooldownUntil) {
         const scrapeTimeout = (config as any).SCRAPE_TIMEOUT || 4000;
@@ -145,6 +146,158 @@ export class MatchScraper {
     } catch (err: any) {
       this.nuxtCooldownUntil = now + 15000; // Cool down Nuxt calls for 15 seconds on failure
       logger.warn(`Failed to fetch official Nuxt payload: ${err.message}`);
+    }
+
+    // 2. Fetch from Cinverse API for comprehensive finished and upcoming matches
+    try {
+      if (now >= this.cinverseCooldownUntil) {
+        logger.info("Fetching matches from Cinverse API: https://live.cinverse.com.ng/api/matches");
+        const cinverseRes = await axios.get("https://live.cinverse.com.ng/api/matches", {
+          headers: config.BROWSER_HEADERS,
+          timeout: 10000,
+          responseType: "json"
+        });
+        if (cinverseRes && cinverseRes.status === 200 && Array.isArray(cinverseRes.data)) {
+          let cinverseCount = 0;
+          cinverseRes.data.forEach((item: any, index: number) => {
+            if (!item) return;
+            const parsedStatus = (item.status || "").toUpperCase();
+            let statusMapped = "UPCOMING";
+            if (parsedStatus === "LIVE") {
+              statusMapped = "LIVE";
+            } else if (parsedStatus === "FINISHED") {
+              statusMapped = "FINISHED";
+            }
+
+            const channels: Record<string, string> = {};
+            const streams: StreamItem[] = [];
+            
+            const primaryStream = item.freshPlaylistUrl || item.freshStreamUrl || item.streamUrl || item.proxyStreamUrl;
+            if (primaryStream) {
+              channels["Cinverse Stream"] = primaryStream;
+              streams.push({
+                name: "Cinverse Stream",
+                url: primaryStream,
+                type: "m3u8",
+                quality: "HD"
+              });
+            }
+
+            const matchSport = item.sport || "football";
+
+            const parsedMatch: Match = {
+              id: String(item.id || `cin-${index}`),
+              sport_type: this.translateToEnglish(matchSport).toLowerCase(),
+              league: this.translateToEnglish(item.league || ""),
+              round: this.translateToEnglish(item.matchRound || ""),
+              home_team: this.translateToEnglish(item.homeTeam || "Unknown"),
+              home_abbr: item.homeTeamAbbr || "",
+              home_logo: item.homeTeamLogo || "",
+              away_team: this.translateToEnglish(item.awayTeam || "Unknown"),
+              away_abbr: item.awayTeamAbbr || "",
+              away_logo: item.awayTeamLogo || "",
+              home_score: String(item.homeScore ?? "-"),
+              away_score: String(item.awayScore ?? "-"),
+              status: statusMapped,
+              raw_status: item.rawStatus || item.status || "",
+              status_live: item.minute || "",
+              start_time: item.startTime || undefined,
+              m3u8_url: primaryStream || null,
+              channels: channels,
+              streams: streams,
+              period_scores: [],
+              odds: [],
+              highlights: [],
+              scraped_at: new Date().toISOString()
+            };
+
+            mergedMatches.set(parsedMatch.id, parsedMatch);
+            cinverseCount++;
+          });
+          logger.info(`Fetched and merged ${cinverseCount} matches from Cinverse API`);
+        }
+      }
+    } catch (err: any) {
+      this.cinverseCooldownUntil = now + 15000;
+      logger.warn(`Failed to fetch from Cinverse API: ${err.message}`);
+    }
+
+    // 3. Fetch from MovieStreamAPI for additional live/upcoming matches
+    try {
+      logger.info("Fetching matches from MovieStreamAPI: https://movie-stream-api-jr5t.onrender.com/api/sports/fifa");
+      const movieStreamRes = await axios.get("https://movie-stream-api-jr5t.onrender.com/api/sports/fifa", {
+        headers: config.BROWSER_HEADERS,
+        timeout: 10000,
+        responseType: "json"
+      });
+      if (movieStreamRes && movieStreamRes.status === 200 && movieStreamRes.data && Array.isArray(movieStreamRes.data.liveList)) {
+        let msCount = 0;
+        movieStreamRes.data.liveList.forEach((item: any, index: number) => {
+          if (!item || !item.matchId) return;
+          
+          if (mergedMatches.has(item.matchId)) return; // Already exists
+
+          const parsedStatus = (item.status || "").toUpperCase();
+          let statusMapped = "UPCOMING";
+          if (parsedStatus === "MATCHING" || parsedStatus === "LIVE") {
+            statusMapped = "LIVE";
+          } else if (parsedStatus === "MATCHENDED" || parsedStatus === "FINISHED") {
+            statusMapped = "FINISHED";
+          }
+
+          const channels: Record<string, string> = {};
+          const streams: StreamItem[] = [];
+          
+          let primaryStream = item.url;
+          if (item.url && item.url.includes('sportType=')) {
+            primaryStream = `https://movie-stream-api-jr5t.onrender.com/api/sports/stream/${item.matchId}?sportType=${item.team1?.type || 'football'}`;
+          }
+
+          if (primaryStream) {
+            channels["Live Stream"] = primaryStream;
+            streams.push({
+              name: "Live Stream",
+              url: primaryStream,
+              type: "m3u8",
+              quality: "HD"
+            });
+          }
+
+          const matchSport = item.team1?.type || "football";
+
+          const parsedMatch: Match = {
+            id: String(item.matchId),
+            sport_type: this.translateToEnglish(matchSport).toLowerCase(),
+            league: this.translateToEnglish(movieStreamRes.data.title || "FIFA World Cup"),
+            round: "",
+            home_team: this.translateToEnglish(item.team1?.name || "Unknown"),
+            home_abbr: item.team1?.abbreviation || "",
+            home_logo: item.team1?.avatar || "",
+            away_team: this.translateToEnglish(item.team2?.name || "Unknown"),
+            away_abbr: item.team2?.abbreviation || "",
+            away_logo: item.team2?.avatar || "",
+            home_score: String(item.team1?.score ?? "-"),
+            away_score: String(item.team2?.score ?? "-"),
+            status: statusMapped,
+            raw_status: item.status || "",
+            status_live: "",
+            start_time: item.startTime ? new Date(parseInt(item.startTime)).toISOString() : undefined,
+            m3u8_url: primaryStream || null,
+            channels: channels,
+            streams: streams,
+            period_scores: [],
+            odds: [],
+            highlights: [],
+            scraped_at: new Date().toISOString()
+          };
+
+          mergedMatches.set(parsedMatch.id, parsedMatch);
+          msCount++;
+        });
+        logger.info(`Fetched and merged ${msCount} matches from MovieStream API`);
+      }
+    } catch (err: any) {
+      logger.warn(`Failed to fetch from MovieStream API: ${err.message}`);
     }
 
     let finalMatches = Array.from(mergedMatches.values());
@@ -885,13 +1038,13 @@ export class MatchScraper {
 
           matches.push({
             id: String(matchData.id || "UNKNOWN"),
-            sport_type: matchSport,
-            league: matchData.league || "",
-            round: matchData.matchRound || "",
-            home_team: team1.name || "Unknown",
+            sport_type: this.translateToEnglish(matchSport).toLowerCase(),
+            league: this.translateToEnglish(matchData.league || ""),
+            round: this.translateToEnglish(matchData.matchRound || ""),
+            home_team: this.translateToEnglish(team1.name || "Unknown"),
             home_abbr: team1.abbreviation || "",
             home_logo: team1.avatar || "",
-            away_team: team2.name || "Unknown",
+            away_team: this.translateToEnglish(team2.name || "Unknown"),
             away_abbr: team2.abbreviation || "",
             away_logo: team2.avatar || "",
             home_score: String(team1.score ?? "-"),
@@ -915,6 +1068,85 @@ export class MatchScraper {
       }
     }
     return matches;
+  }
+
+  static translateToEnglish(str: string | undefined): string {
+    if (!str) return "";
+    const dict: Record<string, string> = {
+      // Sports
+      "futebol": "Football",
+      "basquete": "Basketball",
+      "tênis": "Tennis",
+      "vôlei": "Volleyball",
+      "futsal": "Futsal",
+      "handebol": "Handball",
+      
+      // Countries / Teams
+      "Alemanha": "Germany",
+      "Bélgica": "Belgium",
+      "Brasil": "Brazil",
+      "Camarões": "Cameroon",
+      "Canadá": "Canada",
+      "Coreia do Sul": "South Korea",
+      "Coreia do Norte": "North Korea",
+      "Croácia": "Croatia",
+      "Dinamarca": "Denmark",
+      "Egito": "Egypt",
+      "Espanha": "Spain",
+      "Estados Unidos": "USA",
+      "EUA": "USA",
+      "França": "France",
+      "Gana": "Ghana",
+      "Inglaterra": "England",
+      "Irlanda": "Ireland",
+      "Itália": "Italy",
+      "Japão": "Japan",
+      "Marrocos": "Morocco",
+      "México": "Mexico",
+      "Nigéria": "Nigeria",
+      "Noruega": "Norway",
+      "País de Gales": "Wales",
+      "Países Baixos": "Netherlands",
+      "Polônia": "Poland",
+      "Portugal": "Portugal",
+      "Suécia": "Sweden",
+      "Suíça": "Switzerland",
+      "Turquia": "Turkey",
+      "Ucrânia": "Ukraine",
+      "Uruguai": "Uruguay",
+      "Paraguai": "Paraguay",
+      "Equador": "Equador",
+      "África do Sul": "South Africa",
+      "Arábia Saudita": "Saudi Arabia",
+      
+      // Status/Terms
+      "MatchIng": "LIVE",
+      "MatchNotStart": "UPCOMING",
+      "MatchEnded": "FINISHED",
+      "MatchEnd": "FINISHED",
+      "HalfTime": "HALF_TIME",
+      "NoStart": "UPCOMING",
+      "Finished": "FINISHED",
+      "Ao Vivo": "LIVE",
+      "Em Andamento": "LIVE",
+      "Encerrado": "FINISHED",
+      "Terminado": "FINISHED",
+      "Agendado": "UPCOMING",
+      "Não Iniciado": "UPCOMING",
+      "Intervalo": "HALF_TIME",
+      "Primeiro Tempo": "1st Half",
+      "Segundo Tempo": "2nd Half",
+      "Prorrogação": "Extra Time",
+      "Fim de Jogo": "Full Time",
+      "Pênaltis": "Penalties"
+    };
+
+    let result = str;
+    for (const [key, val] of Object.entries(dict)) {
+      const regex = new RegExp(`\\b${key}\\b`, "gi");
+      result = result.replace(regex, val);
+    }
+    return result;
   }
 }
 

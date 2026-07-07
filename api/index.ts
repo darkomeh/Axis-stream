@@ -1,4 +1,4 @@
-import app from "../server.js";
+import app from "../server";
 import querystring from "querystring";
 
 export default function handler(req: any, res: any) {

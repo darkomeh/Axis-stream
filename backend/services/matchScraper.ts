@@ -38,9 +38,22 @@ export class MatchScraper {
     if (url.includes(".m3u8") && !url.includes("url=")) {
       return url;
     }
-    if (url.includes(".m3u8") && url.includes("url=")) {
-      const m = url.match(/[?&]url=(https?:\/\/[^&]+\.m3u8)/);
-      if (m) return m[1];
+    if (url.includes("url=")) {
+      try {
+        const urlObj = new URL(url);
+        const innerUrl = urlObj.searchParams.get("url");
+        if (innerUrl && innerUrl.includes(".m3u8")) {
+          return innerUrl;
+        }
+      } catch {
+        const index = url.indexOf("url=");
+        if (index !== -1) {
+          const inner = decodeURIComponent(url.substring(index + 4));
+          if (inner.includes(".m3u8")) {
+            return inner;
+          }
+        }
+      }
     }
     if (url.startsWith("http")) return url;
     return null;

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { 
   ArrowLeft, Cast, Bell, Maximize, Settings, 
   Volume2, VolumeX, Play, Pause, Send, Activity, Share2, 
-  ChevronDown, Flame, CheckCircle2, ShieldAlert
+  ChevronDown, Flame, CheckCircle2, ShieldAlert, Tv
 } from "lucide-react";
 import type Hls from "hls.js";
 import apiHelper from "../services/apiHelper";
@@ -88,9 +88,9 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
     if (!match.id) return;
     const pollLiveMatch = async () => {
       try {
-        const response = await apiHelper.get(`/api/matches/live?sport=${match.sport_type || 'all'}`);
-        const liveMatches: Match[] = response.data.matches || [];
-        const updated = liveMatches.find((m: Match) => m.id === match.id);
+        const response = await apiHelper.get(`/api/matches?sport=${match.sport_type || 'all'}`);
+        const allMatches: Match[] = response.data.matches || [];
+        const updated = allMatches.find((m: Match) => m.id === match.id);
         
         if (updated) {
           setCurrentMatch(prev => {
@@ -490,6 +490,49 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
                   <span className="text-[10px] text-[#A1A1AA]/60 uppercase mt-1">{currentMatch.round}</span>
                 </div>
               </div>
+
+              {/* Stream Channels Selection */}
+              {currentMatch.streams && currentMatch.streams.length > 0 && (
+                <div className="bg-white/[0.04] border border-white/[0.08] rounded-[28px] p-6 backdrop-blur-xl flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                      <Tv className="w-4 h-4 text-[#FF3B30]" />
+                      Live Stream Channels
+                    </h3>
+                    <span className="text-xs font-semibold text-[#A1A1AA]">
+                      {currentMatch.streams.length} feeds available
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {currentMatch.streams.map((stream, idx) => {
+                      const isActive = currentStreamUrl === stream.url;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setCurrentStreamUrl(stream.url);
+                            showToast(`Switched stream to ${stream.name || `Channel ${idx + 1}`}`, "info");
+                          }}
+                          className={`relative py-3 px-4 rounded-2xl border font-bold text-xs transition-all duration-300 flex flex-col items-center justify-center gap-1.5 ${
+                            isActive
+                              ? "bg-[#FF3B30]/10 border-[#FF3B30] text-white shadow-[0_4px_15px_rgba(255,59,48,0.2)]"
+                              : "bg-white/[0.02] border-white/10 text-[#A1A1AA] hover:bg-white/[0.06] hover:text-white"
+                          }`}
+                        >
+                          <span className="truncate max-w-full text-center">
+                            {stream.name || `Channel ${idx + 1}`}
+                          </span>
+                          <span className={`text-[9px] font-medium tracking-wider uppercase px-2 py-0.5 rounded ${
+                            isActive ? "bg-[#FF3B30]/20 text-[#FF3B30]" : "bg-white/5 text-[#A1A1AA]"
+                          }`}>
+                            {stream.quality || "HD"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Vote Poll */}
               <div className="bg-white/[0.04] border border-white/[0.08] rounded-[28px] p-6 backdrop-blur-xl">

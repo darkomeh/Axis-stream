@@ -157,9 +157,10 @@ export class MatchScraper {
           timeout: 10000,
           responseType: "json"
         });
-        if (cinverseRes && cinverseRes.status === 200 && Array.isArray(cinverseRes.data)) {
+        let cinverseMatches = Array.isArray(cinverseRes.data) ? cinverseRes.data : (cinverseRes.data?.matches || []);
+        if (cinverseRes && cinverseRes.status === 200 && cinverseMatches.length > 0) {
           let cinverseCount = 0;
-          cinverseRes.data.forEach((item: any, index: number) => {
+          cinverseMatches.forEach((item: any, index: number) => {
             if (!item) return;
             const parsedStatus = (item.status || "").toUpperCase();
             let statusMapped = "UPCOMING";

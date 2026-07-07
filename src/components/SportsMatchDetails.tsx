@@ -381,9 +381,26 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
     }
   };
 
-  const shareMatch = () => {
-    navigator.clipboard.writeText(window.location.href);
-    showToast("Match link copied to clipboard!", "success");
+  const shareMatch = async () => {
+    const text = `Watch ${currentMatch.home_team} vs ${currentMatch.away_team} Live on AxisSports! 🏆🔥`;
+    const url = window.location.href;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'AxisSports Live Match',
+          text: text,
+          url: url,
+        });
+      } catch (err) {
+        // User cancelled or it failed, fallback to copy
+        navigator.clipboard.writeText(`${text} ${url}`);
+        showToast("Match details copied to clipboard!", "success");
+      }
+    } else {
+      navigator.clipboard.writeText(`${text} ${url}`);
+      showToast("Match details copied to clipboard!", "success");
+    }
   };
 
   const totalVotes = pollData.home + pollData.draw + pollData.away;
@@ -401,7 +418,7 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
         onClick={handlePlayerTap}
       >
         {user ? (
-          currentMatch.status === "UPCOMING" ? (
+          currentMatch.status === "UPCOMING" || (currentMatch.status !== "UPCOMING" && !currentStreamUrl) ? (
             <div className="absolute inset-0 bg-gradient-to-br from-[#0c0c12] to-[#040406] flex flex-col items-center justify-center p-6 text-center z-10">
               <div className="absolute inset-0 bg-cover bg-center opacity-15" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=600&auto=format&fit=crop')` }} />
               <div className="relative z-10 max-w-lg w-full flex flex-col items-center">
@@ -426,7 +443,15 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
 
                   {/* VS / Divider */}
                   <div className="flex flex-col items-center justify-center">
-                    <span className="text-xl font-black text-[#FF3B30] tracking-wider">VS</span>
+                    {currentMatch.status === "UPCOMING" ? (
+                      <span className="text-xl font-black text-[#FF3B30] tracking-wider">VS</span>
+                    ) : (
+                      <div className="flex items-center gap-3 text-4xl sm:text-5xl font-bold tracking-tighter text-white">
+                        <span>{currentMatch.home_score}</span>
+                        <span className="text-white/20 font-light">-</span>
+                        <span>{currentMatch.away_score}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Away */}
@@ -442,15 +467,25 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
                   </div>
                 </div>
 
-                {/* Countdown display */}
-                <div className="bg-white/[0.02] border border-white/10 rounded-[24px] px-8 py-5 flex flex-col items-center w-full max-w-sm backdrop-blur-md">
-                  <span className="text-[10px] font-bold text-[#FF3B30] tracking-widest uppercase mb-1">Match Starts In</span>
-                  <span className="text-3xl sm:text-4xl font-mono font-bold text-white tracking-widest">{timeLeft || "00:00:00"}</span>
-                </div>
+                {/* Countdown or Status display */}
+                {currentMatch.status === "UPCOMING" ? (
+                  <div className="bg-white/[0.02] border border-white/10 rounded-[24px] px-8 py-5 flex flex-col items-center w-full max-w-sm backdrop-blur-md">
+                    <span className="text-[10px] font-bold text-[#FF3B30] tracking-widest uppercase mb-1">Match Starts In</span>
+                    <span className="text-3xl sm:text-4xl font-mono font-bold text-white tracking-widest">{timeLeft || "00:00:00"}</span>
+                  </div>
+                ) : (
+                  <div className="bg-white/[0.02] border border-white/10 rounded-[24px] px-8 py-5 flex flex-col items-center w-full max-w-sm backdrop-blur-md">
+                    <span className="text-[10px] font-bold text-[#FF3B30] tracking-widest uppercase mb-1">Match Status</span>
+                    <span className="text-2xl sm:text-3xl font-bold text-white tracking-widest uppercase">{getLiveStatusText(currentMatch)}</span>
+                    {!currentStreamUrl && <span className="text-xs text-[#A1A1AA] mt-3">Live stream not available</span>}
+                  </div>
+                )}
 
-                <p className="text-[11px] text-[#A1A1AA] mt-6 flex items-center gap-1">
-                  <Bell className="w-3.5 h-3.5 text-[#FF3B30]" /> Notifications enabled. We'll alert you the moment kick-off begins.
-                </p>
+                {currentMatch.status === "UPCOMING" && (
+                  <p className="text-[11px] text-[#A1A1AA] mt-6 flex items-center gap-1">
+                    <Bell className="w-3.5 h-3.5 text-[#FF3B30]" /> Notifications enabled. We'll alert you the moment kick-off begins.
+                  </p>
+                )}
               </div>
             </div>
           ) : (

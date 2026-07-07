@@ -1,4 +1,3 @@
-import { backendRouter } from "./backend/api/routes.js";
 import express from "express";
 import compression from "compression";
 import path from "path";
@@ -32,7 +31,6 @@ function isUrlAllowed(reqUrl: string): boolean {
 }
 
 const app = express();
-app.use("/api", backendRouter);
 app.use(compression());
 app.use(express.json());
 

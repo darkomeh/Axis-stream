@@ -486,14 +486,14 @@ export default function Admin() {
  <>
  {/* Global Intelligence Section */}
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
- {/* Demographics */}
+ {/* demographics */}
  <div className="bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] rounded-[24px] shadow-2xl p-8 shadow-2xl relative overflow-hidden group">
  <div className="absolute -right-20 -top-20 w-64 h-64 bg-[#FF3B30]/5 rounded-full blur-3xl group-hover:bg-[#FF3B30]/10 transition-all duration-700" />
  <div className="flex items-center justify-between mb-8 relative z-10">
  <div>
  <h3 className="text-fluid-2xl font-semibold tracking-tight flex items-center gap-3">
  <Zap className="w-6 h-6 text-[#FF3B30]" />
- Global Demographics
+ Global demographics
  </h3>
  <p className="text-fluid-sm font-semibold text-gray-500 tracking-wide mt-1">Real-time visitor distribution</p>
  </div>
@@ -766,7 +766,7 @@ export default function Admin() {
  <div className="bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] rounded-[24px] shadow-2xl p-8">
  <div className="flex items-center justify-between mb-8">
  <div>
- <h3 className="text-fluid-xl font-bold tracking-tight ">Global Demographics</h3>
+ <h3 className="text-fluid-xl font-bold tracking-tight ">Global demographics</h3>
  <p className="text-fluid-sm font-semibold text-gray-500 tracking-wide mt-1">Visitor distribution by country</p>
  </div>
  <ExternalLink className="w-5 h-5 text-[#FF3B30]" />
@@ -932,7 +932,7 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  disabled={isUpdating}
  onClick={() => handleRoleChange(user.id, (user as any).role)}
  className={`p-2 transition-colors rounded-lg ${(user as any).role === 'admin' ? 'text-blue-500 hover:bg-blue-500/10' : 'text-gray-700 hover:text-blue-500 hover:bg-blue-500/10'}`}
- title={(user as any).role === 'admin' ? 'Demote to User' : 'Promote to Admin'}
+ title={(user as any).role === 'admin' ? 'demote to User' : 'Promote to Admin'}
  >
  <Key className="w-5 h-5" />
  </button>

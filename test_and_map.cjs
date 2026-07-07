@@ -1,0 +1,141 @@
+const https = require('https');
+const http = require('http');
+
+const channel_mappings = [
+  { urlContains: "nickjr", name: "Nick Jr", category: "Kids", logo: "https://upload.wikimedia.org/wikipedia/commons/e/e0/Nick_Jr._logo.svg" },
+  { urlContains: "NICKTOONS", name: "Nicktoons", category: "Kids", logo: "https://upload.wikimedia.org/wikipedia/commons/9/90/Nicktoons_Logo_2014.svg" },
+  { urlContains: "USA_DISNEY_JUNIOR", name: "Disney Junior", category: "Kids", logo: "https://upload.wikimedia.org/wikipedia/commons/b/b3/Disney_Junior_logo.svg" },
+  { urlContains: "USA_DISNEY_XD", name: "Disney XD", category: "Kids", logo: "https://upload.wikimedia.org/wikipedia/commons/b/b0/Disney_XD_logo.svg" },
+  { urlContains: "USA_ESPNU", name: "ESPNU", category: "Sports", logo: "https://upload.wikimedia.org/wikipedia/commons/8/8c/ESPNU_Logo.svg" },
+  { urlContains: "BabySharkTV", name: "Baby Shark TV", category: "Kids", logo: "https://images.pluto.tv/channels/5f32a76f2d22fe00078e3ec8/colorLogoPNG.png" },
+  { urlContains: "aghapykids", name: "Aghapy Kids", category: "Kids", logo: "https://upload.wikimedia.org/wikipedia/commons/a/a7/Aghapy_TV.png" },
+  { urlContains: "ExtremaKids", name: "Extrema Kids", category: "Kids", logo: "https://picsum.photos/seed/extremakids/400/225" },
+  { urlContains: "logoskids", name: "Logos Kids", category: "Kids", logo: "https://picsum.photos/seed/logoskids/400/225" },
+  { urlContains: "shemabollywood", name: "Shemaroo Bollywood", category: "Bollywood", logo: "https://upload.wikimedia.org/wikipedia/commons/5/52/Shemaroo_Entertainment_Logo.svg" },
+  { urlContains: "actionhollywood", name: "Action Hollywood", category: "Movies", logo: "https://picsum.photos/seed/actionhollywood/400/225" },
+  { urlContains: "mrbeanfrcc", name: "Mr Bean (FR)", category: "Comedy", logo: "https://upload.wikimedia.org/wikipedia/en/e/eb/Mr_Bean_logo.png" },
+  { urlContains: "mrbeanukcc", name: "Mr Bean (UK)", category: "Comedy", logo: "https://upload.wikimedia.org/wikipedia/en/e/eb/Mr_Bean_logo.png" },
+  { urlContains: "Pokemon", name: "Pokemon TV", category: "Anime", logo: "https://upload.wikimedia.org/wikipedia/commons/9/98/International_Pok%C3%A9mon_logo.svg" },
+  { urlContains: "kartoonchannel", name: "Kartoon Channel", category: "Kids", logo: "https://upload.wikimedia.org/wikipedia/commons/7/75/Kartoon_Channel_logo.svg" },
+  { urlContains: "tvsNostalgiaMovies", name: "TVS Nostalgia Movies", category: "Classic", logo: "https://picsum.photos/seed/tvsnostalgia/400/225" },
+  { urlContains: "tvswesternmovies", name: "TVS Western Movies", category: "Classic", logo: "https://picsum.photos/seed/tvswestern/400/225" },
+  { urlContains: "CHARGE", name: "Charge Action", category: "Action", logo: "https://upload.wikimedia.org/wikipedia/commons/7/79/Charge%21_logo.svg" },
+  { urlContains: "tubi", name: "Tubi TV", category: "Entertainment", logo: "https://upload.wikimedia.org/wikipedia/commons/c/c5/Tubi_logo.svg" },
+  { urlContains: "ucayalitv", name: "Ucayali TV", category: "News", logo: "https://picsum.photos/seed/ucayalitv/400/225" },
+  { urlContains: "tweedekamer", name: "Tweede Kamer", category: "News", logo: "https://upload.wikimedia.org/wikipedia/commons/9/90/Logo_Tweede_Kamer_der_Staten-Generaal.svg" },
+  { urlContains: "disneyjr", name: "Disney Junior", category: "Kids", logo: "https://upload.wikimedia.org/wikipedia/commons/b/b3/Disney_Junior_logo.svg" },
+  { urlContains: "nicklodean", name: "Nickelodeon", category: "Kids", logo: "https://upload.wikimedia.org/wikipedia/commons/e/ec/Nickelodeon_logo.svg" },
+  { urlContains: "tvsclassicmovies", name: "TVS Classic Movies", category: "Classic", logo: "https://picsum.photos/seed/tvsclassic/400/225" },
+  { urlContains: "ALLTIMEMOVIES", name: "All Time Movies", category: "Movies", logo: "https://picsum.photos/seed/alltimemovies/400/225" },
+  { urlContains: "greatmovies", name: "Great Movies", category: "Movies", logo: "https://upload.wikimedia.org/wikipedia/commons/5/5a/Great_Movies_logo.png" },
+  { urlContains: "moviesphereuk", name: "MovieSphere UK", category: "Movies", logo: "https://picsum.photos/seed/moviesphere/400/225" },
+  { urlContains: "3rscartoonmovies", name: "3rs Cartoon Movies", category: "Kids", logo: "https://picsum.photos/seed/3rscartoon/400/225" },
+  { urlContains: "3rsmoviebox", name: "3rs Movie Box", category: "Movies", logo: "https://picsum.photos/seed/3rsmovie/400/225" },
+  { urlContains: "1plus1", name: "1+1 Marathon", category: "News", logo: "https://upload.wikimedia.org/wikipedia/commons/8/86/1%2B1_2019.svg" },
+  { urlContains: "pbskids", name: "PBS Kids", category: "Kids", logo: "https://upload.wikimedia.org/wikipedia/commons/6/6b/PBS_Kids_logo_2022.svg" },
+  { urlContains: "teennick", name: "TeenNick", category: "Kids", logo: "https://upload.wikimedia.org/wikipedia/commons/4/4b/TeenNick_2009_logo.svg" },
+  { urlContains: "toongoggles", name: "Toon Goggles", category: "Kids", logo: "https://upload.wikimedia.org/wikipedia/en/e/eb/Toon_Goggles_logo.png" },
+  { urlContains: "whiplash", name: "Whiplash Cinema", category: "Movies", logo: "https://picsum.photos/seed/whiplash/400/225" },
+  { urlContains: "popkids", name: "Pop Kids", category: "Kids", logo: "https://upload.wikimedia.org/wikipedia/commons/3/3d/Pop_Max_logo_2017.png" },
+  { urlContains: "tinypop", name: "Tiny Pop", category: "Kids", logo: "https://upload.wikimedia.org/wikipedia/en/0/05/Tiny_Pop_logo.png" },
+  { urlContains: "ZJRkFQbHVzRW5nbGlzaF9ITFM", name: "FIFA Plus", category: "Sports", logo: "https://upload.wikimedia.org/wikipedia/commons/a/aa/FIFA_logo.svg" },
+  { urlContains: "natgeowild", name: "Nat Geo Wild", category: "Documentary", logo: "https://upload.wikimedia.org/wikipedia/commons/1/1a/Nat_Geo_Wild_logo.svg" },
+  { urlContains: "cbs", name: "CBS News", category: "News", logo: "https://upload.wikimedia.org/wikipedia/commons/1/19/CBS_News_logo.svg" },
+  { urlContains: "hotwh", name: "Hot Wheels Action", category: "Sports", logo: "https://upload.wikimedia.org/wikipedia/commons/b/b3/Hot_Wheels_logo.svg" },
+  { urlContains: "xumo", name: "Xumo Free TV", category: "Entertainment", logo: "https://upload.wikimedia.org/wikipedia/commons/2/27/Xumo_logo.svg" },
+  { urlContains: "vegas", name: "Vegas Plus", category: "Lifestyle", logo: "https://picsum.photos/seed/vegas/400/225" },
+  { urlContains: "anandtv", name: "Anand TV", category: "Bollywood", logo: "https://picsum.photos/seed/anandtv/400/225" },
+  { urlContains: "telecloud", name: "Telecloud FTV", category: "Entertainment", logo: "https://picsum.photos/seed/telecloud/400/225" }
+];
+
+const streams = [
+  { url: 'https://cdn.whiplash.cc/whiplash/tracks-v1a1/mono.m3u8', name: 'Whiplash', category: 'Movies' },
+  { url: 'https://amg00864-shemarooenterta-shemabollywood-ono-nlwbw.amagi.tv/ts-us-w2-n1/playlist/amg00864-shemarooenterta-shemabollywood-ono/cb573d1e7e6c648f99d43962cef64982847b3dcb0e6c886470af4a9765d97800dbe8ae84ae5b910c4c9e1fc061017d360439cd1dd56c49c1da63b820743c4b21fdcde00080dd0d0cb1df11292ca36265299a7369cc350f7bd2ec5a2f803ebe764c53cb017c593f88f258a97e4cc59e0a957f39e8fc8b307b24455a9c5a43e6a64cb7aae6554d8a68f3b1014f942c47fa83439fd501b280d60983108077a21dcfc3a282da15d1e4f1598b6f5cc6e739581fb7a73bf4e754b1df886038ee0042243f73966917632c46e066454ef1fccac505b5739cca4d150346db60f82fe450ce4bd369c7812ec0cdfbff082d18a2d6526226efc9a18df42609700791adc4d2697595fa153712873d986a1c319ef9c40397833ba2f672d5fa394678f7984bcdc9e9c3f7e6d903dc04dad7f89d0a474c480d16c908f1cd23887f9d3083e6270c700104a1935ec1c6fe5b336940cfc07ddc0114b4dec4d28b56759a2e4b14b820ea5a036dde3d2329b67ab7c96a1efc4c60b23c33ff57229302ade85e9289efa5576bfb8ebd019509c8ba05d5fa07d31d1f5110bcff291f080c4ad9e06202276a8122c0d6d9ea630610e6949cad97b35988828fe36a9c7ce83d61e4a3061fd2605070387d00/137/1920x1080_6046040/index.m3u8', name: 'Shemaroo Bollywood', category: 'Movies' },
+  { url: 'https://live-anandtv.anandmedia.net/anandtvapp/anandtv/tracks-v1a1/mono.m3u8', name: 'Anand TV', category: 'Entertainment' },
+  { url: 'https://streamer1.connectto.com/AMGA_WEB_1202/tracks-v1a1/mono.ts.m3u8', name: 'AMGA TV', category: 'Entertainment' },
+  { url: 'https://amg01076-lightningintern-actionhollywood-samsungau-rs69y.amagi.tv/ts-eu-w1-n2/playlist/amg01076-lightningintern-actionhollywood-samsungau/cb573d1e7e6c648f99d43962cef64982847b3dcb0e6c886470af4a9765d97800dbe8ae84ae5b910c4c9e1fc061017d360439cd1dd56c49c1da63b820743c4b21fdcde00080dd0d0cb1df11292ca36265299a7369cc350f7bd2ec5a2f803ebe764c53cb017c593f88f258a97e4cc59e0a957f39e8fc8b307b24455a9c5a43e6a64cb7fae75914df68a4e4014f942c41fa83439fd501b386dc5d8347d370a714cec7a68bd61680e4f1598b6f5cc6e739581fb7a73bf4e754b1df886038ee0042243f73966917632c46e066454ef1fccac505b5739cca4d150346db60f82fe450ce4bd369c7812ec0cdfbff082d18a2d6526226efc9a18df42609700791adc4d2697595fa153712873d986a1c319ef9c40397833ba2f672d5fa394678f7984bcdc9e9c3f7e6d903dc04dad7f89d0a474c480d16c908f1cd23887f9d3083e6270c700104a1935ec1c6fe5b336940cfc07ddc0114b4dec4d28b56759a2e4b14b820ea5a036dde3d2329b67ab7c96a1efc4c60b23c33ff57229302ade85e9289efa5576bfb8ebd019509c8ba05d5fa07d31d1f5110bcff291f080c4ad9e06202276a8122c0d6d9ea630610e6949cae98b359b1b98fe36aea8310eca8cabb80b14ac1f8d5ac67bf/108/1920x1080_4716800/index.m3u8', name: 'Action Hollywood', category: 'Movies' },
+  { url: 'https://trs1.aynaott.com/cbs/tracks-v1a1/mono.ts.m3u8', name: 'CBS', category: 'News' },
+  { url: 'https://dtz4aepbew7ez.cloudfront.net/hotwh_1080.m3u8', name: 'Hot Wheels TV', category: 'Kids' },
+  { url: 'https://xumo-xumoent-ch828-w6val.fast.nbcuni.com/live/master_5.m3u8', name: 'NBC / Xumo', category: 'Entertainment' },
+  { url: 'https://cdn.vegasplus.us/vegas/ftv/chunks.m3u8?nimblesessionid=884390', name: 'Vegas Plus', category: 'Entertainment' },
+  { url: 'https://amg00627-amg00627c31-rakuten-fr-3991.playouts.now.amagi.tv/ts-eu-w1-n2/playlist/amg00627-banijayfast-mrbeanfrcc-rakutenfr/cb543d1e7e6c648f99d43761cef044a7f9481fde1d6988693eb5518975d10725dce2b48be65b9e3608dd4087351a6c515677b24788255f9e966ac0573c7f0e64ebd8f2278cfe475bc9814b352fb07d0052f81e0dab5d375ff5a55a048c36b0392216eb02611f72aeb51bf22b07da810e82612995aad5633e63535e8f2002b7f902f6ef820c13892ef8ae194b923146e19056c0814db285d00d965e8176a0468093f1ddd20dd0d49964b456e3360b0876249dd12097cb6f86b0e801876e9f493c7c7bc1e1f4d0473b83554a5d8a8ea1dd44d963040db8e31a519a068a468731f00be069f5a22634cecabf222159c4a41f415ec085c0ea9b55739d2c9783efcf7a7f98b9387940c67ee2ea4a528ed0c40e8dcf1997f976cbe4295514c99f5083c6f2a2e1b49f4595218a96a4c37d6b40650d0c8f45e2a23b837a943889de032d597a41afb15cd0c98c0d672c1cd0c016ff3b2f94f7c7c3d30730cf203c5feb6bd612454fc4266371e062a8ce6522d9685ddd676ab50164c06ff3ba25f9a29bd6073db4ccce0daa3cb8fb5984846fc30a1d5706a1fd255b372e2c809411675750cd43edddc3f935652de3f5c4f2c513080f36195706e9bbbf90fa1835bcac70c4a398629ee97bb80a93a548a1ad0aa6/98/1920x1080_6046040/index.m3u8', name: 'Mr Bean (FR)', category: 'Entertainment' },
+  { url: 'https://cdn.telecloud.tv/authnoaccess/tracks-v1a1/mono.ts.m3u8', name: 'Telecloud', category: 'Entertainment' },
+  { url: 'https://dvu7aia8rjlfm.cloudfront.net/0.m3u8', name: 'Mystery Channel', category: 'Entertainment' },
+  { url: 'https://2-fss-2.streamhoster.com/pl_138/205510-3094608-1/chunklist.m3u8', name: 'StreamHoster', category: 'Entertainment' },
+  { url: 'https://amg00627-amg00627c28-rakuten-uk-3984.playouts.now.amagi.tv/ts-eu-w1-n2/playlist/amg00627-banijayfast-mrbeanukcc-rakutenuk/cb543d1e7e6c648f99d43e67d8ef43a6f9481fde1d6988693eb5518975d10725dce2b48be65b9e3608dd4087351a6c515677b24788255f9e966ac0573c7f0e64ebd8f2278cfe475bc9814b352fb07d0052f81e0dab5d375ff5a55a048c36b0392216eb02611f72aeb51bf22b07da810e82612995aad5633e63535e8f2002b7f902f6ef820c13892ef8ae194b923146e19056cdd715b9d4d75e985e8176a0418093f1ddd20d8b8ec530b454b432500b212a9c852bc7c86f86b0e801876e9f493c7c7bc1e1f4d0473b83554a5d8a8ea1dd44d963040db8e31a519a068a468731f00be069f5a22634cecabf222159c4a41f415ec085c0ea9b55739d2c9783efcf7a7f98b9387940c67ee2ea4a528ed0c40e8dcf1997f976cbe4295514c99f5083c6f2a2e1b49f4595218a96a4c37d6b40650d0c8f45e2a23b837a943889de032d597a41afb15cd0c98c0d672c1cd0c016ff3b2f94f7c7c3d30730cf203c5feb6bd612454fc4266371e062a8ce6522d9685ddd676ab50164c06ff3ba25f9a29bd6073db4ccce0daa3cb8fb5984846fc30a1d5706a1fd255b372e2c809411675750cd43edddc3f935652de3f5c4f2c513080f36195706e8b3b5257bef46d788a7a78e78b57cf39e2e33597b15ac713329aa/125/1920x1080_6046040/index.m3u8', name: 'Mr Bean Classic (UK)', category: 'Entertainment' },
+  { url: 'https://docpe51mdltl5.cloudfront.net/Pokemon_GB1080p.m3u8', name: 'Pokemon TV', category: 'Kids' },
+  { url: 'https://amg01076-lightningintern-kartoonchannel-samsungnz-t8blu.amagi.tv/ts-eu-w1-n2/playlist/amg01076-lightningintern-kartoonchannel-samsungnz/cb573f1a6570678a84cf3e78d1f84882847b3dcb0e6c886470af4a9765d97800dbe8ae84ae5b910c4c9e1fc061017d360439cd1dd56c49c1da63b820743c4b21fdcde00080dd0d0cb1df11292ca36265299a7369cc350f7bd2ec5a2f803ebe764c53cb017c593f88f258af734cc59e0a957f39e8fc8b307b24455a9c5a43e6a64cb7aeb05c4dde64a4b9014ec02c45fa83439fd501b381dc52834a8422a740cec7a38a8543d1e42c52937f8ab5a2c54007fbb54ad1a468b8d38e6c3ddc423c470a50f5d1eb942c12a7378ed8659db1d24bf001da8165a06d32a9099b4efe5ee2ad07c8c5932981beb3dd575337e6b733d1a53d87d2e8cd1449d550f2b0eed47d7598bc7312229b3d8976726ad995cf65e7db7ed2fec5a694105d3b4eab67a5ae12c370d3c73abd28cfd5fd9b3c0d6066133dbf52b091571648b77785c10928504145e2cf1b94c69169396c4b89974d943d2ff98adbcd8f557bfd69150cbc3b9943533885744d6cf521fcad396ea22f1eca606eac1666d602b49304c18af7a94637bcd5c202d86aecbe059bb621a17f335407fca37e0a0b1c3380a0364d0378c544f6da85b4245e4ebfa1bf8baa390f0e37135d1b98a2b620e9e9ee1d5d47911d761a377a71b10bd96ed30533700dc10cdca10c34c8461624e8a3304a492ef1ecb4928cc2c554bf1c829baad94ef4fae70c5517019fc4d9785e570348f7561a1f3e0c/147/1920x1080_4716800/index.m3u8', name: 'Kartoon Channel', category: 'Kids' },
+  { url: 'https://rpn.bozztv.com/gusa/gusa-tvsNostalgiaMovies/tracks-v1a1/mono.m3u8?nimblesessionid=1678859800', name: 'Nostalgia Movies', category: 'Movies' },
+  { url: 'https://rpn.bozztv.com/gusa/gusa-tvswesternmovies/tracks-v1a1/mono.m3u8?nimblesessionid=1678862697', name: 'Western Movies', category: 'Movies' },
+  { url: 'https://d1b5mlajbmvkjv.cloudfront.net/v1/manifest/9d062541f2ff39b5c0f48b743c6411d25f62fc25/UDU-DistroTV/2feb82a8-e4d7-4594-a3da-e30cde68ecba/0.m3u8?ads.vf=7FhdsxqVxOi', name: 'Distro TV Action', category: 'Movies' },
+  { url: 'https://fast-channels.sinclairstoryline.com/CHARGE/index_1.m3u8', name: 'Charge!', category: 'Entertainment' },
+  { url: 'https://dqi7ayt2o24fn.cloudfront.net/playlist_1920x1080.m3u8', name: 'Action Live', category: 'Movies' },
+  { url: 'https://live-evg11.tv360.bitel.com.pe/bitel/ucayalitvSRT/chunks.m3u8', name: 'Ucayali TV', category: 'Entertainment' },
+  { url: 'https://unlimited2-cl-isp.dps.live/ucvtv2/ucvtv2.smil/ucvtv2/livestream1/chunks.m3u8?nimblesessionid=282426533', name: 'UCV TV 2', category: 'Entertainment' },
+  { url: 'https://trs1.aynaott.com/nicklodean/tracks-v1a1/mono.ts.m3u8', name: 'Nickelodeon', category: 'Kids' },
+  { url: 'https://livestreaming.b67buv2.tweedekamer.nl/live/groenvanprinstererzaal/Stream(02)/prog_index.m3u8?sourcetimestamps=1&returnType=hls&hd=1&keyframes=1&subtitles=live', name: 'Tweede Kamer', category: 'News' },
+  { url: 'https://trs1.aynaott.com/disneyjr/tracks-v1a1/mono.ts.m3u8', name: 'Disney Jr', category: 'Kids' },
+  { url: 'https://live20.bozztv.com/giatvplayout7/giatv-208314/tracks-v1a1/mono.ts.m3u8', name: 'Gia TV', category: 'Entertainment' },
+  { url: 'https://amg01329-otterainc-toongoggles-samsungau-ad-4c.amagi.tv/ts-eu-w1-n2/playlist/amg01329-otterainc-toongoggles-samsungau/cb543d1e7e6c648f99d43665cef046a8f9591fde1d6988693eb5518975d1073edce2a59caa08ff16388f1ede7f0a66413a3e951fda77118fd87eb141453c5728cfffe729a2c05616b7db083429b56a062a866a68ac39437ed0e21f48a238b6720a5aa82a66443d80b846ac725adb80148b61299bce8c37683f03409a5e5afba358b1ebe55846d96af0e54e55922e40b39f43c8821da6888058ca5e8570f71098c7f38fd312d1d2f30393758a8afbb64307fbae5ed1ae73bfdd9f7b309d03592c7c74c0d3597ad35efc21625aeaf6c8be1f9f59aedb66e9f454ca60f82fe450ea2f8a70c7812ec0cddb9f620b5585c2496824a1aa8c8bfc3a2087ab9ac8e6f07c6690fa1879089c238862630f99f3cf1b93d055b88263d4e4274d6380a64c95cbe6d8afa8db1ed565ebd7e49438754b612f0b9212f7c93a957a8b38e0e53b15716108ed965ccf83997935614489c91ef71b09b6d68ecc8e5a638430550aa6309968046acd266533b07eaed46f3afb5360ef0234f55c3a9751bce97c87c0f5d1466ae5909738bc05899205ddf10eac174c7a0aa1fd215a05013de7e768093f6ed00783f7cff27c1d0ffcfdafa698b359e4b38ee36ae883fdc70ad76058aacf2f8e9967a5a4/88/1280x720_3071200/index.m3u8', name: 'Toon Goggles', category: 'Kids' },
+  { url: 'https://cdn.whiplash.cc/whiplash-cinema/tracks-v1a1/mono.m3u8', name: 'Whiplash Cinema', category: 'Movies' },
+  { url: 'https://amg01753-narrativeentert-popkids-lggb-xyy5k.amagi.tv/ts-eu-w1-n2/playlist/amg01753-narrativeentert-popkids-lggb/cb543d1e7e6c648f99d43e67d2ef46a1f9481fde1d6988693eb5518975d10725dce2b48be65b9e3608dd4087351a6c515677b24788255f9e966ac0573c7f0e64ebd8f2278cfe475bc9814b352fb07d0052f81e0dab5d375ff5a55a048c36b0392216eb02611f72aeb51bf22b07da810e82612995aad5633e63535e8f2002b7f902f6ef820c13892ef8ae194b923146e19056cadc1bedd5805fcc5e8177f7148093f1ddd20dd3d09663b452b0670f5e2628cf862e959e6f86b0e801876e9f493c7c7bc1e1f4d0473b83554a5d8a8ea1dd44d963040db8e31a519a068a468731f00be069f5a22634cecabf222159c4a41f415ec085c0ea9b55739d2c9783efcf7a7f98b9387940c67ee2ea4a528ed0c40e8dcf1997f976cbe4295514c99f5083c6f2a2e1b49f4595218a96a4c37d6b40650d0c8f45e2a23b837a943889de032d597a41afb15cd0c98c0d672c1cd0c016ff3b2f94f7c7c3d30730cf203c5feb6bd612454fc4266371e062a8ce6522d9685ddd676ab50164c06ff3ba25f9a29bd6073db4ccce0daa3cb8fb5984846fc30a1d5706a1fd255b372e2c809411675750cd43edddc3f935652de3f5c4f2c513080f36195706e9b1be90fa1853b0ac70452e09074d403b1d9278ebd673b17c36/39/1920x1080_5903040/index.m3u8', name: 'Pop Kids', category: 'Kids' },
+  { url: 'https://amg01753-narrativeentert-tinypop-samsunguk-hvvb7.amagi.tv/ts-eu-w1-n2/playlist/amg01753-narrativeentert-tinypop-samsunguk/cb543d1e7e6c648f99d43e67d2ef46a1f9481fde1d6988693eb5518975d10725dce2b48be65b9e3608dd4087351a6c515677b24788255f9e966ac0573c7f0e64ebd8f2278cfe475bc9814b352fb07d0052f81e0dab5d375ff5a55a048c36b0392216eb02611f72aeb51bf22b07da810e82612995aad5633e63535e8f2002b7f902f6ef820c13892ef8ae194b923146e19056cad31ae9d4dd5c9f5e8177f7148093f1ddd20dd3d09663b452b0670f5e2628cf862e959e6f86b0e801876e9f493c7c7bc1e1f4d0473b83554a5d8a8ea1dd44d963040db8e31a519a068a468731f00be069f5a22634cecabf222159c4a41f415ec085c0ea9b55739d2c9783efcf7a7f98b9387940c67ee2ea4a528ed0c40e8dcf1997f976cbe4295514c99f5083c6f2a2e1b49f4595218a96a4c37d6b40650d0c8f45e2a23b837a943889de032d597a41afb15cd0c98c0d672c1cd0c016ff3b2f94f7c7c3d30730cf203c5feb6bd612454fc4266371e062a8ce6522d9685ddd676ab50164c06ff3ba25f9a29bd6073db4ccce0daa3cb8fb5984846fc30a1d5706a1fd255b372e2c809411675750cd43edddc3f935652de3f5c4f2c513080f36195706e9bbb390fa1a53b0ac704b9145d68f9dd5c58d25ed10f6f43d78/94/1920x1080_5903040/index.m3u8', name: 'Tiny Pop', category: 'Kids' },
+  { url: 'https://amg01753-narrativeentert-greatmovies-samsunguk-7z6eh.amagi.tv/ts-eu-w1-n2/playlist/amg01753-narrativeentert-greatmovies-samsunguk/cb573d1e7e6c648f99d43962cef64982847b3dcb0e6c886470af4a9765d97800dbe8ae84ae5b910c4c9e1fc061017d360439cd1dd56c49c1da63b820743c4b21fdcde00080dd0d0cb1df11292ca36265299a7369cc350f7bd2ec5a2f803ebe764c53cb017c593f88f258a97e4cc59e0a957f39e8fc8b307b24455a9c5a43e6a64cb7ffe55f47df39f0b8014f942b47fa83439fd501b282d45b8341d720f2409dc4f38e8712d7e4f1598b6f5cc6e739581fb7a73bf4e754b1df886038ee0042243f73966917632c46e066454ef1fccac505b5739cca4d150346db60f82fe450ce4bd369c7812ec0cdfbff082d18a2d6526226efc9a18df42609700791adc4d2697595fa153712873d986a1c319ef9c40397833ba2f672d5fa394678f7984bcdc9e9c3f7e6d903dc04dad7f89d0a474c480d16c908f1cd23887f9d3083e6270c700104a1935ec1c6fe5b336940cfc07ddc0114b4dec4d28b56759a2e4b14b820ea5a036dde3d2329b67ab7c96a1efc4c60b23c33ff57229302ade85e9289efa5576bfb8ebd019509c8ba05d5fa07d31d1f5110bcff291f080c4ad9e06202276a8122c0d6d9ea630610e6949ca799b359aed78ee36a933ae9556b42a3045cfefdd2d1cf7522/199/1920x1080_5903040/index.m3u8', name: 'Great Movies', category: 'Movies' },
+  { url: 'https://mumt03.tangotv.in/Dsly5z3HALLTIMEMOVIES/tracks-v1a1/mono.m3u8', name: 'All Time Movies', category: 'Movies' },
+  { url: 'https://aegis-cloudfront-1.tubi.video/8b127a5b-3054-4f39-93a2-1c4aab9ef5ff/1080p-en-cc/index.m3u8', name: 'Tubi Movies', category: 'Movies' },
+  { url: 'https://moviesphereuk-samsunguk.amagi.tv/720p-vtt/index.m3u8', name: 'MovieSphere UK', category: 'Movies' },
+  { url: 'https://3rscartoonmovies.elektriko4444.workers.dev/kolet.m3u8', name: 'Cartoon Movies', category: 'Kids' },
+  { url: 'https://3rsmoviebox.elektriko4444.workers.dev/moon.m3u8', name: 'Movie Box', category: 'Movies' },
+  { url: 'https://dash2.antik.sk/live/1plus1_marathon/playlist.m3u8', name: '1+1 Marathon', category: 'Entertainment' },
+  { url: 'https://3rstv.elektriko4444.workers.dev/peanut.m3u8', name: '3RS TV', category: 'Entertainment' },
+  { url: 'https://livestream.pbskids.org/out/v1/14507d931bbe48a69287e4850e53443c/est_2.m3u8', name: 'PBS Kids', category: 'Kids' },
+  { url: 'https://trs1.aynaott.com/teennick/tracks-v1a1/mono.ts.m3u8', name: 'TeenNick', category: 'Kids' },
+  { url: 'http://315e5a5d.ottrast.com/iptv/MM4E93NGF5LADZ/6965/index.m3u8', name: 'OTTRast', category: 'Entertainment' },
+  { url: 'http://23.237.104.106:8080/USA_DISNEY_XD/index.m3u8', name: 'Disney XD', category: 'Kids' },
+  { url: 'https://a62dad94.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/UmFrdXRlblRWLWV1X0ZJRkFQbHVzRW5nbGlzaF9ITFM/playlist.m3u8', name: 'FIFA Plus', category: 'Sports' },
+  { url: 'http://217.20.112.199:8080/natgeowild/index.m3u8', name: 'Nat Geo Wild', category: 'Entertainment' }
+];
+
+function checkUrl(url) {
+  return new Promise((resolve) => {
+    const client = url.startsWith('https') ? https : http;
+    const req = client.get(url, (res) => {
+      resolve({ url, statusCode: res.statusCode });
+    });
+    req.on('error', (err) => {
+      resolve({ url, statusCode: null, error: err.message });
+    });
+    req.setTimeout(2500, () => {
+      req.destroy();
+      resolve({ url, statusCode: null, error: 'Timeout' });
+    });
+  });
+}
+
+async function main() {
+  console.log("Starting test & mapping of all streams...");
+  const results = [];
+  for (const stream of streams) {
+    // Find matching mapping
+    let mapped = channel_mappings.find(m => stream.url.includes(m.urlContains));
+    
+    // Test the URL
+    const res = await checkUrl(stream.url);
+    const isOk = (res.statusCode === 200 || res.statusCode === 302);
+    
+    if (isOk) {
+      console.log(`[WORKING] Mapped: ${mapped ? mapped.name : 'NONE'} | Original Name: ${stream.name} | Category: ${mapped ? mapped.category : stream.category}`);
+      results.push({
+        url: stream.url,
+        originalName: stream.name,
+        mappedName: mapped ? mapped.name : stream.name,
+        category: mapped ? mapped.category : stream.category,
+        logo: mapped ? mapped.logo : null,
+      });
+    } else {
+      console.log(`[BROKEN] Original Name: ${stream.name} | URL: ${stream.url}`);
+    }
+  }
+}
+
+main();

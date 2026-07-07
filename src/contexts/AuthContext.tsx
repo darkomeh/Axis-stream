@@ -71,6 +71,7 @@ export interface UserPreferences {
   subtitleSettings: SubtitlePreferences;
   theme?: string;
   accentColor?: string;
+  kidsMode?: boolean;
 }
 
 export interface ContinueWatchingItem extends MediaItem {
@@ -171,6 +172,7 @@ export const defaultPreferences: UserPreferences = {
   skipIntro: false,
   playbackSpeed: 1,
   dataSaver: false,
+  kidsMode: false,
   subtitleSettings: {
     fontSize: 14,
     color: '#ffffff',
@@ -538,10 +540,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, firebaseUser]);
 
   const updatePreferences = useCallback((prefs: Partial<UserPreferences>) => {
-    if (!user) return;
     setPreferences(prev => {
       const updated = { ...prev, ...prefs };
-      localStorage.setItem(`axis_prefs_${user.id}`, JSON.stringify(updated));
+      const key = user ? `axis_prefs_${user.id}` : `axis_prefs_guest`;
+      localStorage.setItem(key, JSON.stringify(updated));
       return updated;
     });
   }, [user]);
@@ -765,7 +767,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (storedFollowing) setFollowing(JSON.parse(storedFollowing));
     } else {
       setFeaturedCollection([]);
-      setPreferences(defaultPreferences);
+      const storedPrefs = localStorage.getItem('axis_prefs_guest');
+      if (storedPrefs) {
+        setPreferences(JSON.parse(storedPrefs));
+      } else {
+        setPreferences(defaultPreferences);
+      }
       setStats(initialStats);
       setPlaylists([]);
       setFollowing([]);

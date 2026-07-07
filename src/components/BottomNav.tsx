@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Search, Compass, Radio, Trophy } from "lucide-react";
+import { Home, Search, Compass, Radio, Trophy, Tv } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useMediaPreview } from "../contexts/MediaPreviewContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -7,7 +7,7 @@ import { useAuth } from "../contexts/AuthContext";
 export default function BottomNav() {
   const location = useLocation();
   const { previewId } = useMediaPreview();
-  const { user } = useAuth();
+  const { user, preferences } = useAuth();
   
   // Dynamic user initial for the profile bubble, defaulting to 'G'
   const userInitial = user?.username 
@@ -16,11 +16,16 @@ export default function BottomNav() {
       ? user.email[0].toUpperCase() 
       : "G";
 
-  const navItems = [
+  const navItems = preferences?.kidsMode ? [
+    { path: "/", icon: Home, label: "Kids Home" },
+    { path: "/toons", icon: Tv, label: "Cartoons" },
+    { path: "/search", icon: Search, label: "Search" },
+    { path: "/profile", label: "Profile", isProfile: true },
+  ] : [
     { path: "/", icon: Home, label: "Home" },
     { path: "/search", icon: Search, label: "Explore" },
     { path: "/trails", icon: Compass, label: "Trails" },
-    { path: "/ranking", icon: Trophy, label: "Ranking" },
+    { path: "/sports", icon: Trophy, label: "Sports" },
     { path: "/live", icon: Radio, label: "Live TV" },
     { path: "/profile", label: "Profile", isProfile: true },
   ];

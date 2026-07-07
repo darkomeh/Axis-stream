@@ -374,41 +374,43 @@ export const updateProfile = async (data: { name?: string, photoURL?: string, bi
 };
 
 export const saveContinueWatching = async (item: import('../contexts/AuthContext').ContinueWatchingItem) => {
-  if (!auth.currentUser) return;
-  const docRef = doc(db, `users/${auth.currentUser.uid}/continueWatching`, item.id);
+  if (!auth.currentUser || !item?.id) return;
+  const docId = String(item.id);
+  const docRef = doc(db, `users/${auth.currentUser.uid}/continueWatching`, docId);
   try {
     await setDoc(docRef, {
-      movieId: item.id,
-      title: item.title,
-      poster: item.poster || '',
-      background: (item as any).background || '',
-      avgHueDark: item.avgHueDark || '',
-      type: item.type || 'Movie',
-      lastPosition: item.progress || 0,
-      duration: item.duration || 1,
-      season: item.season || null,
-      episode: item.episode || null,
-      rating: item.rating || '',
-      year: item.year || '',
+      movieId: docId,
+      title: String(item.title || 'Untitled'),
+      poster: String(item.poster || ''),
+      background: String((item as any).background || ''),
+      avgHueDark: String(item.avgHueDark || ''),
+      type: String(item.type || 'Movie'),
+      lastPosition: Number(item.progress || 0),
+      duration: Number(item.duration || 1),
+      season: item.season !== undefined && item.season !== null ? item.season : null,
+      episode: item.episode !== undefined && item.episode !== null ? item.episode : null,
+      rating: String(item.rating || ''),
+      year: String(item.year || ''),
       updatedAt: serverTimestamp()
     });
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `users/${auth.currentUser.uid}/continueWatching/${item.id}`);
+    handleFirestoreError(error, OperationType.WRITE, `users/${auth.currentUser.uid}/continueWatching/${docId}`);
   }
 };
 
 export const addWatchHistory = async (item: any) => {
-  if (!auth.currentUser) return;
+  if (!auth.currentUser || !item?.id) return;
+  const docId = String(item.id);
   const path = `users/${auth.currentUser.uid}/watchHistory`;
   try {
-    const docRef = doc(collection(db, path), item.id);
+    const docRef = doc(collection(db, path), docId);
     await setDoc(docRef, {
-      movieId: item.id,
-      title: item.title,
-      type: item.type || 'Movie',
-      poster: item.poster || '',
-      year: item.year || '',
-      rating: item.rating || '',
+      movieId: docId,
+      title: String(item.title || 'Untitled'),
+      type: String(item.type || 'Movie'),
+      poster: String(item.poster || ''),
+      year: String(item.year || ''),
+      rating: String(item.rating || ''),
       watchedAt: serverTimestamp(),
     });
   } catch (error) {
@@ -467,21 +469,21 @@ export const removeFavorite = async (movieId: string) => {
 };
 
 export const addFavorite = async (item: import('../types').MediaItem) => {
-  if (!auth.currentUser) return;
+  if (!auth.currentUser || !item?.id) return;
+  const docId = String(item.id);
   const path = `users/${auth.currentUser.uid}/favorites`;
-  // Use the item id as the document id to prevent duplicates easily, or query first
-  const q = query(collection(db, path), where("movieId", "==", item.id));
+  const q = query(collection(db, path), where("movieId", "==", docId));
   try {
     const snap = await getDocs(q);
     if (!snap.empty) return; // already in favs
     
     await addDoc(collection(db, path), {
-      movieId: item.id,
-      title: item.title,
-      poster: item.poster || '',
-      type: item.type || 'Movie',
-      rating: item.rating || '',
-      year: item.year || '',
+      movieId: docId,
+      title: String(item.title || 'Untitled'),
+      poster: String(item.poster || ''),
+      type: String(item.type || 'Movie'),
+      rating: String(item.rating || ''),
+      year: String(item.year || ''),
       addedAt: serverTimestamp(),
     });
   } catch (error) {
@@ -496,8 +498,8 @@ export const sendChatMessage = async (text: string) => {
     await addDoc(collection(db, path), {
       text,
       userId: auth.currentUser.uid,
-      userName: auth.currentUser.displayName || auth.currentUser.email?.split('@')[0],
-      userAvatar: auth.currentUser.photoURL,
+      userName: auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || 'Anonymous',
+      userAvatar: auth.currentUser.photoURL || '',
       createdAt: serverTimestamp()
     });
   } catch (error) {

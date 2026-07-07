@@ -83,7 +83,7 @@ export default function Trails() {
   const navigate = useNavigate();
   const { movieSlug } = useParams();
   const { showToast } = useToast();
-  const { user, isInWatchlist, addToWatchlist, removeFromWatchlist } = useAuth();
+  const { user, preferences, isInWatchlist, addToWatchlist, removeFromWatchlist } = useAuth();
 
   const [isDesktop, setIsDesktop] = useState(() => {
     try {
@@ -832,17 +832,19 @@ export default function Trails() {
                       </span>
                     </div>
 
-                    <div className="flex flex-col items-center select-none group">
-                      <button 
-                        onClick={() => setShowComments(true)}
-                        className="w-11 h-11 rounded-full flex items-center justify-center border border-white/10 text-white bg-black/35 hover:bg-black/55 group-hover:scale-105 transition-all duration-200 active:scale-75 shadow-lg backdrop-blur-md"
-                      >
-                        <MessageCircle className="w-5 h-5" />
-                      </button>
-                      <span className="text-[10px] font-black text-white/90 drop-shadow mt-1 select-none font-mono">
-                        {formatShortNumber(item.commentsCount)}
-                      </span>
-                    </div>
+                    {!preferences?.kidsMode && (
+                      <div className="flex flex-col items-center select-none group">
+                        <button 
+                          onClick={() => setShowComments(true)}
+                          className="w-11 h-11 rounded-full flex items-center justify-center border border-white/10 text-white bg-black/35 hover:bg-black/55 group-hover:scale-105 transition-all duration-200 active:scale-75 shadow-lg backdrop-blur-md"
+                        >
+                          <MessageCircle className="w-5 h-5" />
+                        </button>
+                        <span className="text-[10px] font-black text-white/90 drop-shadow mt-1 select-none font-mono">
+                          {formatShortNumber(item.commentsCount)}
+                        </span>
+                      </div>
+                    )}
 
                     <div className="flex flex-col items-center select-none group">
                       <button 
@@ -1312,73 +1314,81 @@ export default function Trails() {
                     </div>
 
                     {/* Live Discussion & Comment section */}
-                    <div className="space-y-3 pt-2">
-                      <div className="flex items-center justify-between select-none border-b border-white/5 pb-2">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-black uppercase tracking-widest font-mono text-slate-400">Live Discussion Timeline</span>
-                          <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-white/5 text-slate-400">{item.commentsCount}</span>
+                    {preferences?.kidsMode ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-center space-y-3 bg-white/5 rounded-2xl p-4 border border-white/5 select-none animate-fade-in">
+                        <span className="text-2xl select-none">🛡️</span>
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-300">Safe Streaming Active</h3>
+                        <p className="text-[10px] text-slate-400 font-medium leading-relaxed max-w-[240px] mx-auto">Comments and community chats are turned off in Kids Mode to keep things completely friendly and safe!</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 pt-2">
+                        <div className="flex items-center justify-between select-none border-b border-white/5 pb-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-black uppercase tracking-widest font-mono text-slate-400">Live Discussion Timeline</span>
+                            <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-white/5 text-slate-400">{item.commentsCount}</span>
+                          </div>
+                          <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Moderated Feed</span>
                         </div>
-                        <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Moderated Feed</span>
-                      </div>
 
-                      {/* Scrollable comments lists */}
-                      <div className="space-y-3.5 max-h-[190px] overflow-y-auto pr-1 hide-scrollbar">
-                        {((commentsMap[item.id]) || []).map((comm) => {
-                          const isCommenterDev = (comm as any).isDev || comm.name.toLowerCase() === "greatmayuku2" || comm.name.toLowerCase() === "greatmayuku2@gmail.com" || (user && user.email === "greatmayuku2@gmail.com" && comm.name === user.username);
-                          const commenterName = (isCommenterDev && user && user.email === "greatmayuku2@gmail.com" && user.username) ? user.username : comm.name;
-                          return (
-                            <div key={`inline-comm-desk-${comm.id}`} className="flex gap-2.5 items-start text-xs text-left">
-                              <div className={`w-6.5 h-6.5 rounded-full flex items-center justify-center text-[9px] font-black select-none shrink-0 ${
-                                comm.isOfficial 
-                                  ? "bg-brand text-black shadow-[0_0_8px_rgba(244,196,48,0.25)]" 
-                                  : isCommenterDev 
-                                    ? "bg-blue-600 text-white shadow-[0_0_8px_rgba(37,99,235,0.3)]" 
-                                    : "bg-white/10 text-white"
-                              }`}>
-                                {comm.isOfficial ? "AT" : isCommenterDev ? "DEV" : commenterName.substring(0, 2).toUpperCase()}
-                              </div>
-                              
-                              <div className="flex-1 min-w-0 space-y-0.5">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="text-white/95 text-[10px] font-black flex items-center gap-1">
-                                    @{commenterName.toLowerCase()}
-                                    {(isCommenterDev || comm.isOfficial || commenterName.toLowerCase() === "axis trails") && (
-                                      <MetaVerifiedBadge className="w-3 h-3" />
-                                    )}
-                                  </span>
-                                  {comm.isOfficial && (
-                                    <span className="bg-brand text-black text-[6px] font-black uppercase px-1 rounded scale-90 origin-left">Creator</span>
-                                  )}
-                                  <span className="text-slate-500 text-[8px] font-medium">{comm.time}</span>
+                        {/* Scrollable comments lists */}
+                        <div className="space-y-3.5 max-h-[190px] overflow-y-auto pr-1 hide-scrollbar">
+                          {((commentsMap[item.id]) || []).map((comm) => {
+                            const isCommenterDev = (comm as any).isDev || comm.name.toLowerCase() === "greatmayuku2" || comm.name.toLowerCase() === "greatmayuku2@gmail.com" || (user && user.email === "greatmayuku2@gmail.com" && comm.name === user.username);
+                            const commenterName = (isCommenterDev && user && user.email === "greatmayuku2@gmail.com" && user.username) ? user.username : comm.name;
+                            return (
+                              <div key={`inline-comm-desk-${comm.id}`} className="flex gap-2.5 items-start text-xs text-left">
+                                <div className={`w-6.5 h-6.5 rounded-full flex items-center justify-center text-[9px] font-black select-none shrink-0 ${
+                                  comm.isOfficial 
+                                    ? "bg-brand text-black shadow-[0_0_8px_rgba(244,196,48,0.25)]" 
+                                    : isCommenterDev 
+                                      ? "bg-blue-600 text-white shadow-[0_0_8px_rgba(37,99,235,0.3)]" 
+                                      : "bg-white/10 text-white"
+                                }`}>
+                                  {comm.isOfficial ? "AT" : isCommenterDev ? "DEV" : commenterName.substring(0, 2).toUpperCase()}
                                 </div>
-                                <p className="text-slate-300 text-[11px] leading-relaxed font-sans pr-2">
-                                  {comm.text}
-                                </p>
+                                
+                                <div className="flex-1 min-w-0 space-y-0.5">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-white/95 text-[10px] font-black flex items-center gap-1">
+                                      @{commenterName.toLowerCase()}
+                                      {(isCommenterDev || comm.isOfficial || commenterName.toLowerCase() === "axis trails") && (
+                                        <MetaVerifiedBadge className="w-3 h-3" />
+                                      )}
+                                    </span>
+                                    {comm.isOfficial && (
+                                      <span className="bg-brand text-black text-[6px] font-black uppercase px-1 rounded scale-90 origin-left">Creator</span>
+                                    )}
+                                    <span className="text-slate-500 text-[8px] font-medium">{comm.time}</span>
+                                  </div>
+                                  <p className="text-slate-300 text-[11px] leading-relaxed font-sans pr-2">
+                                    {comm.text}
+                                  </p>
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                            );
+                          })}
+                        </div>
 
-                      {/* Comment form */}
-                      <form onSubmit={postComment} className="flex gap-2 pt-2 border-t border-white/5 pointer-events-auto">
-                        <input
-                          type="text"
-                          value={newCommentText}
-                          onChange={(e) => setNewCommentText(e.target.value)}
-                          placeholder={user ? `Add comment on ${item.title}...` : "Sign in under profile to comment..."}
-                          disabled={!user}
-                          className="flex-1 bg-white/5 border border-white/5 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:bg-white/10 focus:border-brand/30 transition-all font-sans"
-                        />
-                        <button
-                          type="submit"
-                          disabled={!user || !newCommentText.trim()}
-                          className="px-4.5 rounded-xl bg-brand disabled:bg-white/5 text-black disabled:text-white/30 font-black text-xs uppercase tracking-widest flex items-center justify-center transition-all shadow-[0_3px_10px_rgba(244,196,48,0.15)] active:scale-95 shrink-0"
-                        >
-                          <Send className="w-3 h-3" />
-                        </button>
-                      </form>
-                    </div>
+                        {/* Comment form */}
+                        <form onSubmit={postComment} className="flex gap-2 pt-2 border-t border-white/5 pointer-events-auto">
+                          <input
+                            type="text"
+                            value={newCommentText}
+                            onChange={(e) => setNewCommentText(e.target.value)}
+                            placeholder={user ? `Add comment on ${item.title}...` : "Sign in under profile to comment..."}
+                            disabled={!user}
+                            className="flex-1 bg-white/5 border border-white/5 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:bg-white/10 focus:border-brand/30 transition-all font-sans"
+                          />
+                          <button
+                            type="submit"
+                            disabled={!user || !newCommentText.trim()}
+                            className="px-4.5 rounded-xl bg-brand disabled:bg-white/5 text-black disabled:text-white/30 font-black text-xs uppercase tracking-widest flex items-center justify-center transition-all shadow-[0_3px_10px_rgba(244,196,48,0.15)] active:scale-95 shrink-0"
+                          >
+                            <Send className="w-3 h-3" />
+                          </button>
+                        </form>
+                      </div>
+                    )}
 
                   </div>
 

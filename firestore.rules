@@ -110,7 +110,7 @@ service cloud.firestore {
       match /watchHistory/{historyId} {
         allow list: if isOwner(userId) || isAdmin();
         allow get: if isOwner(userId) || isAdmin();
-        allow create: if isOwner(userId) && isValidWatchHistory(incoming());
+        allow create, update: if isOwner(userId) && isValidWatchHistory(incoming());
         allow delete: if isOwner(userId) || isAdmin();
       }
 

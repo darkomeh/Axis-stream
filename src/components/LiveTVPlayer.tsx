@@ -167,9 +167,13 @@ export default function LiveTVPlayer({
               switch (data.type) {
                 case HlsClass.ErrorTypes.NETWORK_ERROR:
                   console.error("HLS fatal network error, trying to recover...", data);
-                  if (networkErrorRetryCountRef.current < 3) {
+                  if (networkErrorRetryCountRef.current < 6) {
                     networkErrorRetryCountRef.current += 1;
-                    hls.startLoad();
+                    const delay = Math.min(1000 * networkErrorRetryCountRef.current, 5000);
+                    console.log(`Retrying HLS load in ${delay}ms... (Attempt ${networkErrorRetryCountRef.current}/6)`);
+                    setTimeout(() => {
+                      hls.startLoad();
+                    }, delay);
                   } else {
                     console.error("HLS fatal network error, retry limit reached.");
                     setHasError(true);

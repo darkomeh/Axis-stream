@@ -43,7 +43,8 @@ import {
   Send,
   MonitorPlay,
   Copy,
-  Clock
+  Clock,
+  Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -268,24 +269,31 @@ export default function WatchPartyPage() {
 
         {/* Existing VideoPlayer (Cinematic Player) */}
         <div className="w-full aspect-video max-h-[60vh] md:max-h-[70vh]">
-          <VideoPlayer
-            mediaData={mediaData}
-            poster={party.posterUrl}
-            title={party.mediaTitle}
-            description={""}
-            id={party.mediaId}
-            onClose={() => navigate(`/details/${slugify(party.mediaTitle)}`)}
-            watchPartyState={party}
-            onWatchPartySync={(action, time) => {
-              if (isHost && partyId) {
-                updatePlaybackState(partyId, {
-                  status: action === "PLAY" ? "PLAYING" : "PAUSED",
-                  position: time,
-                });
-              }
-            }}
-            isHost={isHost}
-          />
+          {mediaData ? (
+            <VideoPlayer
+              mediaData={mediaData}
+              poster={party.posterUrl}
+              title={party.mediaTitle}
+              description={""}
+              id={party.mediaId}
+              onClose={() => navigate(`/details/${slugify(party.mediaTitle)}`)}
+              watchPartyState={party}
+              onWatchPartySync={(action, time) => {
+                if (isHost && partyId) {
+                  updatePlaybackState(partyId, {
+                    status: action === "PLAY" ? "PLAYING" : "PAUSED",
+                    position: time,
+                  });
+                }
+              }}
+              isHost={isHost}
+            />
+          ) : (
+            <div className="w-full h-full bg-[#1C1C1E]/50 rounded-[24px] flex flex-col items-center justify-center border border-white/[0.04]">
+              <Loader2 className="w-8 h-8 text-[#A1A1AA] animate-spin mb-3" />
+              <p className="text-[#A1A1AA] text-sm">Loading media stream...</p>
+            </div>
+          )}
         </div>
       </div>
 

@@ -167,6 +167,12 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
         const updated = allMatches.find((m: Match) => m.id === match.id);
         
         if (updated) {
+          if (updated.streams && updated.streams.length > 0) {
+            setCurrentStreamUrl(prev => {
+              if (!prev) return updated.streams![0].url;
+              return prev;
+            });
+          }
           setCurrentMatch(prev => {
             if (prev.home_score !== updated.home_score || prev.away_score !== updated.away_score) {
               showToast(`GOAL! ${updated.home_team} ${updated.home_score} - ${updated.away_score} ${updated.away_team}`, "success");

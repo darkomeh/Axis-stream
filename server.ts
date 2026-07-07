@@ -57,7 +57,16 @@ app.use((req, res, next) => {
 });
 
 app.use(compression());
-app.use(express.json());
+
+// Adaptive body parsing middleware to prevent hanging on Vercel Serverless Gateway
+app.use((req, res, next) => {
+  if (req.body !== undefined) {
+    // If the body is already parsed by Vercel or an upstream gateway, bypass express.json() to prevent stream read hang
+    next();
+  } else {
+    express.json()(req, res, next);
+  }
+});
 
 // Basic Rate Limiting & Anti-Scraping Middleware
 const rateLimits = new Map<string, { requests: number, lastRequest: number }>();

@@ -16,6 +16,16 @@ backendRouter.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// Warmup/Trigger Discovery Cache
+backendRouter.get("/sports/warmup", async (req, res) => {
+  try {
+    const domainInfo = await DiscoveryService.getBestDomain();
+    res.json({ status: "success", bestDomain: domainInfo });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /sports
 backendRouter.get("/sports", (req, res) => {
   // Can be expanded via future provider architecture

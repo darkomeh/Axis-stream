@@ -8,6 +8,8 @@ export const config = {
     "https://moviebox.pro",
   ],
   DEFAULT_SPORT: "football",
+  DOMAIN_DISCOVERY_TIMEOUT: 3000,
+  SCRAPE_TIMEOUT: 4000,
   REQUEST_TIMEOUT: 15000,
   MAX_RETRIES: 3,
   PREFETCH_AHEAD: 5,

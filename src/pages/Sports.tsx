@@ -18,6 +18,7 @@ const getMatchSlug = (home: string, away: string) => {
 };
 
 interface Match {
+  sport_type?: string;
   home_logo?: string;
   away_logo?: string;
   start_time?: string;
@@ -87,18 +88,19 @@ export default function Sports() {
   const [activeDateIndex, setActiveDateIndex] = useState(0);
   const [activeFilter, setActiveFilter] = useState("All");
   
+  const [allMatches, setAllMatches] = useState<Match[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<{ match: Match; initialStreamUrl?: string } | null>(null);
 
-  const fetchMatches = async (sport: string = activeSport, isBackground = false) => {
+  const fetchMatches = async (isBackground = false) => {
     if (!isBackground) {
       setLoading(true);
     }
     setError(null);
     try {
-      const response = await axios.get(`/api/matches?sport=${sport}`);
+      const response = await axios.get(`/api/matches?sport=all`);
       const rawMatches: Match[] = response.data.matches || [];
       const uniqueMatches: Match[] = [];
       const seenIds = new Set<string>();
@@ -108,7 +110,7 @@ export default function Sports() {
           uniqueMatches.push(m);
         }
       }
-      setMatches(uniqueMatches);
+      setAllMatches(uniqueMatches);
       
       if (selectedMatch) {
         const updated = uniqueMatches.find(m => m.id === selectedMatch.match.id);
@@ -125,20 +127,26 @@ export default function Sports() {
   };
 
   useEffect(() => {
-    fetchMatches(activeSport);
+    fetchMatches();
     
     // Auto-refresh every 15 seconds
     const interval = setInterval(() => {
-      fetchMatches(activeSport, true);
+      fetchMatches(true);
     }, 15000);
     
     return () => clearInterval(interval);
-  }, [activeSport]);
+  }, []);
+
+  // Filter matches locally based on activeSport and allMatches
+  useEffect(() => {
+    const filtered = allMatches.filter(m => m.sport_type === activeSport);
+    setMatches(filtered);
+  }, [allMatches, activeSport]);
 
   // Synchronize router slug param with selectedMatch state
   useEffect(() => {
-    if (matchSlug && matches.length > 0) {
-      const matched = matches.find(m => {
+    if (matchSlug && allMatches.length > 0) {
+      const matched = allMatches.find(m => {
         const slug = getMatchSlug(m.home_team, m.away_team);
         if (slug === matchSlug.toLowerCase()) return true;
         
@@ -151,37 +159,17 @@ export default function Sports() {
       
       if (matched) {
         setSelectedMatch({ match: matched });
+        // Auto-switch active sport tab to matched match's sport if different
+        if (matched.sport_type && matched.sport_type !== activeSport) {
+          setActiveSport(matched.sport_type);
+        }
       } else {
-        // If matchSlug is present but no match is found, we can query all matches instead of just activeSport
-        // to see if we can locate it across any sport
-        const searchAcrossAll = async () => {
-          try {
-            const promises = SPORTS.map(s => axios.get(`/api/matches?sport=${s.id}`));
-            const responses = await Promise.all(promises);
-            const allMatches = responses.flatMap(r => r.data.matches || []);
-            const found = allMatches.find(m => {
-              const slug = getMatchSlug(m.home_team, m.away_team);
-              if (slug === matchSlug.toLowerCase()) return true;
-              const cleanSlug = matchSlug.toLowerCase().replace(/[^a-z0-9]/g, '');
-              const cleanHome = m.home_team.toLowerCase().replace(/[^a-z0-9]/g, '');
-              const cleanAway = m.away_team.toLowerCase().replace(/[^a-z0-9]/g, '');
-              return cleanSlug.includes(cleanHome) && cleanSlug.includes(cleanAway);
-            });
-            if (found) {
-              setSelectedMatch({ match: found });
-            } else {
-              navigate("/sports");
-            }
-          } catch {
-            navigate("/sports");
-          }
-        };
-        searchAcrossAll();
+        navigate("/sports");
       }
     } else if (!matchSlug && selectedMatch) {
       setSelectedMatch(null);
     }
-  }, [matchSlug, matches]);
+  }, [matchSlug, allMatches]);
 
   const handleOpenMatchDetails = (match: Match) => {
     navigate(`/sports/live/${getMatchSlug(match.home_team, match.away_team)}`);
@@ -302,7 +290,7 @@ export default function Sports() {
           <h3 className="text-xl font-bold text-white mb-2">Connection Error</h3>
           <p className="text-[#A1A1AA] max-w-md mb-6">{error}</p>
           <button 
-            onClick={() => fetchMatches(activeSport)}
+            onClick={() => fetchMatches()}
             className="flex items-center gap-2 px-6 py-3 bg-[#FF3B30]/20 hover:bg-[#FF3B30]/30 text-[#FF3B30] rounded-full font-semibold transition-colors"
           >
             <RefreshCw className="w-4 h-4" /> Try Again

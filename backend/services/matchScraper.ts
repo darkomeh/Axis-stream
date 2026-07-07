@@ -127,9 +127,10 @@ export class MatchScraper {
 
     try {
       if (now >= this.nuxtCooldownUntil) {
+        const scrapeTimeout = (config as any).SCRAPE_TIMEOUT || 4000;
         const res = await axios.get(payloadUrl, {
           headers: config.BROWSER_HEADERS,
-          timeout: 6000,
+          timeout: scrapeTimeout,
           responseType: "json"
         });
 

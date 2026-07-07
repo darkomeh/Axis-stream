@@ -1,7 +1,7 @@
 import axios from "axios";
-import { config } from "../config/settings";
-import { Match, StreamItem } from "../models/types";
-import { logger } from "../utils/logger";
+import { config } from "../config/settings.js";
+import { Match, StreamItem } from "../models/types.js";
+import { logger } from "../utils/logger.js";
 
 export class MatchScraper {
   static resolveNuxtRef(payload: any[], ref: any, depth = 0, maxDepth = 12, visited = new Set<number>()): any {

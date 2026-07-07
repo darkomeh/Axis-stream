@@ -1,11 +1,11 @@
 import { Router, Request, Response } from "express";
-import { DiscoveryService } from "../services/discoveryService";
-import { MatchScraper } from "../services/matchScraper";
-import { StreamValidator } from "../services/streamValidator";
-import { rewritePlaylistForProxy, fetchSegmentStreaming } from "../proxy/engine";
+import { DiscoveryService } from "../services/discoveryService.js";
+import { MatchScraper } from "../services/matchScraper.js";
+import { StreamValidator } from "../services/streamValidator.js";
+import { rewritePlaylistForProxy, fetchSegmentStreaming } from "../proxy/engine.js";
 import axios from "axios";
-import { config } from "../config/settings";
-import { logger } from "../utils/logger";
+import { config } from "../config/settings.js";
+import { logger } from "../utils/logger.js";
 
 export const backendRouter = Router();
 

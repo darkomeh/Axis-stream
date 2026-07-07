@@ -1,5 +1,5 @@
-import { config } from "../config/settings";
-import { logger } from "../utils/logger";
+import { config } from "../config/settings.js";
+import { logger } from "../utils/logger.js";
 import axios, { AxiosResponse } from "axios";
 import { Request, Response } from "express";
 

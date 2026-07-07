@@ -1,6 +1,6 @@
 import axios from "axios";
-import { config } from "../config/settings";
-import { logger } from "../utils/logger";
+import { config } from "../config/settings.js";
+import { logger } from "../utils/logger.js";
 import fs from "fs";
 import path from "path";
 import os from "os";

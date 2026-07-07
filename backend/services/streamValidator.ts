@@ -1,7 +1,7 @@
 import axios from "axios";
-import { config } from "../config/settings";
-import { StreamValidationResult } from "../models/types";
-import { logger } from "../utils/logger";
+import { config } from "../config/settings.js";
+import { StreamValidationResult } from "../models/types.js";
+import { logger } from "../utils/logger.js";
 
 export class StreamValidator {
   static async validateStream(m3u8Url: string): Promise<StreamValidationResult> {

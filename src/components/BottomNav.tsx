@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Search, LayoutGrid, Trophy, User, Activity } from "lucide-react";
+import { Home, Search, LayoutGrid, Trophy, User, Activity, Radio } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useMediaPreview } from "../contexts/MediaPreviewContext";
 
@@ -9,7 +9,7 @@ export default function BottomNav() {
  
  const navItems = [
  { path: "/", icon: Home, label: "Home" },
- { path: "/browse", icon: LayoutGrid, label: "Browse" },
+ { path: "/trails", icon: Radio, label: "Trails" },
  { path: "/search", icon: Search, label: "Search" },
  { path: "/ranking", icon: Trophy, label: "Rank" },
  { path: "/profile", icon: User, label: "Profile" },

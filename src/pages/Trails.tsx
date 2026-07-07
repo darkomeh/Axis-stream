@@ -1,0 +1,1656 @@
+import React, { useState, useEffect, useRef } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { 
+  Heart, MessageCircle, Share2, Bookmark, Star, Download, Plus, Play, Check, 
+  ChevronLeft, Users, Video, Send, X, Volume2, VolumeX, Flame, Verified,
+  ExternalLink, ArrowDownToLine, ShoppingBag, Radio, Folder, Shield
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { movieService } from "../services/movieService";
+import { MovieImage } from "../components/MovieImage";
+import { useAuth } from "../contexts/AuthContext";
+import { useToast } from "../contexts/ToastContext";
+import Navbar from "../components/Navbar";
+import { MetaVerifiedBadge } from "../components/MetaVerifiedBadge";
+import { formatDurationToHours, slugify } from "../types";
+
+interface TrailItem {
+  id: string;
+  title: string;
+  poster: string;
+  background: string;
+  rating: string;
+  releaseYear: string;
+  genres: string[];
+  description: string;
+  type: string;
+  trailerUrl: string;
+  likes: number;
+  commentsCount: number;
+  shares: number;
+  saves: number;
+  isLikedByMe: boolean;
+  isSavedByMe: boolean;
+  myRating: number | null;
+  duration?: string;
+  contentRating?: string;
+}
+
+// Fallback high quality YouTube trailers matched with popular Axis content
+const FALLBACK_TRAILERS: { [key: string]: string } = {
+  "1": "https://www.youtube.com/watch?v=1V7GgP7A8b4", // Jack Ryan
+  "2": "https://www.youtube.com/watch?v=mqqft2x_Aa4", // The Batman
+  "3": "https://www.youtube.com/watch?v=Way9Dexny3w", // Dune 2
+  "4": "https://www.youtube.com/watch?v=Di310WS8zLk", // Wednesday
+  "5": "https://www.youtube.com/watch?v=oqxAJKy0R4A", // Squid Game
+  "6": "https://www.youtube.com/watch?v=d9MyW72ELq0", // Avatar
+  "7": "https://www.youtube.com/watch?v=JfVOs4VSpmA", // Spider-Man
+};
+
+const DEFAULT_BIOS = "Official previews, trailers, and behind-the-scenes exclusives for high-octane blockbusters, series, and animes. Axis Trails is your premium ticket to cinema's upcoming heavyweights.";
+
+function getYouTubeId(url: string) {
+  if (!url) return "";
+  if (url.length === 11 && !url.includes("/") && !url.includes(".") && !url.includes("?")) {
+    return url;
+  }
+  const regExp = /^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/)|(?:(?:watch)?\?v(?:i)?=|\&v(?:i)?=))([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[1].length === 11) ? match[1] : "";
+}
+
+function getEmbedUrl(url: string, autoplay = true, muted = true, isDataSaver = true) {
+  if (!url) return "";
+  const videoId = getYouTubeId(url);
+  
+  if (videoId) {
+    const params = [
+      "enablejsapi=1",
+      autoplay ? "autoplay=1" : "autoplay=0",
+      muted ? "mute=1" : "mute=0",
+      "controls=0",
+      "rel=0",
+      "showinfo=0",
+      "iv_load_policy=3",
+      "loop=1",
+      "modestbranding=1",
+      `playlist=${videoId}`,
+      "playsinline=1"
+    ];
+    if (isDataSaver) {
+      params.push("vq=medium"); // Forces standard optimized mobile quality, cutting down trailer data weight to 5-10MB or less
+    } else {
+      params.push("vq=hd720"); // High fidelity streaming block
+    }
+    return `https://www.youtube.com/embed/${videoId}?${params.join("&")}`;
+  }
+  return url;
+}
+
+export default function Trails() {
+  const navigate = useNavigate();
+  const { movieSlug } = useParams();
+  const { showToast } = useToast();
+  const { user, isInWatchlist, addToWatchlist, removeFromWatchlist } = useAuth();
+  
+  const [items, setItems] = useState<TrailItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(() => {
+    try {
+      return localStorage.getItem('axis_followed_axistrails') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [showCreatorPanel, setShowCreatorPanel] = useState(false);
+  const [showFollowingModal, setShowFollowingModal] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [showRatingPicker, setShowRatingPicker] = useState(false);
+  const [showDownloadPanel, setShowDownloadPanel] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [iframeLoading, setIframeLoading] = useState(true);
+  const [isDataSaver, setIsDataSaver] = useState(false);
+  const [floatingHearts, setFloatingHearts] = useState<Array<{ id: number; x: number; y: number }>>([]);
+
+  // High fidelity customized panel states matching the requested Figma/AI mockup
+  const [showPlaylistSheet, setShowPlaylistSheet] = useState(false);
+  const [selectedResolution, setSelectedResolution] = useState("1080p");
+  const [isAddingNewPlaylist, setIsAddingNewPlaylist] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState("");
+  const [localPlaylists, setLocalPlaylists] = useState([
+    { id: "p1", name: "Watch Later", videoCount: 12, checked: false },
+    { id: "p2", name: "Action Movies", videoCount: 24, checked: true },
+    { id: "p3", name: "Thrillers", videoCount: 18, checked: false },
+    { id: "p4", name: "Favorite Trailers", videoCount: 9, checked: false }
+  ]);
+
+  const [commentLikes, setCommentLikes] = useState<Record<string, { count: number; liked: boolean }>>({
+    "c1": { count: 245, liked: false },
+    "c3": { count: 132, liked: false },
+    "comment-1": { count: 98, liked: false }
+  });
+
+  const toggleCommentLike = (commId: string) => {
+    setCommentLikes(prev => {
+      const current = prev[commId] || { count: Math.floor(Math.random() * 20) + 1, liked: false };
+      return {
+        ...prev,
+        [commId]: {
+          count: current.liked ? current.count - 1 : current.count + 1,
+          liked: !current.liked
+        }
+      };
+    });
+  };
+
+  const togglePlaylistCheck = (playlistId: string) => {
+    setLocalPlaylists(prev => prev.map(p => {
+      if (p.id === playlistId) {
+        const nextChecked = !p.checked;
+        return {
+          ...p,
+          checked: nextChecked,
+          videoCount: nextChecked ? p.videoCount + 1 : Math.max(0, p.videoCount - 1)
+        };
+      }
+      return p;
+    }));
+  };
+
+  const handleCreateLocalPlaylist = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPlaylistName.trim()) return;
+    const newP = {
+      id: `p-${Date.now()}`,
+      name: newPlaylistName.trim(),
+      videoCount: 1,
+      checked: true
+    };
+    setLocalPlaylists(prev => [...prev, newP]);
+    setNewPlaylistName("");
+    setIsAddingNewPlaylist(false);
+    showToast(`Playlist "${newP.name}" created!`, "success");
+  };
+  
+  // Localized comments mock engine
+  const [commentsMap, setCommentsMap] = useState<Record<string, Array<{id: string, name: string, text: string, time: string, isOfficial?: boolean}>>>({});
+  const [newCommentText, setNewCommentText] = useState("");
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const activeVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Synchronize HTML5 video mute states on active slider change or isMuted toggle
+  useEffect(() => {
+    if (activeVideoRef.current) {
+      activeVideoRef.current.muted = isMuted;
+      try {
+        if (!isMuted) {
+          activeVideoRef.current.play().catch(() => {});
+        }
+      } catch (err) {
+        // Safe play exception capture
+      }
+    }
+  }, [isMuted, activeIndex]);
+
+  // Reset iframe spinner on scroll transition
+  useEffect(() => {
+    setIframeLoading(true);
+  }, [activeIndex]);
+
+  // Load feed items by combining homepage lists, trending lists, hot lists and fetching details
+  useEffect(() => {
+    async function loadFeed() {
+      try {
+        setLoading(true);
+        const hot = await movieService.getHot().catch(() => ({ movies: [], series: [] }));
+        
+        let firstHotId = hot.movies[0]?.id || hot.series[0]?.id || "default_id";
+        
+        // Fetch recommendations based on the first hot item
+        const recommendations = await movieService.getRecommendations(firstHotId, 1, 30).catch(() => []);
+        
+        // Accumulate unique items
+        const rawList = [
+          ...(recommendations || []),
+          ...(hot.movies || []),
+          ...(hot.series || [])
+        ];
+        
+        // Remove duplicates
+        const uniqueIds = new Set<string>();
+        const uniqueList = rawList.filter(item => {
+          if (!item.id || uniqueIds.has(item.id)) return false;
+          uniqueIds.add(item.id);
+          return true;
+        });
+
+        // SHUFFLE RANDOMLY so the feed displays different/random trailers on every navigation!
+        const shuffledList = [...uniqueList].sort(() => Math.random() - 0.5);
+
+        // Slice a manageable count of 18 items for snappy detail fetching
+        const sampleList = shuffledList.slice(0, 18);
+
+        // Map and load trailers
+        const trailItems: TrailItem[] = [];
+        
+        for (let i = 0; i < sampleList.length; i++) {
+          const item = sampleList[i];
+          try {
+            // Fetch detailed metadata including backdrop and trailer URL
+            const details = await movieService.getDetails(item.id);
+            const rawTrailer = details.trailerUrl || details.detailPath || "";
+            
+            // Generate stable randomized likes/shares count for beauty
+            const seed = parseInt(item.id) || i + 3;
+            
+            // Prefer real trailer URL from API, but fall back to a high-quality trailer if empty
+            const finalTrailer = rawTrailer ? rawTrailer : (FALLBACK_TRAILERS[String(i % 7 + 1)] || FALLBACK_TRAILERS["1"]);
+            
+            trailItems.push({
+              id: item.id,
+              title: item.title,
+              poster: item.poster || details.poster || "",
+              background: details.background || item.poster || "",
+              rating: details.rating || item.rating || "8.5",
+              releaseYear: details.year || item.year || "2026",
+              genres: details.genres || (item.category ? [item.category] : ["Premiere"]),
+              description: details.description || item.description || "A masterfully curated theatrical release showing exclusively on Axis TV.",
+              type: String(details.type || (item.type === "Series" || item.type === 2 ? "Series" : "Movie")),
+              trailerUrl: finalTrailer,
+              likes: Math.floor(Math.random() * 25000) + 1200,
+              commentsCount: Math.floor(Math.random() * 25) + 5,
+              shares: (seed * 342) % 1500 + 45,
+              saves: (seed * 123) % 900 + 20,
+              isLikedByMe: false,
+              isSavedByMe: false,
+              myRating: null,
+              duration: details.duration,
+              contentRating: details.contentRating || "16+",
+            });
+          } catch (err) {
+            // Robust single-item skip recovery
+          }
+        }
+
+        if (trailItems.length === 0) {
+          // Absolute fallback if everything fails
+          trailItems.push({
+            id: "fallback-idx-1",
+            title: "Jack Ryan: Ghost War",
+            poster: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&q=80",
+            background: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1080&q=80",
+            rating: "9.2",
+            releaseYear: "2026",
+            genres: ["Action", "Suspense", "Thriller"],
+            description: "Tom Clancy's operational counter-intelligence operative races across borders in high-stakes visual espionage.",
+            type: "Movie",
+            trailerUrl: "https://www.youtube.com/watch?v=1V7GgP7A8b4",
+            likes: 15400,
+            commentsCount: 18,
+            shares: 849,
+            saves: 302,
+            isLikedByMe: false,
+            isSavedByMe: false,
+            myRating: null,
+            duration: "1.8 hours",
+            contentRating: "18+",
+          });
+        }
+
+        let finalList = trailItems;
+        if (movieSlug) {
+          try {
+            const searchTitle = movieSlug.replace(/-/g, " ");
+            const searchResults = await movieService.search(searchTitle);
+            if (searchResults && searchResults.length > 0) {
+              const bestMatch = searchResults.find(m => 
+                slugify(m.title) === movieSlug.toLowerCase()
+              ) || searchResults[0];
+              
+              const details = await movieService.getDetails(bestMatch.id);
+              const rawTrailer = details.trailerUrl || details.detailPath || "";
+              const finalTrailer = rawTrailer ? rawTrailer : (FALLBACK_TRAILERS["1"] || "");
+              
+              const sharedItem: TrailItem = {
+                id: bestMatch.id,
+                title: bestMatch.title,
+                poster: bestMatch.poster || details.poster || "",
+                background: details.background || bestMatch.poster || "",
+                rating: details.rating || bestMatch.rating || "8.5",
+                releaseYear: details.year || bestMatch.year || "2026",
+                genres: details.genres || (bestMatch.category ? [bestMatch.category] : ["Premiere"]),
+                description: details.description || bestMatch.description || "A masterfully curated theatrical release showing exclusively on Axis TV.",
+                type: String(details.type || (bestMatch.type === "Series" || bestMatch.type === 2 ? "Series" : "Movie")),
+                trailerUrl: finalTrailer,
+                likes: Math.floor(Math.random() * 25000) + 1200,
+                commentsCount: Math.floor(Math.random() * 25) + 5,
+                shares: 110,
+                saves: 85,
+                isLikedByMe: false,
+                isSavedByMe: false,
+                myRating: null,
+                duration: details.duration,
+                contentRating: details.contentRating || "16+",
+              };
+              
+              finalList = [sharedItem, ...trailItems.filter(t => t.id !== sharedItem.id)];
+            }
+          } catch (e) {
+            console.warn("Shared slug load failed", e);
+          }
+        }
+
+        setItems(finalList);
+        setActiveIndex(0);
+        
+        // Populate initial comments
+        const initialComments: Record<string, any> = {};
+        
+        const possibleCreators = [
+          "chidi_axis", "aisha_o", "alex_cinemafan", "movie_buff99", 
+          "cinephile_pro", "tokyo_dreamer", "sarah_k", "david_film", 
+          "k_drama_lover", "anime_stan", "marcus_reviews", "watch_tracker", 
+          "scifi_geek", "axis_premiumer", "g_streamer", "reel_magic", "popcorn_time",
+          "stellar_spectator", "theatre_kid", "screensmith", "retro_flicker"
+        ];
+        
+        const possiblePhrases = [
+          "Genuinely excited for this! Cinematography looks legendary 🔥",
+          "The audio pacing is so tense. Definitely watching.",
+          "The streaming pipeline is fully optimized for this release! Stunning fidelity 🛸",
+          "Absolutely stunning trailer. The visual clarity in 1080p is wild!",
+          "This is what real entertainment feels like. Great job compiling this!",
+          "The transition score is pure gold.",
+          "Honestly, this is a masterpiece in the making! 🤯",
+          "Def adding this to my watchlist right now!",
+          "Wait, is this coming to the anime section as well?",
+          "The color grading fits the narrative perfectly.",
+          "10/10 for the casting!",
+          "Wait, is this an exclusive or a simulcast?",
+          "Simply magnificent. Highly recommended!",
+          "My jaw dropped during the action sequence.",
+          "The sound design is next level.",
+          "This page has pristine video loading speeds, loving the user feel!",
+          "The plot twist in this trailer has me fully hooked.",
+          "Who else is bingeing the release the second it drops?",
+          "Axis TV really hit a home run with this selection!"
+        ];
+        
+        const possibleTimes = ["1m ago", "5m ago", "15m ago", "35m ago", "1h ago", "2h ago", "4h ago", "12h ago", "1d ago"];
+
+        finalList.forEach(item => {
+          const generatedComments: any[] = [];
+          
+          // 1. Add official Axis Trails comment
+          generatedComments.push({
+            id: `official-${item.id}`,
+            name: "Axis Trails",
+            text: `🎯 Axis TV Selects: Presenting "${item.title}" (${item.releaseYear}). Genre: ${item.genres.join(', ')}. IMDb prediction: ${item.rating || '8.8'}/10. Description: ${item.description.slice(0, 85)}... Watch this movie now!`,
+            time: "1h ago",
+            isOfficial: true
+          });
+          
+          // 2. Add randomized community comments to meet exactly item.commentsCount
+          const itemCreators = [...possibleCreators].sort(() => Math.random() - 0.5);
+          const itemPhrases = [...possiblePhrases].sort(() => Math.random() - 0.5);
+          
+          const maxRemaining = Math.max(0, item.commentsCount - 1);
+          for (let k = 0; k < maxRemaining; k++) {
+            const commenter = itemCreators[k % itemCreators.length];
+            const textPhrase = itemPhrases[k % itemPhrases.length];
+            const timeVal = possibleTimes[k % possibleTimes.length];
+            
+            generatedComments.push({
+              id: `c-${item.id}-${k}`,
+              name: commenter,
+              text: textPhrase,
+              time: timeVal,
+              isOfficial: false
+            });
+          }
+          
+          initialComments[item.id] = generatedComments;
+        });
+        setCommentsMap(initialComments);
+
+      } catch (err) {
+        showToast("Unable to load trails feed right now.", "error");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadFeed();
+  }, [movieSlug]);
+
+  // Handle snapping / scroll event for calculating active slide index
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const scrollTop = e.currentTarget.scrollTop;
+    const height = e.currentTarget.clientHeight || window.innerHeight;
+    const calculatedIndex = Math.round(scrollTop / height);
+    if (calculatedIndex !== activeIndex && calculatedIndex >= 0 && calculatedIndex < items.length) {
+      setActiveIndex(calculatedIndex);
+      // Close side panels automatically to maintain immersive feed
+      setShowComments(false);
+      setShowRatingPicker(false);
+      setShowDownloadPanel(false);
+    }
+  };
+
+  const activeItem = items[activeIndex];
+
+  // Actions Toggle Controls
+  const toggleLike = (id: string) => {
+    if (!user) {
+      showToast("Access Profile tab to sign in & like trails", "info");
+      return;
+    }
+    setItems(prev => prev.map(item => {
+      if (item.id === id) {
+        return {
+          ...item,
+          isLikedByMe: !item.isLikedByMe,
+          likes: item.isLikedByMe ? item.likes - 1 : item.likes + 1
+        };
+      }
+      return item;
+    }));
+  };
+
+  const toggleSave = (id: string) => {
+    if (!user) {
+      showToast("Access Profile tab to sign in & save to watchlist", "info");
+      return;
+    }
+    const target = items.find(t => t.id === id);
+    if (!target) return;
+    
+    // Check real AuthContext status
+    const isSaved = isInWatchlist(id);
+    if (isSaved) {
+      removeFromWatchlist(id);
+      showToast("Removed from watchlist", "success");
+      setItems(prev => prev.map(item => {
+        if (item.id === id) {
+          return { ...item, saves: Math.max(0, item.saves - 1) };
+        }
+        return item;
+      }));
+    } else {
+      addToWatchlist({
+        id: target.id,
+        title: target.title,
+        poster: target.poster,
+        rating: target.rating,
+        type: target.type === "Series" || target.type === "2" ? "Series" : "Movie",
+        year: target.releaseYear
+      });
+      showToast("Added to your watchlist!", "success");
+      setItems(prev => prev.map(item => {
+        if (item.id === id) {
+          return { ...item, saves: item.saves + 1 };
+        }
+        return item;
+      }));
+    }
+  };
+
+  const handleRate = (id: string, stars: number) => {
+    if (!user) {
+      showToast("Please sign in or configure profile first", "info");
+      return;
+    }
+    showToast(`Rated ${stars}/10 Stars! Thank you.`, "success");
+    setItems(prev => prev.map(item => {
+      if (item.id === id) {
+        return {
+          ...item,
+          myRating: stars
+        };
+      }
+      return item;
+    }));
+    setShowRatingPicker(false);
+  };
+
+  const handleShare = (item: TrailItem) => {
+    const shareUrl = `${window.location.origin}/trails/${slugify(item.title)}`;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      showToast("Cinematic link copied to clipboard!", "success");
+      setItems(prev => prev.map(t => t.id === item.id ? { ...t, shares: t.shares + 1 } : t));
+    }).catch(() => {
+      showToast("Error copying link.", "error");
+    });
+  };
+
+  const startDownload = () => {
+    if (isDownloading) return;
+    setIsDownloading(true);
+    setDownloadProgress(0);
+    showToast("Initializing High-Definition stream download...", "info");
+    
+    const interval = setInterval(() => {
+      setDownloadProgress(prev => {
+        const next = prev + Math.floor(Math.random() * 15) + 5;
+        if (next >= 100) {
+          clearInterval(interval);
+          setTimeout(() => {
+            setIsDownloading(false);
+            showToast("Offline trailer download completed successfully!", "success");
+          }, 0);
+          return 100;
+        }
+        return next;
+      });
+    }, 400);
+  };
+
+  const postComment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCommentText.trim()) return;
+    if (!user) {
+      showToast("Sign in to comment", "info");
+      return;
+    }
+    
+    const currentComments = commentsMap[activeItem.id] || [];
+    const newComment = {
+      id: `comment-${Date.now()}`,
+      name: user.username || "You",
+      text: newCommentText.trim(),
+      time: "Just now",
+      isDev: user.email === "greatmayuku2@gmail.com"
+    };
+
+    setCommentsMap(prev => ({
+      ...prev,
+      [activeItem.id]: [newComment, ...currentComments]
+    }));
+
+    setItems(prev => prev.map(t => t.id === activeItem.id ? { ...t, commentsCount: t.commentsCount + 1 } : t));
+    setNewCommentText("");
+
+    // Simulate official creator response after 2 seconds
+    setTimeout(() => {
+      const respComment = {
+        id: `official-${Date.now()}`,
+        name: "Axis Trails",
+        text: "Thanks for commenting! Ensure to add this to your playlist and toggle reminders.",
+        time: "Just now",
+        isOfficial: true
+      };
+      setCommentsMap(prev => ({
+        ...prev,
+        [activeItem.id]: [...prev[activeItem.id], respComment]
+      }));
+    }, 1500);
+  };
+
+  const followCreator = () => {
+    setIsFollowing(true);
+    try {
+      localStorage.setItem('axis_followed_axistrails', 'true');
+    } catch {}
+    showToast("Permanently followed Axis Trails!", "success");
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>, item: TrailItem) => {
+    e.preventDefault();
+    if (!item.isLikedByMe) {
+      toggleLike(item.id);
+    }
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const newHeart = {
+      id: Date.now() + Math.random(),
+      x,
+      y
+    };
+    
+    setFloatingHearts(prev => [...prev, newHeart]);
+    
+    setTimeout(() => {
+      setFloatingHearts(prev => prev.filter(h => h.id !== newHeart.id));
+    }, 800);
+  };
+
+  const formatShortNumber = (num: number): string => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + "M";
+    }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + "K";
+    }
+    return num.toString();
+  };
+
+  return (
+    <div className="flex h-[100dvh] w-full bg-[#04060c] text-white relative overflow-hidden font-sans lg:pl-64 justify-center items-center">
+      {/* Immersive blurred full screen ambient glow background on desktop */}
+      <div className="absolute inset-0 hidden lg:block z-0 pointer-events-none overflow-hidden scale-110 opacity-20 blur-[130px] transition-all duration-1000 select-none">
+        {activeItem && (
+          <MovieImage
+            src={activeItem.background || activeItem.poster}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+        )}
+      </div>
+
+      {/* Hide standard layout backgrounds or footers inside this immersive player */}
+      <style>{`
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .hide-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        @keyframes marquee {
+          0% { transform: translate3d(0, 0, 0); }
+          100% { transform: translate3d(-33.33%, 0, 0); }
+        }
+        .animate-marquee-slow {
+          display: flex;
+          width: max-content;
+          animation: marquee 16s linear infinite;
+        }
+        /* Lock view height to solve mobile layout triggers */
+        @supports (-webkit-touch-callout: none) {
+          .h-screen {
+            height: -webkit-fill-available;
+          }
+        }
+      `}</style>
+
+      {/* Primary DESKTOP SIDEBAR overlay layout integration */}
+      <div className="hidden lg:block relative z-30 select-none">
+        <Navbar />
+      </div>
+
+      {/* Smartphone mockup frame container centered on desktop, full-viewport on mobile */}
+      <div className="relative w-full h-[100dvh] lg:h-[92vh] lg:max-h-[820px] lg:my-auto lg:aspect-[9/16] lg:max-w-[420px] lg:rounded-[36px] bg-black border border-transparent lg:border-white/10 overflow-hidden shadow-2xl lg:shadow-[0_24px_85px_rgba(0,0,0,0.9)] z-20 flex flex-col">
+        
+        {/* Loading overlay panel */}
+        {loading && (
+          <div className="absolute inset-0 bg-[#04060c]/98 z-50 flex flex-col items-center justify-center gap-4">
+            <Radio className="w-12 h-12 text-brand animate-pulse" />
+            <div className="text-center space-y-1">
+              <p className="text-sm font-black uppercase tracking-widest text-brand">Axis Trails</p>
+              <p className="text-xs text-white/50 animate-pulse">Syncing vertical cinema stream...</p>
+            </div>
+          </div>
+        )}
+        {/* Liquid Glass Top Header overlay */}
+        <header className="absolute top-0 inset-x-0 z-40 bg-gradient-to-b from-black/85 via-black/45 to-transparent pt-4 pb-12 px-4 flex items-center justify-between pointer-events-auto select-none gap-2">
+          <button 
+            onClick={() => navigate("/")}
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-black/45 border border-white/10 backdrop-blur-md active:scale-95 transition-all text-white/80 hover:text-white shrink-0"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+
+          <div className="text-center font-black uppercase tracking-widest text-[11px] text-white/80 bg-black/40 border border-white/10 backdrop-blur-md px-4 py-2 rounded-full shadow-lg">
+            Axis Trails
+          </div>
+
+          {/* Spacer to balance layout alignment */}
+          <div className="w-10 h-10 shrink-0 opacity-0 pointer-events-none" />
+        </header>
+
+        {/* Master swipable snap container */}
+        <div
+          ref={containerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-scroll snap-y snap-mandatory hide-scrollbar w-full h-full bg-black relative"
+          style={{ scrollSnapType: "y mandatory", scrollBehavior: "auto" }}
+        >
+          {items.map((item, index) => {
+            const isCurrentlyActive = index === activeIndex;
+            const shouldRenderVideo = isCurrentlyActive;
+
+            const isYoutube = item.trailerUrl && getYouTubeId(item.trailerUrl) !== "";
+            const embedSrc = shouldRenderVideo 
+              ? getEmbedUrl(item.trailerUrl, isCurrentlyActive, isMuted, isDataSaver) 
+              : "";
+            
+            const isWatchlisted = isInWatchlist(item.id);
+
+            return (
+              <div 
+                key={`slide-${item.id}-${index}`}
+                className="w-full h-full snap-start relative flex flex-col justify-end bg-black overflow-hidden select-none"
+                style={{ height: "100%" }}
+              >
+                
+                {/* 1. Cinematic Background Backdrop & Video Embed Frame */}
+                <div className="absolute inset-0 w-full h-full bg-black z-0">
+                  {/* Blurred ambient glow backdrop (visible at all times for beautiful mood) */}
+                  <div className="absolute inset-0 w-full h-full select-none pointer-events-none overflow-hidden scale-110 opacity-35 blur-3xl z-0">
+                    <MovieImage
+                      src={item.background || item.poster}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+
+                  {shouldRenderVideo ? (
+                    <div className="w-full h-full relative">
+                      {!item.trailerUrl ? (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#070a13]/80 z-20">
+                          <div className="relative z-10 px-8 py-6 rounded-2xl bg-black/60 border border-white/10 backdrop-blur-md flex flex-col items-center gap-3 max-w-xs text-center shadow-2xl">
+                            <span className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/40">🎬</span>
+                            <span className="text-sm font-black uppercase tracking-wider text-white">No Trailer</span>
+                            <span className="text-xs text-white/50 leading-relaxed">This exclusive release does not have a public trailer. Check out the movie overview below instead!</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className={`w-full h-full relative pointer-events-none transition-opacity duration-300 ${isCurrentlyActive ? 'opacity-100' : 'opacity-0'}`}>
+                          {isYoutube ? (
+                            <iframe
+                              src={embedSrc}
+                              title={item.title}
+                              onLoad={() => {
+                                if (isCurrentlyActive) {
+                                  setIframeLoading(false);
+                                }
+                              }}
+                              className="absolute inset-x-0 top-1/2 -translate-y-1/2 w-full aspect-video border-0 select-none brightness-95 pointer-events-none z-10 shadow-2xl"
+                              allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
+                              loading="eager"
+                            />
+                          ) : (
+                            <video
+                              ref={el => { if (isCurrentlyActive) activeVideoRef.current = el; }}
+                              src={item.trailerUrl}
+                              autoPlay={isCurrentlyActive}
+                              muted={isMuted}
+                              loop
+                              playsInline
+                              preload={isDataSaver && !isCurrentlyActive ? "metadata" : "auto"}
+                              onWaiting={() => { if (isCurrentlyActive) setIframeLoading(true); }}
+                              onPlaying={() => { if (isCurrentlyActive) setIframeLoading(false); }}
+                              onCanPlay={() => { if (isCurrentlyActive) setIframeLoading(false); }}
+                              className="absolute inset-x-0 top-1/2 -translate-y-1/2 w-full aspect-video object-contain brightness-95 pointer-events-none z-10"
+                            />
+                          )}
+                          
+                          {/* Active iframe spinner or buffer loaded tracker */}
+                          {iframeLoading && isCurrentlyActive && (
+                            <div className="absolute inset-0 bg-black/45 backdrop-blur-xs flex flex-col items-center justify-center gap-3 z-30 pointer-events-none">
+                              <div className="w-10 h-10 border-4 border-brand border-t-transparent rounded-full animate-spin" />
+                              <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand animate-pulse">Loading Video Teaser...</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Image cover overlay displayed before active iframe is fully buffered/ready, or for preloading slides */}
+                      {(!isCurrentlyActive || (isYoutube && iframeLoading)) && (
+                        <MovieImage
+                          src={item.background || item.poster}
+                          alt={item.title}
+                          className="absolute inset-0 w-full h-full object-contain z-10 brightness-[0.7] transition-opacity duration-300 pointer-events-none"
+                        />
+                      )}
+
+                      {/* Interactive block overlay: Double click triggers like floating hearts */}
+                      {isCurrentlyActive && (
+                        <div 
+                          onDoubleClick={(e) => handleDoubleClick(e, item)}
+                          className="absolute inset-0 z-20 cursor-pointer pointer-events-auto" 
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <MovieImage
+                      src={item.background}
+                      alt={item.title}
+                      className="w-full h-full object-contain brightness-[0.5]"
+                    />
+                  )}
+                  {/* Dense gradient overlays to support crystal-clear scannability */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-black/35 z-10 pointer-events-none" />
+                  <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black via-black/75 to-transparent z-15 pointer-events-none" />
+                </div>
+
+                {/* Local Floating hearts overlay */}
+                {isCurrentlyActive && floatingHearts.map(heart => (
+                  <motion.div
+                    key={heart.id}
+                    initial={{ scale: 0, opacity: 1, rotate: Math.random() * 40 - 20 }}
+                    animate={{ 
+                      scale: [1, 2.2, 1.8], 
+                      opacity: [1, 1, 0],
+                      y: heart.y - 120 
+                    }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    className="absolute pointer-events-none z-40 text-[#ff0050] drop-shadow-[0_0_20px_rgba(255,0,80,0.9)]"
+                    style={{ left: heart.x - 24, top: heart.y - 24 }}
+                  >
+                    <Heart className="w-12 h-12 fill-current" />
+                  </motion.div>
+                ))}
+
+                {/* 2. Floating CENTER-RIGHT Actions Menu Column - Styled like TikTok */}
+                <div className="absolute right-3.5 bottom-24 z-30 flex flex-col items-center gap-4.5 selection:bg-transparent">
+                  
+                  {/* Creator Avatar profile badge with bottom overlapping plus (+) trigger */}
+                  <div className="relative mb-2 flex flex-col items-center select-none">
+                    <button 
+                      onClick={() => setShowCreatorPanel(true)}
+                      className="w-11 h-11 rounded-full border-2 border-white/20 p-0.5 bg-black hover:border-brand/50 transition-colors shadow-2xl relative"
+                    >
+                      <div className="w-full h-full rounded-full bg-black flex items-center justify-center font-black text-[9px] text-white tracking-widest leading-none">
+                        AXIS
+                      </div>
+                    </button>
+                    {/* Glowing active indicator */}
+                    <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-black animate-pulse" />
+                    
+                    {/* Overlay plus expand buttons */}
+                    <AnimatePresence>
+                      {!isFollowing && (
+                        <motion.button
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          exit={{ scale: 0 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            followCreator();
+                          }}
+                          className="absolute -bottom-1 w-[18px] h-[18px] rounded-full bg-[#ff0050] text-white hover:scale-105 flex items-center justify-center font-bold shadow-xl transition-all"
+                        >
+                          <Plus className="w-3 h-3 stroke-[3px]" />
+                        </motion.button>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* LIKE BUTTON Block */}
+                  <div className="flex flex-col items-center select-none group">
+                    <button 
+                      onClick={() => toggleLike(item.id)}
+                      className={`w-11 h-11 rounded-full flex items-center justify-center border transition-all duration-200 active:scale-75 shadow-lg backdrop-blur-md ${
+                        item.isLikedByMe 
+                          ? "bg-[#ff0050]/20 border-[#ff0050] text-[#ff0050] shadow-[0_0_12px_rgba(255,0,80,0.4)]" 
+                          : "bg-black/35 border-white/10 text-white/95 hover:bg-black/55 group-hover:scale-105"
+                      }`}
+                    >
+                      <Heart className={`w-5 h-5 ${item.isLikedByMe ? "fill-current" : ""}`} />
+                    </button>
+                    <span className="text-[10px] font-black text-white/90 drop-shadow mt-1 select-none font-mono">
+                      {formatShortNumber(item.likes)}
+                    </span>
+                  </div>
+
+                  {/* COMMENTS BUTTON Drawer trigger */}
+                  <div className="flex flex-col items-center select-none group">
+                    <button 
+                      onClick={() => setShowComments(true)}
+                      className="w-11 h-11 rounded-full flex items-center justify-center border border-white/10 text-white bg-black/35 hover:bg-black/55 group-hover:scale-105 transition-all duration-200 active:scale-75 shadow-lg backdrop-blur-md"
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                    </button>
+                    <span className="text-[10px] font-black text-white/90 drop-shadow mt-1 select-none font-mono">
+                      {formatShortNumber(item.commentsCount)}
+                    </span>
+                  </div>
+
+                  {/* BOOKMARK BUTTON Playlist sheet trigger */}
+                  <div className="flex flex-col items-center select-none group">
+                    <button 
+                      onClick={() => toggleSave(item.id)}
+                      className={`w-11 h-11 rounded-full flex items-center justify-center border transition-all duration-200 active:scale-75 shadow-lg backdrop-blur-md ${
+                        isInWatchlist(item.id)
+                          ? "bg-amber-500/10 border-amber-500 text-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.4)]" 
+                          : "bg-black/35 border-white/10 text-white hover:bg-black/55 group-hover:scale-105"
+                      }`}
+                    >
+                      <Bookmark className={`w-5 h-5 ${isInWatchlist(item.id) ? "fill-current" : ""}`} />
+                    </button>
+                    <span className="text-[10px] font-black text-white/90 drop-shadow mt-1 select-none font-mono">
+                      {formatShortNumber(item.saves)}
+                    </span>
+                  </div>
+
+                  {/* GENERIC SHARE trigger */}
+                  <div className="flex flex-col items-center select-none group">
+                    <button 
+                      onClick={() => handleShare(item)}
+                      className="w-11 h-11 rounded-full flex items-center justify-center border border-white/10 text-white bg-black/35 hover:bg-black/55 group-hover:scale-105 transition-all duration-200 active:scale-75 shadow-lg backdrop-blur-md"
+                    >
+                      <Share2 className="w-5 h-5" />
+                    </button>
+                    <span className="text-[10px] font-black text-white/90 drop-shadow mt-1 select-none font-mono">
+                      {formatShortNumber(item.shares)}
+                    </span>
+                  </div>
+
+                </div>
+
+                {/* 3. Immersive Bottom-Left Information & Action Dashboard */}
+                <div className="absolute left-3.5 bottom-4 max-w-[calc(100%-72px)] z-30 select-none space-y-2 pointer-events-none pb-1 pr-1 text-left">
+                  
+                  {/* Account Name & Creator indicators */}
+                  <div className="flex items-center gap-1.5 pointer-events-auto">
+                    <span 
+                      onClick={() => setShowCreatorPanel(true)}
+                      className="text-white text-xs font-black lowercase hover:underline cursor-pointer flex items-center gap-1 leading-none select-text"
+                    >
+                      @axistrails
+                    </span>
+                    <MetaVerifiedBadge className="w-3.5 h-3.5" />
+                    
+                    <span className="bg-[#ff0050]/20 text-[#ff0050] text-[8px] font-black uppercase px-1.5 py-0.5 rounded border border-[#ff0050]/10 tracking-widest leading-none scale-95 origin-left">
+                      Creator
+                    </span>
+                  </div>
+
+                  {/* Movie Title & Bio Segment */}
+                  <div className="space-y-0.5 pointer-events-auto select-text">
+                    <h3 className="text-white text-xs font-black uppercase tracking-wider line-clamp-1">
+                      {item.title}
+                    </h3>
+                    <p className="text-white/85 text-[10px] leading-relaxed line-clamp-2 pr-1 font-sans">
+                      {item.description}
+                    </p>
+                    {/* Hashtags Row */}
+                    <div className="text-[#00f2fe] text-[9px] font-extrabold flex gap-1 flex-wrap select-none mt-0.5 pointer-events-auto">
+                      <span>#axisexclusives</span>
+                      <span>#{item.genres[0]?.toLowerCase() || "cinema"}</span>
+                      <span>#weeklypremier</span>
+                      <span>#axistrails</span>
+                    </div>
+                  </div>
+
+                  {/* Release Attributes metadata strip */}
+                  <div className="flex items-center gap-2 text-[8px] font-bold text-white/50 pt-0.5 font-mono">
+                    <span>{item.releaseYear}</span>
+                    <span>•</span>
+                    <span>{item.duration ? formatDurationToHours(item.duration) : "2.8 hours"}</span>
+                  </div>
+
+                  {/* Metallic instant watch cyan button pill with *add to playlist* */}
+                  <div className="pt-1 flex flex-wrap items-center gap-2 pointer-events-auto">
+                    <Link
+                      to={`/watch/${slugify(item.title)}`}
+                      className="inline-flex items-center justify-center gap-2 py-2 px-4.5 rounded-full bg-gradient-to-r from-[#25f4ee] to-[#00f2fe] text-black font-black text-[9px] tracking-widest uppercase transition-all shadow-[0_4px_12px_rgba(37,244,238,0.25)] hover:scale-105 active:scale-95 translate-y-0.5 shrink-0"
+                    >
+                      <span>Stream Full Release</span>
+                      <Play className="w-2.5 h-2.5 fill-current text-black stroke-none" />
+                    </Link>
+
+                    <button
+                      onClick={() => toggleSave(item.id)}
+                      className="inline-flex items-center justify-center gap-1.5 py-2 px-4 rounded-full bg-white/10 hover:bg-white/20 text-white font-black text-[9px] tracking-widest uppercase transition-all border border-white/10 hover:scale-105 active:scale-95 translate-y-0.5 shrink-0"
+                    >
+                      <span>{isInWatchlist(item.id) ? 'Saved to List' : 'Add to List'}</span>
+                      <Bookmark className={`w-2.5 h-2.5 ${isInWatchlist(item.id) ? "fill-current text-white" : "text-white"}`} />
+                    </button>
+                  </div>
+
+                </div>
+
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ==========================================
+          5. BOTTOM COMMENTS METROPOLITAN SHEET
+         ========================================== */}
+      <AnimatePresence>
+        {showComments && activeItem && (
+          <motion.div 
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 220 }}
+            className="absolute bottom-0 inset-x-0 h-[65vh] bg-[#0c101b]/98 border-t border-white/10 rounded-t-[30px] z-[120] flex flex-col justify-between shadow-[0_-20px_50px_rgba(0,0,0,0.8)] backdrop-blur-2xl"
+          >
+            {/* Header section of comment drawer */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 select-none shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-white text-base font-black uppercase tracking-wider font-sans">
+                  Comments
+                </span>
+                <span className="text-white/40 text-[11px] bg-white/5 px-2 py-0.5 rounded-full font-bold">
+                  {activeItem.commentsCount}
+                </span>
+              </div>
+              <button 
+                onClick={() => setShowComments(false)}
+                className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 active:scale-95 transition-colors text-white/80"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* List of comments scrolling viewport */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 hide-scrollbar">
+              {((commentsMap[activeItem.id]) || []).map((comm) => {
+                const isCommenterDev = (comm as any).isDev || comm.name.toLowerCase() === "greatmayuku2" || comm.name.toLowerCase() === "greatmayuku2@gmail.com" || (user && user.email === "greatmayuku2@gmail.com" && comm.name === user.username);
+                const commenterName = (isCommenterDev && user && user.email === "greatmayuku2@gmail.com" && user.username) ? user.username : comm.name;
+                return (
+                  <div key={comm.id} className="flex gap-3 items-start p-1 relative">
+                    
+                    {/* Initials profile avatar scene */}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black select-none shrink-0 ${
+                      comm.isOfficial 
+                        ? "bg-brand text-black shadow-[0_0_10px_rgba(244,196,48,0.3)]" 
+                        : isCommenterDev 
+                          ? "bg-blue-600 text-white shadow-[0_0_10px_rgba(37,99,235,0.4)]" 
+                          : "bg-white/10 text-white"
+                    }`}>
+                      {comm.isOfficial ? "AT" : isCommenterDev ? "DEV" : commenterName.substring(0, 2).toUpperCase()}
+                    </div>
+
+                    {/* Comment context body block */}
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-white/90 text-xs font-extrabold flex items-center gap-1 select-text">
+                          @{commenterName.toLowerCase()}
+                          {(isCommenterDev || (user && comm.name === user.username) || comm.isOfficial || commenterName.toLowerCase() === "axis trails") && (
+                            <MetaVerifiedBadge className="w-3.5 h-3.5" />
+                          )}
+                        </span>
+                        {comm.isOfficial && (
+                          <span className="bg-brand text-black text-[7px] font-black uppercase px-1 rounded flex items-center gap-0.5">
+                            <Verified className="w-2 h-2" />
+                            <span>Creator</span>
+                          </span>
+                        )}
+                        <span className="text-white/35 text-[9px] font-medium">{comm.time}</span>
+                      </div>
+                      <p className="text-white/80 text-xs sm:text-sm leading-relaxed font-sans pr-4 select-text">
+                        {comm.text}
+                      </p>
+                    </div>
+
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Bottom stick content input field */}
+            <form 
+              onSubmit={postComment}
+              className="p-4 border-t border-white/5 bg-[#070a12]/95 backdrop-blur-md flex items-center gap-3 shrink-0"
+            >
+              <input
+                type="text"
+                value={newCommentText}
+                onChange={(e) => setNewCommentText(e.target.value)}
+                placeholder={user ? `Add public comment on ${activeItem.title}...` : "Sign in under profile to join discussion..."}
+                disabled={!user}
+                className="flex-1 bg-white/5 rounded-full py-3.5 px-5 text-xs text-white focus:outline-none focus:bg-white/10 focus:border-brand/40 border border-white/5 transition-all placeholder-white/30"
+              />
+              <button
+                type="submit"
+                disabled={!user || !newCommentText.trim()}
+                className="w-11 h-11 rounded-full bg-brand disabled:bg-white/5 text-black disabled:text-white/30 flex items-center justify-center active:scale-95 transition-all shadow-[0_4px_12px_rgba(244,196,48,0.2)]"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
+
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ==========================================
+          6. RATING INTERACTIVE GLASS PICKER MODAL
+         ========================================== */}
+      <AnimatePresence>
+        {showRatingPicker && activeItem && (
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[150] flex items-center justify-center p-4 select-none">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-sm bg-[#090d16] border border-white/10 p-6 rounded-[24px] flex flex-col items-center gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.9)]"
+            >
+              <div className="flex flex-col items-center text-center gap-1">
+                <div className="w-12 h-12 rounded-full bg-brand/10 flex items-center justify-center text-brand mb-2">
+                  <Star className="w-6 h-6 fill-current text-brand" />
+                </div>
+                <h3 className="text-white text-base font-black uppercase tracking-wider font-sans">
+                  Rate Trailer
+                </h3>
+                <p className="text-white/40 text-xs px-2">
+                  Add your rating for "{activeItem.title}" to update the community average scores out of 10.
+                </p>
+              </div>
+
+              {/* 10 Star dynamic voting grid */}
+              <div className="grid grid-cols-5 gap-2 w-full max-w-[280px]">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => {
+                  const isGold = (activeItem.myRating || 0) >= star;
+
+                  return (
+                    <button
+                      key={`star-idx-${star}`}
+                      onClick={() => handleRate(activeItem.id, star)}
+                      className={`w-11 h-11 rounded-xl font-bold flex items-center justify-center text-xs border transition-all duration-200 ${
+                        isGold 
+                          ? "bg-brand/20 border-brand text-brand shadow-[0_0_10px_rgba(244,196,48,0.2)]" 
+                          : "bg-white/[0.03] border-white/5 text-white/50 hover:border-white/20 hover:text-white"
+                      }`}
+                    >
+                      {star}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => setShowRatingPicker(false)}
+                className="w-full py-3.5 bg-white/5 text-white/80 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-colors"
+              >
+                Cancel / Done
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ==========================================
+          7. SAVE TO PLAYLIST HIGH-FIDELITY BOTTOM SHEET
+         ========================================== */}
+      <AnimatePresence>
+        {showPlaylistSheet && activeItem && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[140] flex items-end justify-center">
+            {/* Click backdrop to close */}
+            <div className="absolute inset-0 z-0" onClick={() => setShowPlaylistSheet(false)} />
+            
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 240 }}
+              className="relative w-full max-w-sm sm:max-w-md bg-[#0a0d16] border-t border-white/10 rounded-t-[30px] z-10 shadow-[0_-15px_40px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[75vh]"
+            >
+              {/* Central pull pill graphic */}
+              <div className="w-12 h-1 bg-white/20 rounded-full mx-auto my-3 shrink-0" />
+
+              <div className="px-5 pb-3 flex items-center justify-between border-b border-white/5 shrink-0">
+                <h3 className="text-white text-md font-black uppercase tracking-wider font-sans">
+                  Save to Playlist
+                </h3>
+                <button
+                  onClick={() => setIsAddingNewPlaylist(p => !p)}
+                  className="text-xs font-bold text-[#809bfb] hover:text-white transition-colors"
+                >
+                  {isAddingNewPlaylist ? "Cancel" : "+ New Playlist"}
+                </button>
+              </div>
+
+              <div className="p-5 overflow-y-auto flex-1 space-y-4">
+                {/* Inline Add New Playlist Field */}
+                <AnimatePresence>
+                  {isAddingNewPlaylist && (
+                    <motion.form
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      onSubmit={handleCreateLocalPlaylist}
+                      className="space-y-2 overflow-hidden border-b border-white/5 pb-4"
+                    >
+                      <label className="block text-[10px] font-bold text-white/50 uppercase tracking-widest">
+                        New Playlist Name
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          required
+                          value={newPlaylistName}
+                          onChange={(e) => setNewPlaylistName(e.target.value)}
+                          placeholder="e.g. Action Masterpieces..."
+                          className="flex-1 bg-white/5 rounded-xl px-4 py-2 text-xs text-white border border-white/10 focus:outline-none focus:border-brand/40"
+                        />
+                        <button
+                          type="submit"
+                          className="px-4 py-2 rounded-xl bg-[#809bfb] hover:bg-opacity-90 text-black font-extrabold text-xs"
+                        >
+                          Create
+                        </button>
+                      </div>
+                    </motion.form>
+                  )}
+                </AnimatePresence>
+
+                {/* Playlists List row layout */}
+                <div className="space-y-3">
+                  {localPlaylists.map((play) => (
+                    <div 
+                      key={play.id}
+                      onClick={() => {
+                        togglePlaylistCheck(play.id);
+                        showToast(
+                          play.checked 
+                            ? `Removed "${activeItem.title}" from ${play.name}` 
+                            : `Saved "${activeItem.title}" to ${play.name}!`,
+                          "success"
+                        );
+                      }}
+                      className="flex items-center justify-between p-3.5 bg-white/[0.02] border border-white/5 rounded-2xl cursor-pointer hover:bg-white/5 hover:border-white/10 transition-all select-none"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-10 h-10 rounded-xl bg-white/[0.04] flex items-center justify-center text-white/40">
+                          <Folder className="w-5 h-5 text-[#809bfb]" />
+                        </div>
+                        <div>
+                          <p className="text-white text-xs font-bold font-sans">
+                            {play.name}
+                          </p>
+                          <p className="text-white/40 text-[10px] font-semibold mt-0.5">
+                            {play.videoCount} videos
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Circular check indicator */}
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                        play.checked 
+                          ? "bg-[#809bfb] border-[#809bfb] text-black" 
+                          : "border-white/20 bg-transparent"
+                      }`}>
+                        {play.checked && <Check className="w-3.5 h-3.5 stroke-[3px]" />}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Save done action */}
+              <div className="p-4 border-t border-white/5 shrink-0 bg-black/40">
+                <button
+                  onClick={() => setShowPlaylistSheet(false)}
+                  className="w-full py-3.5 bg-gradient-to-r from-[#4d6bfe] to-[#809bfb] text-slate-950 rounded-full font-black text-xs uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all shadow-[0_4px_15px_rgba(77,107,254,0.25)]"
+                >
+                  Save / Close
+                </button>
+              </div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ==========================================
+          8. HIGH-FIDELITY DOWNLOAD MOVIE RESOLUTION SELECT SHEET
+         ========================================== */}
+      <AnimatePresence>
+        {showDownloadPanel && activeItem && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[140] flex items-end justify-center">
+            {/* Click backdrop to close if not downloading */}
+            <div className="absolute inset-0 z-0" onClick={() => { if (!isDownloading) setShowDownloadPanel(false); }} />
+            
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 240 }}
+              className="relative w-full max-w-sm sm:max-w-md bg-[#0a0d16] border-t border-white/10 rounded-t-[30px] z-10 shadow-[0_-15px_40px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col"
+            >
+              {/* Central pull pill graphic */}
+              <div className="w-12 h-1 bg-white/20 rounded-full mx-auto my-3 shrink-0" />
+
+              <div className="px-5 pb-3 flex items-center justify-between border-b border-white/5 shrink-0">
+                <h3 className="text-white text-md font-black uppercase tracking-wider font-sans">
+                  {isDownloading ? "Downloading Movie" : "Download Movie"}
+                </h3>
+                {!isDownloading && (
+                  <button
+                    onClick={() => setShowDownloadPanel(false)}
+                    className="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="p-5 space-y-5">
+                {isDownloading ? (
+                  /* Active compilation tracking bar */
+                  <div className="space-y-4 py-3 select-none">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[#809bfb]/10 flex items-center justify-center text-[#809bfb] shrink-0">
+                        <ArrowDownToLine className="w-5 h-5 animate-bounce" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-white text-xs font-bold leading-tight truncate">
+                          Downloading "{activeItem.title}"
+                        </h4>
+                        <p className="text-white/40 text-[10px] uppercase font-semibold tracking-wider mt-0.5">
+                          Resolution: {selectedResolution} Full HD
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs font-extrabold text-white">
+                        <span className="text-[#809bfb]">Compilation blocks syncing</span>
+                        <span>{downloadProgress}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden p-px border border-white/5">
+                        <div 
+                          className="h-full bg-gradient-to-r from-[#4d6bfe] to-[#809bfb] rounded-full transition-all duration-200"
+                          style={{ width: `${downloadProgress}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[9px] text-white/35">
+                        <span>Speed: 15.4 Mbps</span>
+                        <span>{downloadProgress < 100 ? "Syncing download packages..." : "Completed!"}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Resolution selectors list */
+                  <div className="space-y-3.5">
+                    <p className="text-white/50 text-xs leading-relaxed">
+                      Select local download resolution size. Offline items will sync onto your playlist account.
+                    </p>
+
+                    <div className="space-y-2.5">
+                      {[
+                        { res: "1080p", label: "1080p Ultra HD", desc: "Highest definition", size: "2.4 GB" },
+                        { res: "720p", label: "720p HD", desc: "Standard high resolution", size: "1.2 GB" },
+                        { res: "480p", label: "480p SD", desc: "Data saver compatibility", size: "600 MB" },
+                        { res: "360p", label: "360p Low", desc: "Minimum bandwidth size", size: "300 MB" },
+                      ].map((opt) => (
+                        <div
+                          key={opt.res}
+                          onClick={() => setSelectedResolution(opt.res)}
+                          className={`flex items-center justify-between p-3.5 bg-white/[0.02] border rounded-2xl cursor-pointer hover:bg-white/5 transition-all select-none ${
+                            selectedResolution === opt.res 
+                              ? "border-[#809bfb] bg-[#809bfb]/5" 
+                              : "border-white/5"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                              selectedResolution === opt.res 
+                                ? "border-[#809bfb] text-[#809bfb]" 
+                                : "border-white/20"
+                            }`}>
+                              {selectedResolution === opt.res && (
+                                <div className="w-2 h-2 rounded-full bg-[#809bfb]" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-white text-xs font-bold leading-tight">{opt.label}</p>
+                              <p className="text-white/40 text-[10px] font-semibold mt-0.5">{opt.desc}</p>
+                            </div>
+                          </div>
+                          <span className="text-white/60 text-xs font-extrabold">{opt.size}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Download action buttons bar */}
+              <div className="p-4 border-t border-white/5 bg-black/40">
+                {isDownloading ? (
+                  <button
+                    disabled
+                    className="w-full py-3.5 bg-white/5 text-white/30 rounded-full font-bold text-xs uppercase tracking-widest cursor-not-allowed"
+                  >
+                    Processing Download...
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setIsDownloading(true);
+                      startDownload();
+                    }}
+                    className="w-full py-3.5 bg-gradient-to-r from-[#4d6bfe] to-[#809bfb] text-slate-950 rounded-full font-black text-xs uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all shadow-[0_4px_15px_rgba(77,107,254,0.25)]"
+                  >
+                    Download ({selectedResolution})
+                  </button>
+                )}
+              </div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ==========================================
+          9. CREATOR ACCOUNT PROFILE SLIDEOUT PANEL (DESIGNED AFTER CHATGPT)
+         ========================================== */}
+      <AnimatePresence>
+        {showCreatorPanel && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[140] flex justify-end">
+            {/* Click backdrop to exit creator details */}
+            <div className="absolute inset-0 z-0 animate-fade-in" onClick={() => setShowCreatorPanel(false)} />
+            
+            <motion.div 
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 29, stiffness: 220 }}
+              className="relative w-full max-w-sm sm:max-w-md h-full bg-[#0a0d16] border-l border-white/10 z-10 shadow-[0_0_60px_rgba(0,0,0,0.95)] overflow-y-auto flex flex-col"
+            >
+              {/* Creator Card header banner */}
+              <div className="h-40 w-full relative shrink-0">
+                <div className="absolute inset-0 bg-gradient-to-b from-[#809bfb]/25 via-black/40 to-[#0a0d16] z-10" />
+                <div className="absolute inset-0 bg-black/40" />
+                
+                {/* Back / Close Button */}
+                <button 
+                  onClick={() => setShowCreatorPanel(false)}
+                  className="absolute top-6 left-6 z-20 w-8 h-8 rounded-full bg-black/60 hover:bg-black border border-white/10 flex items-center justify-center text-white/90 active:scale-95 transition-all shadow-md"
+                >
+                  <X className="w-4.5 h-4.5" />
+                </button>
+              </div>
+
+              {/* Main Content Scroll Body */}
+              <div className="flex-1 px-6 pb-12 flex flex-col items-center text-center -mt-16 relative z-20 space-y-6">
+                
+                {/* Large white margin GLOWING AVATAR panel */}
+                <div className="w-24 h-24 rounded-full border-[3px] border-white bg-black flex items-center justify-center shadow-2xl relative select-none">
+                  <div className="text-white font-black text-xl tracking-widest uppercase">
+                    AXIS
+                  </div>
+                  <span className="absolute bottom-1 right-1 w-4.5 h-4.5 bg-green-500 rounded-full border-[3px] border-black" />
+                </div>
+
+                {/* Verified name lines */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <h2 className="text-white text-xl font-black uppercase tracking-wider font-sans leading-none">
+                      Axis Trails
+                    </h2>
+                    <Verified className="w-4.5 h-4.5 text-[#809bfb] fill-current" />
+                  </div>
+                  <p className="text-[#809bfb] text-xs font-black uppercase tracking-widest mt-1">
+                    AXIS Labs™ Official Creator
+                  </p>
+                </div>
+
+                {/* Account metrics row - centered & high-contrast */}
+                <div className="flex items-center gap-4 select-none bg-white/[0.02] border border-white/5 py-4 px-6 rounded-2xl w-full justify-around shadow-sm font-sans">
+                  <div className="text-center">
+                    <p className="text-white text-md font-black">96</p>
+                    <p className="text-white/40 text-[9px] font-bold uppercase tracking-wider mt-0.5">Videos</p>
+                  </div>
+                  <div className="border-r border-white/10 h-7" />
+                  <div className="text-center">
+                    <p className="text-white text-md font-black">250K</p>
+                    <p className="text-white/40 text-[9px] font-bold uppercase tracking-wider mt-0.5">Followers</p>
+                  </div>
+                  <div className="border-r border-white/10 h-7" />
+                  <button 
+                    onClick={() => setShowFollowingModal(true)}
+                    className="text-center hover:opacity-80 active:scale-95 transition-all focus:outline-none"
+                    title="View Following List"
+                  >
+                    <p className="text-[#809bfb] text-md font-black underline decoration-dashed">1</p>
+                    <p className="text-white/40 text-[9px] font-bold uppercase tracking-wider mt-0.5">Following</p>
+                  </button>
+                </div>
+
+                {/* Description bio matching figma source */}
+                <p className="text-white/75 text-xs sm:text-sm leading-relaxed font-sans max-w-sm px-1 pt-1">
+                  The official source for premium movie trailers, cinematic moments, and exclusive previews. Produced in-house by AXIS Labs™.
+                </p>
+
+                {/* Primary capsule style action: FOLLOW details */}
+                <div className="w-full pt-1">
+                  <button
+                    onClick={followCreator}
+                    className={`w-full py-3.5 text-xs font-black tracking-widest uppercase rounded-full transition-all shadow-md active:scale-95 ${
+                      isFollowing 
+                        ? "bg-white/10 border border-white/10 text-white" 
+                        : "bg-gradient-to-r from-[#4d6bfe] to-[#809bfb] text-slate-950"
+                    }`}
+                  >
+                    {isFollowing ? "✓ Following Account" : "Follow Axis Trails"}
+                  </button>
+                </div>
+
+                {/* "Links" section block header and buttons */}
+                <div className="space-y-2.5 w-full pt-4 text-left select-none">
+                  <h3 className="text-white/45 text-[10px] font-black uppercase tracking-widest pl-1">
+                    Connect Channels
+                  </h3>
+                  <div className="grid grid-cols-1 gap-2 text-xs">
+                    <a 
+                      href="https://whatsapp.com/channel/0029VaF7r7n1iUxcwZZs8F03" 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      className="flex items-center justify-center gap-3 p-3.5 rounded-2xl bg-[#25D366]/10 border border-[#25D366]/20 hover:bg-[#25D366]/20 text-[#25D366] transition-all"
+                    >
+                      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.06-.173-.299-.018-.461.13-.611.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
+                      </svg>
+                      <span className="font-extrabold text-sm tracking-wide">Axis TV WhatsApp Channel</span>
+                    </a>
+                  </div>
+                </div>
+
+                {/* Preview Collection Items thumbnails */}
+                <div className="space-y-3 w-full pt-4 text-left select-none">
+                  <h3 className="text-white text-xs font-black uppercase tracking-wider font-sans pl-1">
+                    Trending Trailers Preview
+                  </h3>
+                  <div className="grid grid-cols-3 gap-2.5 font-sans">
+                    {items.slice(0, 3).map((mItem, mIdx) => (
+                      <div 
+                        key={`crea-thumb-${mItem.id}`}
+                        onClick={() => {
+                          setShowCreatorPanel(false);
+                          setActiveIndex(mIdx);
+                        }}
+                        className="aspect-[2/3] rounded-xl overflow-hidden border border-white/10 hover:border-[#809bfb] transition-colors cursor-pointer relative group"
+                      >
+                        <MovieImage
+                          src={mItem.poster}
+                          alt={mItem.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                          <Play className="w-5 h-5 text-white fill-current opacity-70 group-hover:opacity-100" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Footer copyright */}
+                <div className="text-white/20 text-[9px] font-semibold uppercase tracking-widest pt-5 select-none w-full border-t border-white/[0.03]">
+                  © 2024 AXIS Labs™. All rights reserved.
+                </div>
+
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ==========================================
+          10. AXIS TRAILS FOLLOWING ACCOUNT DRAWER / POPUP
+         ========================================== */}
+      <AnimatePresence>
+        {showFollowingModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+            <div className="absolute inset-0 z-0" onClick={() => setShowFollowingModal(false)} />
+            
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative w-full max-w-sm bg-[#0a0d16] border border-white/10 p-6 rounded-3xl z-10 shadow-[0_20px_50px_rgba(0,0,0,0.9)] text-left"
+            >
+              <div className="flex items-center justify-between mb-5 border-b border-white/5 pb-3">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4.5 h-4.5 text-[#809bfb]" />
+                  <h3 className="text-white text-sm font-black uppercase tracking-wider">
+                    Axis Trails Following
+                  </h3>
+                </div>
+                <button 
+                  onClick={() => setShowFollowingModal(false)}
+                  className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center text-white/50 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-4">
+                Exclusive Following (1 User)
+              </p>
+
+              {/* Developer Profile card */}
+              <div className="flex items-center justify-between p-4 bg-white/[0.02] border border-[#809bfb]/35 rounded-2xl hover:border-blue-500/20 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black text-xs shadow-lg shadow-blue-500/10">
+                    DEV
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-white text-xs font-black">
+                        {user && user.email === "greatmayuku2@gmail.com" ? user.username : "greatmayuku2"}
+                      </p>
+                      <MetaVerifiedBadge className="w-4 h-4" />
+                    </div>
+                    <p className="text-white/40 text-[9px] font-semibold mt-0.5">greatmayuku2@gmail.com</p>
+                    <p className="text-[#809bfb] text-[8px] font-black tracking-wider uppercase mt-1">Lead Creator & Platform Dev</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 text-[9px] font-black tracking-wider text-green-400 bg-green-400/10 px-2 py-1 rounded-full uppercase border border-green-400/20">
+                  <span>✓ Creator Mutual</span>
+                </div>
+              </div>
+
+              <p className="text-white/40 text-[10px] leading-relaxed mt-4 text-center px-1">
+                Axis Trails is a developer-moderated system. Axis Trails exclusively follows and monitors our verified lead platform developer <span className="text-white font-bold">{user && user.email === "greatmayuku2@gmail.com" ? user.username : "greatmayuku2"}</span>.
+              </p>
+
+              <button
+                onClick={() => setShowFollowingModal(false)}
+                className="w-full py-3 bg-white/5 hover:bg-white/10 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-all mt-5"
+              >
+                Close List
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+    </div>
+  );
+}

@@ -35,6 +35,7 @@ function Navbar() {
 
  const SIDEBAR_LINKS = [
  { label: 'Home', path: '/', icon: Home, isActive: location.pathname === '/' },
+ { label: 'Trails', path: '/trails', icon: Radio, isActive: location.pathname === '/trails' },
  { label: 'Movies', path: '/movies', icon: Film, isActive: location.pathname === '/movies' || location.search.includes('type=1') },
  { label: 'Series', path: '/series', icon: Tv, isActive: location.pathname === '/series' || location.search.includes('type=2') },
  { label: 'Rank', path: '/ranking', icon: Trophy, isActive: location.pathname === '/ranking' },
@@ -181,6 +182,7 @@ function Navbar() {
  {/* Mobile Tabs */}
  <div className="flex items-center gap-8 px-fluid overflow-x-auto hide-scrollbar pb-4 -mb-px">
  <Link to="/" className={`text-fluid-sm font-semibold pb-3 border-b-[3px] whitespace-nowrap tracking-wider transition-all duration-300 ${location.pathname === '/' ? 'text-white border-white' : 'text-white/40 border-transparent'}`}>Home</Link>
+ <Link to="/trails" className={`text-fluid-sm font-semibold pb-3 border-b-[3px] whitespace-nowrap tracking-wider transition-all duration-300 ${location.pathname === '/trails' ? 'text-white border-white' : 'text-white/40 border-transparent'}`}>Trails</Link>
  <Link to="/movies" className={`text-fluid-sm font-semibold pb-3 border-b-[3px] whitespace-nowrap tracking-wider transition-all duration-300 ${location.pathname === '/movies' || location.search.includes('type=1') ? 'text-white border-white' : 'text-white/40 border-transparent'}`}>Movies</Link>
  <Link to="/series" className={`text-fluid-sm font-semibold pb-3 border-b-[3px] whitespace-nowrap tracking-wider transition-all duration-300 ${location.pathname === '/series' || location.search.includes('type=2') ? 'text-white border-white' : 'text-white/40 border-transparent'}`}>Series</Link>
  <Link to="/ranking" className={`text-fluid-sm font-semibold pb-3 border-b-[3px] whitespace-nowrap tracking-wider transition-all duration-300 ${location.pathname === '/ranking' ? 'text-white border-white' : 'text-white/40 border-transparent'}`}>Rank</Link>

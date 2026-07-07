@@ -32,7 +32,10 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 1, backoff =
     return cached.data;
   }
 
-  const tryDirect = !config.url?.startsWith('http') && !config.url?.includes('/staff/');
+  // Routing all requests through our Node Express API proxy ensures that the Admin-configured 
+  // 'apiSource' (Main vs. Backup) is respected, automatic backend failover works gracefully, 
+  // and browser-side CORS blocks or timeouts are fully prevented.
+  const tryDirect = false;
   if (tryDirect) {
     try {
       const directResponse = await axios.get(`${EXTERNAL_API_URL}${config.url}`, {
@@ -418,11 +421,14 @@ export const movieService = {
     }
   },
 
-  async getPlay(subjectId: string, season?: number, episode?: number, detailPath?: string): Promise<MediaData> {
+  async getPlay(subjectId: string, season?: number, episode?: number, detailPath?: string, title?: string, year?: string, type?: string): Promise<MediaData> {
     const params: any = { subjectId };
     if (season !== undefined && season > 0) params.se = season;
     if (episode !== undefined && episode > 0) params.ep = episode;
     if (detailPath) params.detailPath = detailPath;
+    if (title) params.title = title;
+    if (year) params.year = year;
+    if (type) params.type = type;
 
     // 1. Try our own backend proxy API first. It manages backup scaling, routing, headers, and credentials.
     try {

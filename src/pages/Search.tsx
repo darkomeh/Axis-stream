@@ -195,7 +195,7 @@ export default function Search() {
  let rawData: MediaItem[] = [];
  
  if (type === 'genre') {
- const results = await movieService.browse(searchQuery, undefined, p, 30);
+ const results = await movieService.browse(searchQuery, undefined, p, 30, 1);
  rawData = results;
  } else {
  rawData = await movieService.search(searchQuery, p);
@@ -232,8 +232,7 @@ export default function Search() {
  inputRef.current?.focus();
  };
 
- const handleGenreClick = (genre: string) => {
- setQuery(genre);
+ const handleGenreClick = (genre: string) => {setActiveCategory("Movies");setQuery(genre);
  setSearchType('genre');
  setSelectedGenre(genre);
  setIsFocused(false);
@@ -324,16 +323,16 @@ export default function Search() {
  animate={{ opacity: 1, scale: 1, y: 0 }}
  exit={{ opacity: 0, scale: 0.98, y: -10 }}
  transition={{ duration: 0.2, ease: "easeOut" }}
- className="absolute top-[calc(100%+12px)] left-0 right-0 glass-card rounded-3xl overflow-hidden z-[60] shadow-[0_20px_40px_rgba(0,0,0,0.5)]"
+ className="absolute top-[calc(100%+12px)] left-0 right-0 bg-[#161616] border border-white/10 rounded-3xl overflow-hidden z-[60] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.7)]"
  >
- <div className="px-5 py-3 border-b border-white/10 bg-black/40 backdrop-blur-3xl">
+ <div className="px-5 py-3 border-b border-white/10 bg-black/60">
  <span className="text-fluid-sm font-semibold text-white/50 tracking-wide">Suggestions</span>
  </div>
  {suggestions.map((s, idx) => (
  <button
  key={idx}
  onClick={() => handleSuggestionClick(s)}
- className="w-full text-left px-5 py-4 hover:bg-white/10 transition-colors flex items-center gap-3 border-b border-white/5 last:border-0 group"
+ className="w-full text-left px-5 py-4 bg-[#1a1a1a]/40 hover:bg-white/15 transition-colors flex items-center gap-3 border-b border-white/5 last:border-0 group"
  >
  <SearchIcon className="w-4 h-4 text-white/50 group-hover:text-white transition-colors" />
  <span className="text-fluid-lg text-white/80 font-medium group-hover:text-white transition-colors break-words truncate">{s}</span>
@@ -368,9 +367,37 @@ export default function Search() {
  </div>
  
  <PosterGrid items={results.filter(item => {
- if (activeCategory === "All") return true;
- return item.category?.includes(activeCategory);
- })} loading={loading} variant="grid" />
+		if (activeCategory === "All") return true;
+
+		const categoryLower = (item.category || "").toLowerCase();
+		const typeLower = String(item.type || "").toLowerCase();
+		const titleLower = (item.title || "").toLowerCase();
+		const genreLower = ((item as any).genre || "").toLowerCase();
+
+		if (activeCategory === "Movies") {
+			const isAnime = genreLower.includes("anime") || titleLower.includes(" (anime)") || titleLower.startsWith("anime:") || typeLower.includes("anime");
+			if (isAnime) return false;
+			return typeLower.includes("movie") || categoryLower.includes("movie") || (item as any).subjectType === 1;
+		}
+
+		if (activeCategory === "Series") {
+			const isAnime = genreLower.includes("anime") || titleLower.includes(" (anime)") || titleLower.startsWith("anime:") || typeLower.includes("anime");
+			if (isAnime) return false;
+			return typeLower.includes("series") || typeLower.includes("tv") || categoryLower.includes("series") || (item as any).subjectType === 2;
+		}
+
+		if (activeCategory === "Anime") {
+			return (
+				categoryLower.includes("anime") ||
+				typeLower.includes("anime") ||
+				titleLower.includes("anime") ||
+				genreLower.includes("anime") ||
+				genreLower.includes("animation")
+			);
+		}
+
+		return categoryLower.includes(activeCategory.toLowerCase());
+	})} loading={loading} variant="grid" />
  
  {hasMore && <div ref={lastElementRef} className="h-10" />}
  </div>
@@ -397,27 +424,27 @@ export default function Search() {
  <div className="flex items-center justify-between px-1">
  <h3 className="text-fluid-2xl font-bold tracking-tight text-white drop-shadow-md">Explore Genres</h3>
  </div>
- <div className="grid grid-cols-2 gap-4">
- {GENRE_CARDS.map((c, i) => (
- <button
- key={i}
- onClick={() => handleGenreClick(c.name)}
- className={`relative aspect-[2/1.2] rounded-3xl overflow-hidden group active:scale-[0.98] transition-transform shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-white/10 glass-card`}
- >
- <div className={`absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity ${c.color.split(' ')[0]}`} />
- <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent mix-blend-overlay" />
- <div className="absolute inset-0 p-5 flex items-center justify-center pointer-events-none">
- <div className="flex flex-col items-center text-center gap-3">
- <div className={`p-3 rounded-full bg-white/5 border border-white/10 backdrop-blur-md ${c.color.split(' ')[1]}`}>
- <c.icon className="w-7 h-7" strokeWidth={2} />
- </div>
- <span className="block text-fluid-xl font-semibold text-white tracking-wide drop-shadow-md">{c.name}</span>
- </div>
- </div>
- </button>
- ))}
- </div>
- </section>
+ <div className="grid grid-cols-3 md:grid-cols-6 gap-2 sm:gap-4">
+		{GENRE_CARDS.map((c, i) => (
+		<button
+		key={i}
+		onClick={() => handleGenreClick(c.name)}
+		className={`relative aspect-[2/1.5] sm:aspect-[2/1.2] rounded-2xl sm:rounded-3xl overflow-hidden group active:scale-[0.98] transition-transform shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-white/10 glass-card`}
+		>
+		<div className={`absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity ${c.color.split(' ')[0]}`} />
+		<div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent mix-blend-overlay" />
+		<div className="absolute inset-0 p-2 sm:p-5 flex items-center justify-center pointer-events-none">
+		<div className="flex flex-col items-center text-center gap-1.5 sm:gap-3">
+		<div className={`p-1.5 sm:p-3 rounded-full bg-white/5 border border-white/10 backdrop-blur-md ${c.color.split(' ')[1]}`}>
+		<c.icon className="w-5 h-5 sm:w-7 h-7" strokeWidth={2} />
+		</div>
+		<span className="block text-fluid-xs sm:text-fluid-xl font-semibold text-white tracking-wide drop-shadow-md">{c.name}</span>
+		</div>
+		</div>
+		</button>
+		))}
+		</div>
+	</section>
 
  {/* Recent Searches Section */}
  {searchHistory.length > 0 && (

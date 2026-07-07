@@ -6,7 +6,7 @@ import {
   MediaData, 
   Actor, 
   RankingItem 
-} from '../types';
+} from '../types.js';
 
 const BASE_URL_MAIN = 'https://movieapi.xcasper.space/api';
 const BASE_URL_BACKUP = 'https://gzmovieboxapi.septorch.tech/api';
@@ -105,10 +105,9 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 2, backoff =
   } catch (error: any) {
     const isMainDown = currentApiSource === 'main' && (
       !error.response || 
-      error.response.status === 522 || 
-      error.response.status === 502 || 
-      error.response.status === 503 ||
-      error.response.status === 504 ||
+      (error.response.status >= 500 && error.response.status <= 599) ||
+      error.response.status === 403 ||
+      error.response.status === 404 ||
       error.code === 'ECONNABORTED' ||
       error.code === 'ETIMEDOUT'
     );
@@ -230,16 +229,31 @@ export const externalMovieService = {
     if (!query || !query.trim()) return [];
     try {
       const isBackup = currentApiSource === 'backup';
+      
+      let mappedSubjectType = 'ALL';
+      if (subjectType === 1 || String(subjectType) === '1' || String(subjectType).toUpperCase() === 'MOVIE') {
+        mappedSubjectType = 'MOVIE';
+      } else if (subjectType === 2 || String(subjectType) === '2' || String(subjectType).toUpperCase() === 'TV' || String(subjectType).toUpperCase() === 'SERIES') {
+        mappedSubjectType = 'TV';
+      }
+
       const params = isBackup 
-        ? { query, page, perPage, subjectType: 'ALL' } 
-        : { keyword: query, page, perPage, subjectType };
+        ? { query, page, perPage: perPage * 3, subjectType: mappedSubjectType } 
+        : { keyword: query, page, perPage: perPage * 2, subjectType };
       
       const response = await fetchWithRetry({ 
         url: `/search`, 
         params 
       });
       const items = response.data?.data?.items || [];
-      return Array.isArray(items) ? items.map(normalizeItem) : [];
+      const normalized = Array.isArray(items) ? items.map(normalizeItem) : [];
+      
+      // Filter out mismatches to prevent any leakage
+      const filtered = normalized.filter(item => {
+        const tLower = String(item.type || "").toLowerCase(); const sStr = String(subjectType).toUpperCase(); if (subjectType === 1 || sStr === "1" || sStr === "MOVIE") return tLower.includes("movie") || tLower === "1"; if (subjectType === 2 || sStr === "2" || sStr === "TV" || sStr === "SERIES") return tLower.includes("series") || tLower.includes("tv") || tLower === "2";
+        return true;
+      });
+      return filtered.slice(0, perPage);
     } catch (e: any) {
       console.error("Error in search:", e.message || e);
       return [];
@@ -282,15 +296,21 @@ export const externalMovieService = {
 
   async getHot(): Promise<{ movies: MediaItem[], series: MediaItem[] }> {
     try {
-      const url = currentApiSource === 'backup' ? '/hot-movies-series' : '/hot';
-      const response = await fetchWithRetry({ url });
+      const response = await axios.get('https://gzmovieboxapi.septorch.tech/api/hot-movies-series', {
+        params: { apikey: 'Godszeal' },
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        timeout: 8000
+      });
       const data = response.data?.data || {};
       return {
         movies: Array.isArray(data.movie) ? data.movie.map(normalizeItem) : [],
         series: Array.isArray(data.tv) ? data.tv.map(normalizeItem) : [],
       };
     } catch (e: any) {
-      console.error("Error in getHot:", e.message || e);
+      console.error("Error in getHot direct fetch:", e.message || e);
       return { movies: [], series: [] };
     }
   },
@@ -419,19 +439,40 @@ export const externalMovieService = {
 
   async browse(genre?: string, country?: string, page = 1, perPage = 12, subjectType = 2): Promise<MediaItem[]> {
     try {
+      const numericType = Number(subjectType);
+      
       if (currentApiSource === 'backup') {
         if (genre || country) {
-          return this.search(genre || country || '', page, perPage, 'ALL' as any);
+          // Increase perPage to get a large pool, filter, then slice
+          const data = await this.search(genre || country || '', page, perPage * 3, numericType);
+          const filtered = data.filter(item => {
+            const tLower = String(item.type || "").toLowerCase(); if (numericType === 1) return tLower.includes("movie") || tLower === "1"; if (numericType === 2) return tLower.includes("series") || tLower.includes("tv") || tLower === "2";
+            return true;
+          });
+          return filtered.slice(0, perPage);
         }
-        return this.getTrending(page, perPage);
+        
+        const trendingData = await this.getTrending(page, perPage * 3);
+        const filtered = trendingData.filter(item => {
+          const tLower = String(item.type || "").toLowerCase(); if (numericType === 1) return tLower.includes("movie") || tLower === "1"; if (numericType === 2) return tLower.includes("series") || tLower.includes("tv") || tLower === "2";
+          return true;
+        });
+        return filtered.slice(0, perPage);
       }
       
       const response = await fetchWithRetry({ 
         url: `/browse`, 
-        params: { subjectType, genre, countryName: country, page, perPage } 
+        params: { subjectType: numericType, genre, countryName: country, page, perPage: perPage * 2 } 
       });
       const list = response.data?.data?.items || [];
-      return Array.isArray(list) ? list.map(normalizeItem) : [];
+      const normalized = Array.isArray(list) ? list.map(normalizeItem) : [];
+      
+      // Filter out mismatches as a safety guarantee
+      const filtered = normalized.filter(item => {
+        const tLower = String(item.type || "").toLowerCase(); if (numericType === 1) return tLower.includes("movie") || tLower === "1"; if (numericType === 2) return tLower.includes("series") || tLower.includes("tv") || tLower === "2";
+        return true;
+      });
+      return filtered.slice(0, perPage);
     } catch (e: any) {
       // console.error("Error in browse:", e.message || e);
       return [];
@@ -440,37 +481,19 @@ export const externalMovieService = {
 
   async getRanking(): Promise<RankingItem[]> {
     try {
-      if (currentApiSource === 'backup') {
-          const hot = await this.getHot();
-          const items = [...hot.movies, ...hot.series].sort((a,b) => (Number(b.rating) || 0) - (Number(a.rating) || 0));
-          return items.map((item, index) => ({
-             id: item.id,
-             title: item.title,
-             cover: item.poster,
-             score: item.rating,
-             rank: index + 1,
-             type: item.type === 'Movie' ? 1 : 2,
-             year: item.year
-          }));
-      }
-
-      const response = await fetchWithRetry({ url: `/ranking` });
-      const list = response.data?.data?.subjectList || [];
-      if (!Array.isArray(list)) return [];
-      return list.map((item: any, index: number) => {
-        let poster = (typeof item.cover === 'string' ? item.cover : item.cover?.url) || item.poster || '';
-        return {
-          id: String(item.subjectId || item.id),
-          title: item.title,
-          cover: poster,
-          score: item.score || item.imdbRatingValue || item.rating,
-          rank: index + 1,
-          type: item.subjectType,
-          year: item.releaseDate ? item.releaseDate.substring(0, 4) : item.year,
-        };
-      });
+      const hot = await this.getHot();
+      const items = [...hot.movies, ...hot.series].sort((a,b) => (Number(b.rating) || 0) - (Number(a.rating) || 0));
+      return items.map((item, index) => ({
+         id: item.id,
+         title: item.title,
+         cover: item.poster,
+         score: item.rating,
+         rank: index + 1,
+         type: item.type === 'Movie' ? 1 : 2,
+         year: item.year
+      }));
     } catch (e: any) {
-      console.error("Error in getRanking:", e.message || e);
+      console.error("Error in getRanking override:", e.message || e);
       return [];
     }
   },
@@ -537,13 +560,14 @@ export const externalMovieService = {
       if (sources.length > 0) {
         // Construct a fallback embed URL if not provided by API
         const embedUrl = data.embedUrl || data.iframeUrl || data.playerUrl || 
-          (params.se ? `https://vidsrc.to/embed/tv/${subjectId}/${params.se}/${params.ep || 1}` : `https://vidsrc.to/embed/movie/${subjectId}`);
+          (params.se ? `https://vidsrc.wiki/embed/tv/${subjectId}/${params.se}/${params.ep || 1}` : `https://vidsrc.wiki/embed/movie/${subjectId}`);
 
         return { 
           sources, 
           subtitles,
           embedUrl,
-          audioTracks
+          audioTracks,
+          isBackup: currentApiSource === 'backup'
         };
       }
     } catch (e: any) {
@@ -551,23 +575,24 @@ export const externalMovieService = {
     }
 
     // Fallback to constructed stream URLs and embed URL if API fails or returns no sources
+    const baseURL = currentApiSource === 'backup' ? BASE_URL_BACKUP : BASE_URL_MAIN;
     const constructedSources = [
       {
         quality: '1080p',
-        url: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=1080${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
-        downloadUrl: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=1080&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        url: `${baseURL}/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=1080${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        downloadUrl: `${baseURL}/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=1080&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
         type: 'mp4' as const
       },
       {
         quality: '720p',
-        url: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=720${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
-        downloadUrl: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=720&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        url: `${baseURL}/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=720${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        downloadUrl: `${baseURL}/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=720&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
         type: 'mp4' as const
       },
       {
         quality: '360p',
-        url: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=360${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
-        downloadUrl: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=360&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        url: `${baseURL}/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=360${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        downloadUrl: `${baseURL}/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=360&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
         type: 'mp4' as const
       }
     ];
@@ -575,7 +600,8 @@ export const externalMovieService = {
     return {
       sources: constructedSources,
       subtitles: [],
-      embedUrl: season ? `https://vidsrc.to/embed/tv/${subjectId}/${season}/${episode || 1}` : `https://vidsrc.to/embed/movie/${subjectId}`
+      embedUrl: season ? `https://vidsrc.wiki/embed/tv/${subjectId}/${season}/${episode || 1}` : `https://vidsrc.wiki/embed/movie/${subjectId}`,
+      isBackup: currentApiSource === 'backup'
     };
   },
 

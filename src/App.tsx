@@ -12,6 +12,7 @@ import BottomNav from "./components/BottomNav";
 import MediaPreviewTray from "./components/MediaPreviewTray";
 import SystemAlerts from "./components/SystemAlerts";
 import PopcornLoader from "./components/PopcornLoader";
+import WhatsAppBubble from "./components/WhatsAppBubble";
 // import LoginPopup from "./components/LoginPopup"; // Removing as per request
 import { Analytics } from "./components/Analytics";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -51,6 +52,7 @@ const Playlist = lazyWithRetry(() => import("./pages/Playlist"));
 const Ranking = lazyWithRetry(() => import("./pages/Ranking"));
 const Legal = lazyWithRetry(() => import("./pages/Legal"));
 const Admin = lazyWithRetry(() => import("./pages/Admin"));
+const Trails = lazyWithRetry(() => import("./pages/Trails"));
 
 import { useAuth } from "./contexts/AuthContext";
 
@@ -90,6 +92,7 @@ function AppContent() {
       <Analytics />
       <SystemAlerts />
       <MediaPreviewTray />
+      <WhatsAppBubble />
       <main>
         <Suspense fallback={
           <div className="min-h-screen flex items-center justify-center bg-transparent">
@@ -99,15 +102,16 @@ function AppContent() {
       <AnimatePresence mode="wait">
         <motion.div 
           key={location.pathname}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.98 }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         >
           <Routes location={location}>
             <Route path="/" element={<Home />} />
             <Route path="/search" element={<Search />} />
             <Route path="/details/:id" element={<Details />} />
+            <Route path="/watch/:id" element={<Details />} />
             <Route path="/watch/:id/:slug?" element={<Details />} />
             <Route path="/browse" element={<Browse />} />
             <Route path="/anime" element={<Anime />} />
@@ -116,6 +120,8 @@ function AppContent() {
             <Route path="/playlist" element={<Playlist />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/ranking" element={<Ranking />} />
+            <Route path="/trails" element={<Trails />} />
+            <Route path="/trails/:movieSlug" element={<Trails />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/legal/:type" element={<Legal />} />
             {/* Fallback routes for movies/series/trending to browse for now */}

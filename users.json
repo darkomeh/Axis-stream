@@ -11,12 +11,17 @@
     "historyCount": 50,
     "stats": {
       "watchTimeMinutes": 0,
-      "totalViews": 0,
-      "lastWatchDate": null,
-      "currentStreak": 0,
-      "genreProgress": {},
+      "totalViews": 7,
+      "lastWatchDate": "2026-06-05",
+      "currentStreak": 7,
+      "genreProgress": {
+        "Horror": 1,
+        "Series": 6
+      },
       "weekendCount": 0,
-      "badges": []
+      "badges": [
+        "7-day streak"
+      ]
     },
     "preferences": {
       "autoPlayNext": true,
@@ -33,9 +38,9 @@
         "verticalPosition": 4
       }
     },
-    "lastAction": "2026-06-04T21:03:54.138Z",
+    "lastAction": "2026-06-05T19:46:55.784Z",
     "lastActionType": null,
     "createdAt": "2026-06-04T20:26:08.846Z",
-    "updatedAt": "2026-06-04T21:03:55.348Z"
+    "updatedAt": "2026-06-05T19:46:57.190Z"
   }
 ]

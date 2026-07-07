@@ -94,28 +94,93 @@ export default function VideoPlayer({
  // Reference for tracking elapsed time for global analytics
  const lastTrackedTimeRef = useRef<number>(0);
 
-   const [forceIframe, setForceIframe] = useState(true);
+   const [forceIframe, setForceIframe] = useState(mediaData?.isBackup ?? false);
 
   // Track if we need to fall back to an iframe instead of direct video play
   const useIframeFallback =
-  isTrailer || forceIframe || (mediaData.sources.length === 0 && !!mediaData.embedUrl);
+    isTrailer || forceIframe || (mediaData.sources.length === 0 && !!mediaData.embedUrl);
+
+  // Update forceIframe dynamically if the API source changes or a new episode starts
+  useEffect(() => {
+    setForceIframe(mediaData?.isBackup ?? false);
+  }, [mediaData?.isBackup, mediaData?.id]);
 
  // Server Selection
- const SERVERS = [
-   { id: "vidsrc.me", name: "VidSrc.me (Fast)", icon: "Globe", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidsrc.me/embed/tv?tmdb=${id}&season=${s}&episode=${e}` : `https://vidsrc.me/embed/movie?tmdb=${id}` },
-   { id: "vidlink.pro", name: "VidLink (Backup)", icon: "Globe", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidlink.pro/tv/${id}/${s}/${e}` : `https://vidlink.pro/movie/${id}` },
-   { id: "vidsrc.in", name: "VidSrc.in (Alt)", icon: "Globe", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidsrc.in/embed/tv?tmdb=${id}&season=${s}&episode=${e}` : `https://vidsrc.in/embed/movie?tmdb=${id}` },
-   { id: "vidsrc.pm", name: "VidSrc.pm (Alt)", icon: "Globe", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidsrc.pm/embed/tv?tmdb=${id}&season=${s}&episode=${e}` : `https://vidsrc.pm/embed/movie?tmdb=${id}` },
-   { id: "vidsrc.io", name: "VidSrc.io (Alt)", icon: "Globe", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidsrc.io/embed/tv?tmdb=${id}&season=${s}&episode=${e}` : `https://vidsrc.io/embed/movie?tmdb=${id}` },
-   { id: "2embed", name: "2Embed (Alt)", icon: "Globe", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://2embed.cc/embed/tv/${id}/${s}/${e}` : `https://2embed.cc/embed/tmdb/movie?id=${id}` }
- ];
- const [activeServer, setActiveServer] = useState<string>("vidsrc.me");
- const computedEmbedUrl = mediaData.tmdbId && mediaData.type 
-   ? SERVERS.find(s => s.id === activeServer)?.url(mediaData.type, mediaData.tmdbId, selectedSeason || 1, selectedEpisode || 1) || mediaData.embedUrl 
-   : mediaData.embedUrl;
+ const serversList = mediaData.vidsrcServers && mediaData.vidsrcServers.length > 0 
+   ? mediaData.vidsrcServers 
+   : [
+       { id: "filmu", name: "Server 1", url: (type: string, id: string, s: number, e: number) => (type === "series" || type === "tv" || type === "show") ? `https://embed.filmu.in/tv/${id}/${s}/${e}` : `https://embed.filmu.in/movie/${id}` },
+       { id: "vidsrc-wiki", name: "vidsrc.wiki", url: (type: string, id: string, s: number, e: number) => (type === "series" || type === "tv" || type === "show") ? `https://vidsrc.wiki/embed/tv/${id}/${s}/${e}` : `https://vidsrc.wiki/embed/movie/${id}` },
+       { id: "vidsrc-pe", name: "vidsrc.pe", url: (type: string, id: string, s: number, e: number) => (type === "series" || type === "tv" || type === "show") ? `https://vidsrc.pe/embed/tv/${id}/${s}/${e}` : `https://vidsrc.pe/embed/movie/${id}` },
+       { id: "vidsrcme-ru", name: "vidsrc.ru", url: (type: string, id: string, s: number, e: number) => (type === "series" || type === "tv" || type === "show") ? `https://vidsrcme.ru/embed/tv/${id}/${s}/${e}` : `https://vidsrcme.ru/embed/movie/${id}` },
+       { id: "vidsrcme-su", name: "vidsrc.su", url: (type: string, id: string, s: number, e: number) => (type === "series" || type === "tv" || type === "show") ? `https://vidsrcme.su/embed/tv/${id}/${s}/${e}` : `https://vidsrcme.su/embed/movie/${id}` },
+       { id: "vidsrc-me-ru", name: "vidsrc-me.ru", url: (type: string, id: string, s: number, e: number) => (type === "series" || type === "tv" || type === "show") ? `https://vidsrc-me.ru/embed/tv/${id}/${s}/${e}` : `https://vidsrc-me.ru/embed/movie/${id}` }
+     ];
+ const defaultServerId = serversList.find((s: any) => s.name?.toLowerCase().includes("pro") || s.id?.toLowerCase().includes("server_"))?.id || serversList[0]?.id || "";
+ const [activeServer, setActiveServer] = useState<string>(defaultServerId);
+ 
+ const computedEmbedUrl = mediaData.vidsrcServers && mediaData.vidsrcServers.length > 0
+   ? (serversList.find((s: any) => s.id === activeServer)?.url || mediaData.embedUrl)
+   : (mediaData.tmdbId && mediaData.type 
+       ? serversList.find((s: any) => s.id === activeServer)?.url(mediaData.type, mediaData.tmdbId, selectedSeason || 1, selectedEpisode || 1) || mediaData.embedUrl 
+       : mediaData.embedUrl);
 
  const [loading, setLoading] = useState(true);
+ const [isCheckingServers, setIsCheckingServers] = useState(false);
+ const [hasAutoChecked, setHasAutoChecked] = useState(false);
  const [error, setError] = useState<string | null>(null);
+
+ useEffect(() => {
+   if (!useIframeFallback || !serversList || serversList.length === 0) return;
+   
+   setHasAutoChecked(false);
+ }, [mediaData.id, selectedSeason, selectedEpisode]);
+
+ useEffect(() => {
+   if (!useIframeFallback || !serversList || serversList.length === 0) return;
+   if (hasAutoChecked) return;
+
+   let mounted = true;
+   async function getBestServer() {
+     if (!mounted) return;
+     setIsCheckingServers(true);
+     setLoading(true);
+
+     const serversToTest = serversList.slice(0, 4); // Test top 4 fast ones to avoid heavy delay
+     let foundValid = false;
+
+     for (const s of serversToTest) {
+       if (!mounted) break;
+       try {
+         const testUrl = s.url;
+         const finalUrl = typeof testUrl === "function" 
+             ? testUrl(mediaData.type, mediaData.tmdbId || "0", selectedSeason || 1, selectedEpisode || 1) 
+             : testUrl;
+
+         const res = await fetch(`/api/verify-embed?url=${encodeURIComponent(finalUrl)}`);
+         const data = await res.json();
+         if (data.valid && mounted) {
+           setActiveServer(s.id);
+           foundValid = true;
+           break;
+         }
+       } catch (err) {
+         console.warn("Failed verifying server", s.name);
+       }
+     }
+
+     if (mounted) {
+       setHasAutoChecked(true);
+       setIsCheckingServers(false);
+     }
+   }
+
+   getBestServer();
+   return () => { mounted = false; };
+ }, [useIframeFallback, serversList, hasAutoChecked, mediaData.id, selectedSeason, selectedEpisode]);
+
+ const actualIframeUrl = typeof computedEmbedUrl === "function" ? computedEmbedUrl(mediaData.type, mediaData.tmdbId || "0", selectedSeason || 1, selectedEpisode || 1) : computedEmbedUrl;
+
  const [isPlaying, setIsPlaying] = useState(true);
  const [volume, setVolume] = useState(1);
  const [currentTime, setCurrentTime] = useState(0);
@@ -709,6 +774,15 @@ export default function VideoPlayer({
  };
  }, [selectedSourceIdx, mediaData.sources, initialTime, id, preferences.dataSaver]);
 
+ useEffect(() => {
+  if (useIframeFallback && loading) {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }
+ }, [useIframeFallback, loading, actualIframeUrl]);
+
  // Handle Audio Track Change (Reloading stream)
  const handleAudioTrackChangeInternal = (track: any) => {
  if (track.subjectId && onAudioTrackChange) {
@@ -907,39 +981,22 @@ export default function VideoPlayer({
  >
  {/* Video Element */}
  {useIframeFallback ? (
- mediaData.embedCode ? (
-  <div 
-    className="w-full h-full border-none absolute inset-0 z-10"
-    dangerouslySetInnerHTML={{ __html: mediaData.embedCode }}
-    ref={(el) => {
-      if (el) {
-        const iframe = el.querySelector('iframe');
-        if (iframe) {
-          iframe.onload = () => setLoading(false);
-        } else {
-          setLoading(false);
-        }
-      }
-    }}
-  />
-) : (
   <iframe
-    key={computedEmbedUrl} // Force iframe to remount on src change
-    src={computedEmbedUrl}
+    key={actualIframeUrl} // Force iframe to remount on src change
+    src={actualIframeUrl}
     className="w-full h-full border-none absolute inset-0 z-10"
+    allowFullScreen
+    allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+    onLoad={() => setLoading(false)}
     style={{
       width: "100%",
       height: "100%",
       position: "absolute",
       top: 0,
-      left: 0,
+      left: 0
     }}
-    allow="autoplay; fullscreen; picture-in-picture"
-    allowFullScreen
-    sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
-    onLoad={() => setLoading(false)}
   />
-)
 ) : (
  <>
  <canvas
@@ -1014,9 +1071,18 @@ export default function VideoPlayer({
  initial={{ opacity: 0 }}
  animate={{ opacity: 1 }}
  exit={{ opacity: 0 }}
- className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-3xl z-10"
+ className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-3xl z-40 pointer-events-none"
  >
  <PopcornLoader />
+ {isCheckingServers && (
+    <motion.p
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mt-4 text-white/70 text-sm font-medium tracking-wide animate-pulse"
+    >
+        Checking fast servers...
+    </motion.p>
+ )}
  </motion.div>
  )}
  </AnimatePresence>
@@ -1104,6 +1170,14 @@ export default function VideoPlayer({
  </AnimatePresence>
 
  {/* Controls Overlay */}
+  {onClose && (
+    <button
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
+      className="absolute top-6 left-6 z-[9999] p-3 hover:bg-black/90 backdrop-blur-xl rounded-full transition-all text-white shadow-2xl pointer-events-auto flex items-center justify-center bg-black/60 border border-white/20 group cursor-pointer"
+    >
+      <ArrowLeft className="w-5 h-5 md:w-6 md:h-6 group-hover:scale-110 transition-transform drop-shadow-md" />
+    </button>
+  )}
  <AnimatePresence>
  {showControls && !isLocked && (
  <motion.div
@@ -1128,52 +1202,6 @@ export default function VideoPlayer({
  </div>
  </div>
 
- {(mediaData?.embedUrl || (mediaData?.sources && mediaData.sources.length > 0)) && (
-					<button
-						onClick={() => setForceIframe(!forceIframe)}
-						className={`px-3 py-1.5 md:px-4 md:py-2 text-[10px] md:text-xs font-bold rounded-full border transition-all active:scale-95 flex items-center gap-1.5 backdrop-blur-md shadow-lg ${
-							forceIframe 
-								? "bg-brand/90 text-white border-brand/50 hover:bg-brand shadow-brand/20" 
-								: "bg-white/10 text-white hover:bg-white/20 border-white/20"
-						}`}
-					>
-						{forceIframe ? "🛡️ Ad-Free Server" : "⚡ HLS Player"}
-					</button>
-				)}
-
-				{(useIframeFallback && mediaData?.tmdbId) && (
-					<div className="relative ml-2">
-						<button
-							onClick={() => setActiveMenu(activeMenu === "server" ? null : "server")}
-							className="px-3 py-1.5 md:px-4 md:py-2 text-[10px] md:text-xs font-bold rounded-full border bg-white/10 text-white hover:bg-white/20 border-white/20 transition-all flex items-center gap-1.5 backdrop-blur-md shadow-lg"
-						>
-							<Globe className="w-3 h-3 md:w-4 md:h-4" />
-							<span>{SERVERS.find(s => s.id === activeServer)?.name || "Server"}</span>
-							<ChevronDown className="w-3 h-3" />
-						</button>
-						<AnimatePresence>
-							{activeMenu === "server" && (
-								<motion.div
-									initial={{ opacity: 0, y: -10 }}
-									animate={{ opacity: 1, y: 0 }}
-									exit={{ opacity: 0, y: -10 }}
-									className="absolute top-full right-0 mt-2 w-48 bg-black/90 border border-white/10 rounded-lg shadow-xl overflow-hidden z-50 pointer-events-auto"
-								>
-									{SERVERS.map(s => (
-										<button
-											key={s.id}
-											onClick={() => { setActiveServer(s.id); setActiveMenu(null); setLoading(true); }}
-											className={`w-full text-left px-4 py-3 text-xs md:text-sm hover:bg-white/10 transition-colors border-b border-white/5 last:border-0 ${activeServer === s.id ? 'text-brand font-medium bg-brand/10' : 'text-white'}`}
-										>
-											{s.name}
-										</button>
-									))}
-								</motion.div>
-							)}
-						</AnimatePresence>
-					</div>
-				)}
-				
 				{!useIframeFallback && (
 					<div className="flex items-center gap-2 md:gap-4">
 						<button
@@ -1473,7 +1501,7 @@ export default function VideoPlayer({
  { id: 'audio', label: 'Audio', value: mediaData.audioTracks?.[currentAudioTrack]?.language || "Default" },
  { id: 'subtitles', label: 'Captions', value: currentSubtitleTrack === -1 ? "Off" : sortedSubtitles[currentSubtitleTrack]?.displayName || "English" },
  { id: 'caption-settings', label: 'Caption Style', value: '' },
- { id: 'quality', label: 'Quality', value: hlsRef.current && hlsRef.current.currentLevel === -1 ? "Auto" : (hlsRef.current ? `${hlsLevels[hlsCurrentLevel]?.height}p` : `${mediaData.sources[selectedSourceIdx]?.quality || 'Original'}`) },
+ { id: 'quality', label: 'Quality', value: hlsRef.current && hlsRef.current.currentLevel === -1 ? "Auto" : (hlsRef.current ? `${hlsLevels[hlsCurrentLevel]?.height}p` : `${mediaData.sources[selectedSourceIdx]?.quality ? (isNaN(Number(mediaData.sources[selectedSourceIdx]?.quality)) ? mediaData.sources[selectedSourceIdx]?.quality : mediaData.sources[selectedSourceIdx]?.quality + 'p') : 'Original'}`) },
  { id: 'speed', label: 'Speed', value: playbackSpeed === 1 ? 'Normal' : `${playbackSpeed}x` },
  ].map((item) => (
  <button
@@ -1823,7 +1851,7 @@ export default function VideoPlayer({
  }}
  className={`w-full flex items-center justify-between px-4 py-2 hover:bg-white/5 transition-colors ${selectedSourceIdx === idx ? "text-brand bg-brand/5" : "text-white/70"}`}
  >
- <span className={`text-fluid-xs ${selectedSourceIdx === idx ? 'font-semibold ' : 'font-medium'}`}>{source.quality}p</span>
+ <span className={`text-fluid-xs ${selectedSourceIdx === idx ? 'font-semibold ' : 'font-medium'}`}>{source.quality ? (isNaN(Number(source.quality)) ? source.quality : `${source.quality}p`) : 'Original'}</span>
  {selectedSourceIdx === idx && <Check className="w-3 h-3" />}
  </button>
  ))

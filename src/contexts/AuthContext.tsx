@@ -18,7 +18,9 @@ import {
   addWatchHistory,
   addFavorite,
   removeFavorite,
+  removeContinueWatching as firebaseRemoveContinueWatching,
   getWatchHistory,
+  deleteUserProfileData as firebaseDeleteUserProfileData,
   updateProfile as firebaseUpdateProfile,
   saveContinueWatching as firebaseSaveContinueWatching,
   sendChatMessage as firebaseSendChatMessage,
@@ -144,13 +146,14 @@ interface AuthContextType {
   isFollowing: (id: string) => boolean;
   continueWatching: ContinueWatchingItem[];
   updateContinueWatching: (item: ContinueWatchingItem) => void;
-  removeFromContinueWatching: (id: string) => void;
+  removeFromContinueWatching: (id: string) => Promise<void>;
   setLastActionType: (type: string | null) => void;
   isLoginPopupOpen: boolean;
   openLoginPopup: () => void;
   closeLoginPopup: () => void;
   loginAsGuest: () => void;
   isGuest: boolean;
+  deleteProfileData: () => Promise<void>;
 }
 
 const initialStats: UserStats = {
@@ -350,12 +353,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const items = snapshot.docs.map(doc => ({
-          id: doc.data().movieId,
+          id: doc.id || doc.data().movieId,
           title: doc.data().title,
           progress: doc.data().lastPosition || 0,
           duration: doc.data().duration || 1,
           type: doc.data().type || 'Movie',
-          poster: doc.data().poster || ''
+          poster: doc.data().poster || '',
+          background: doc.data().background || '',
+          avgHueDark: doc.data().avgHueDark || '',
+          season: doc.data().season || undefined,
+          episode: doc.data().episode || undefined,
+          rating: doc.data().rating || '',
+          year: doc.data().year || '',
+          updatedAt: doc.data().updatedAt ? (doc.data().updatedAt.toMillis ? doc.data().updatedAt.toMillis() : doc.data().updatedAt) : Date.now()
         } as ContinueWatchingItem));
         setContinueWatching(items);
         localStorage.setItem(`axis_continue_watching_${firebaseUser.uid}`, JSON.stringify(items));
@@ -643,14 +653,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, firebaseUser]);
 
-  const removeFromContinueWatching = useCallback((id: string) => {
+  const removeFromContinueWatching = useCallback(async (id: string) => {
     if (!user) return;
-    setContinueWatching(prev => {
-      const updated = prev.filter(i => i.id !== id);
-      localStorage.setItem(`axis_continue_watching_${user.id}`, JSON.stringify(updated));
-      return updated;
-    });
-  }, [user]);
+    if (firebaseUser) {
+      await firebaseRemoveContinueWatching(id);
+    } else {
+      setContinueWatching(prev => {
+        const updated = prev.filter(i => i.id !== id);
+        localStorage.setItem(`axis_continue_watching_${user.id}`, JSON.stringify(updated));
+        return updated;
+      });
+    }
+  }, [user, firebaseUser]);
 
   const createPlaylist = useCallback((name: string) => {
     if (!user) return;
@@ -701,6 +715,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, [user]);
 
+  const deleteProfileData = useCallback(async () => {
+    if (!user) return;
+    try {
+      if (firebaseUser) {
+        await firebaseDeleteUserProfileData(firebaseUser.uid);
+      }
+      const keysToClear = [
+        `axis_watchlist_${user.id}`,
+        `axis_history_${user.id}`,
+        `axis_continue_watching_${user.id}`,
+        `axis_prefs_${user.id}`,
+        `axis_stats_${user.id}`,
+        `axis_following_${user.id}`,
+        `axis_playlists_${user.id}`
+      ];
+      keysToClear.forEach(key => localStorage.removeItem(key));
+      await logout();
+      setLastActionType("PROFILE_DELETED");
+    } catch (error) {
+      console.error("Error deleting profile data:", error);
+      throw error;
+    }
+  }, [user, firebaseUser, logout]);
+
   const value = useMemo(() => ({
     user, 
     login, 
@@ -733,7 +771,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     openLoginPopup,
     closeLoginPopup,
     loginAsGuest,
-    isGuest
+    isGuest,
+    deleteProfileData
   }), [
     user, login, logout, isAdmin,
     systemMessage, isMaintenance, isBanned,
@@ -749,7 +788,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoginPopupOpen,
     openLoginPopup,
     closeLoginPopup,
-    handleSendMagicLink
+    handleSendMagicLink,
+    deleteProfileData
   ]);
 
   // Visitor Tracking

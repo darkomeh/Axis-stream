@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { ItemDetails } from '../types';
+import { ItemDetails, formatDurationToHours } from '../types';
 import { ChevronDown, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Tray from './Tray';
@@ -73,7 +73,7 @@ const EpisodeSelectorComponent = ({
  
  // Leaving it plain as requested, avoiding "Full HD" or "SD" labels
  const sizeStr = realEp?.size || '';
- const durationStr = realEp?.duration ? (realEp.duration.includes(':') ? realEp.duration : `${realEp.duration}m`) : '';
+ const durationStr = realEp?.duration ? (realEp.duration.includes(':') ? realEp.duration : formatDurationToHours(String(realEp.duration))) : '';
  
  return {
  title: realEp?.title || `Episode ${ep}`,

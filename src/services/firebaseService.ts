@@ -480,9 +480,15 @@ export const saveContinueWatching = async (item: import('../contexts/AuthContext
       movieId: item.id,
       title: item.title,
       poster: item.poster || '',
+      background: (item as any).background || '',
+      avgHueDark: item.avgHueDark || '',
       type: item.type || 'Movie',
       lastPosition: item.progress || 0,
       duration: item.duration || 1,
+      season: item.season || null,
+      episode: item.episode || null,
+      rating: item.rating || '',
+      year: item.year || '',
       updatedAt: serverTimestamp()
     });
   } catch (error) {
@@ -501,6 +507,16 @@ export const addWatchHistory = async (movieId: string, title: string) => {
     });
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, path);
+  }
+};
+
+export const removeContinueWatching = async (movieId: string) => {
+  if (!auth.currentUser) return;
+  const path = `users/${auth.currentUser.uid}/continueWatching/${movieId}`;
+  try {
+    await deleteDoc(doc(db, `users/${auth.currentUser.uid}/continueWatching`, movieId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
   }
 };
 
@@ -758,5 +774,26 @@ export const getWatchHistory = async (userId: string) => {
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, path);
+  }
+};
+
+export const deleteUserProfileData = async (uid: string) => {
+  const subcollections = ['favorites', 'continueWatching', 'watchHistory'];
+  for (const sub of subcollections) {
+    const path = `users/${uid}/${sub}`;
+    try {
+      const snap = await getDocs(collection(db, path));
+      const promises = snap.docs.map(docSnapshot => deleteDoc(doc(db, path, docSnapshot.id)));
+      await Promise.all(promises);
+    } catch (error) {
+      console.error(`Error deleting subcollection ${sub} for user ${uid}`, error);
+    }
+  }
+
+  // Purge main user doc
+  try {
+    await deleteDoc(doc(db, 'users', uid));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `users/${uid}`);
   }
 };

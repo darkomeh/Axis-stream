@@ -60,10 +60,13 @@ const PosterGrid = memo(({ title, items, viewAllLink, loading, variant = 'scroll
  role="button"
  tabIndex={0}
  onClick={() => openPreview(item.id)}
+ initial={{ opacity: 0, y: 20 }}
+ whileInView={{ opacity: 1, y: 0 }}
+ viewport={{ once: true, margin: "-50px" }}
  whileHover={{ scale: 1.04, y: -6 }}
  whileTap={{ scale: 0.96 }}
- transition={{ type: "spring", stiffness: 300, damping: 25 }}
- className="relative block aspect-[2/3] rounded-[20px] md:rounded-3xl overflow-hidden bg-white/5 transition-all duration-500 group shadow-[0_10px_30px_rgba(0,0,0,0.5)] hover:shadow-[0_20px_40px_rgba(255,255,255,0.1)] border border-white/10 hover:border-white/20 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+ transition={{ type: "spring", stiffness: 300, damping: 25, mass: 0.8 }}
+ className="relative block aspect-[2/3] rounded-[20px] md:rounded-3xl overflow-hidden bg-white/5 group shadow-[0_10px_30px_rgba(0,0,0,0.5)] hover:shadow-[0_20px_40px_rgba(255,255,255,0.1)] border border-white/10 hover:border-white/20 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-white/50"
  onKeyDown={(e) => {
  if (e.key === 'Enter' || e.key === ' ') {
  e.preventDefault();

@@ -5,7 +5,7 @@ import {
   CalendarDays, Activity, ChevronRight, Bell, Calendar, Flame,
   Menu, Search
 } from "lucide-react";
-import axios from "axios";
+import apiHelper from "../services/apiHelper";
 import { useAuth } from "../contexts/AuthContext";
 import LiveTVPlayer from "../components/LiveTVPlayer";
 import SportsMatchDetails from "../components/SportsMatchDetails";
@@ -98,7 +98,7 @@ export default function Sports() {
     }
     setError(null);
     try {
-      const response = await axios.get(`/api/matches?sport=${sport}`);
+      const response = await apiHelper.get(`/api/matches?sport=${sport}`);
       const rawMatches: Match[] = response.data.matches || [];
       const uniqueMatches: Match[] = [];
       const seenIds = new Set<string>();
@@ -156,7 +156,7 @@ export default function Sports() {
         // to see if we can locate it across any sport
         const searchAcrossAll = async () => {
           try {
-            const promises = SPORTS.map(s => axios.get(`/api/matches?sport=${s.id}`));
+            const promises = SPORTS.map(s => apiHelper.get(`/api/matches?sport=${s.id}`));
             const responses = await Promise.all(promises);
             const allMatches = responses.flatMap(r => r.data.matches || []);
             const found = allMatches.find(m => {

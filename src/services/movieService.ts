@@ -9,12 +9,13 @@ import {
 } from '../types';
 
 import { submitContentReport } from './firebaseService';
+import apiHelper from './apiHelper';
 
 const TARGET_API = '/api';
 const EXTERNAL_API_URL = 'https://movieapi.xcasper.space/api';
 const API_KEY = 'Godszeal';
 
-const api = axios.create();
+const api = apiHelper;
 
 // Global runtime cache for lightning-fast speeds on repeated navigation
 const globalRequestCache = new Map<string, { data: any, timestamp: number }>();
@@ -550,7 +551,7 @@ export const movieService = {
 
       // 1. Try our own backend proxy API first. It manages backup scaling, routing, headers, and credentials.
       try {
-        const response = await axios.get(`${TARGET_API}/play`, { params });
+        const response = await apiHelper.get(`/play`, { params });
         if (response.data && (
           (Array.isArray(response.data.sources) && response.data.sources.length > 0) ||
           response.data.embedUrl ||

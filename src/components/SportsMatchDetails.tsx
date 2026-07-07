@@ -6,7 +6,7 @@ import {
   ChevronDown, Flame, CheckCircle2, ShieldAlert
 } from "lucide-react";
 import type Hls from "hls.js";
-import axios from "axios";
+import apiHelper from "../services/apiHelper";
 import { useAuth } from "../contexts/AuthContext";
 import { db, auth } from "../lib/firebase";
 import { doc, updateDoc, increment, getDoc, setDoc, onSnapshot, collection, query, orderBy, limit, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
@@ -88,7 +88,7 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
     if (!match.id) return;
     const pollLiveMatch = async () => {
       try {
-        const response = await axios.get(`/api/matches/live?sport=${match.sport_type || 'all'}`);
+        const response = await apiHelper.get(`/api/matches/live?sport=${match.sport_type || 'all'}`);
         const liveMatches: Match[] = response.data.matches || [];
         const updated = liveMatches.find((m: Match) => m.id === match.id);
         

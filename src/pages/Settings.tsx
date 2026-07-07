@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ChevronRight, Settings as SettingsIcon, Play, Smartphone, Palette, Download, Bell, User, Heart, Zap, Globe, Shield, Accessibility, Trophy, Smile } from "lucide-react";
+import { ArrowLeft, ChevronRight, Settings as SettingsIcon, Play, Smartphone, Palette, Download, Bell, User, Heart, Zap, Globe, Shield, Accessibility, Trophy } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import { motion } from "motion/react";
@@ -44,14 +44,6 @@ export default function Settings() {
         { label: "Compact Mode", key: "compactMode", type: "toggle" },
         { label: "Show IMDb Ratings", key: "showRatings", type: "toggle", defaultVal: true },
         { label: "Enable Sound Effects", key: "soundEffects", type: "toggle" },
-      ]
-    },
-    {
-      id: "parental",
-      title: "Kids & Family",
-      icon: Smile,
-      items: [
-        { label: "Enable Kids Mode (Cartoons Only)", key: "kidsMode", type: "toggle", defaultVal: false },
       ]
     },
     {

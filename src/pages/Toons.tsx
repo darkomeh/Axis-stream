@@ -7,7 +7,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { Search, ArrowLeft, Loader2 } from "lucide-react";
 
-const BAD_KEYWORDS = ['family guy', 'south park', 'rick and morty', 'adult', 'hentai', 'bojack', 'archer', 'big mouth', 'deadpool', 'sausage party', 'harley quinn', 'castlevania', 'invincible'];
+const BAD_KEYWORDS = ['family guy', 'south park', 'rick and morty', 'adult', 'hentai', 'bojack', 'archer', 'big mouth'];
 
 const isToon = (item: MediaItem) => {
  const title = item.title.toLowerCase();

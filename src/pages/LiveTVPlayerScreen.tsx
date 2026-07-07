@@ -1,4 +1,3 @@
-import { useToast } from "../contexts/ToastContext";
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Heart, Share2, MoreHorizontal, Clock, PlayCircle, PictureInPicture, Maximize, Pause, Circle, Radio, Tv, Volume2, VolumeX, Play, Loader2, WifiOff } from "lucide-react";
@@ -7,15 +6,10 @@ import Hls from "hls.js";
 import { LIVE_CHANNELS } from "../data/liveChannels";
 
 export default function LiveTVPlayerScreen() {
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    navigate("/live", { replace: true });
-  }, [navigate]);
-
   const { channelId } = useParams();
+  const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
-    const hlsRef = useRef<Hls | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
   
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(false);

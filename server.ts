@@ -1,4 +1,3 @@
-import { backendRouter } from "./backend/api/routes.js";
 import express from "express";
 import compression from "compression";
 import path from "path";
@@ -32,84 +31,8 @@ function isUrlAllowed(reqUrl: string): boolean {
 }
 
 const app = express();
-
-// Vercel Serverless Function Path Fixer Middleware (MUST RUN FIRST so req.url is corrected before routing)
-// Sometimes Vercel's Edge/Serverless Router strips the /api/ prefix or rewrites to query params.
-app.use((req, res, next) => {
-  if (process.env.VERCEL) {
-    // 1. Check for any of Vercel's headers containing the original requested path/URI
-    const originalPath = (
-      req.headers["x-vercel-forwarded-path"] ||
-      req.headers["x-forwarded-path"] ||
-      req.headers["x-forwarded-uri"] ||
-      req.headers["x-original-url"] ||
-      req.headers["x-vercel-original-uri"]
-    ) as string;
-
-    if (originalPath) {
-      // Reconstruct original URL with the query string from req.url
-      const queryIndex = req.url.indexOf('?');
-      const queryString = queryIndex !== -1 ? req.url.substring(queryIndex) : '';
-      
-      let cleanPath = originalPath;
-      if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
-        try {
-          cleanPath = new URL(cleanPath).pathname;
-        } catch {}
-      }
-      
-      // Ensure it starts with '/'
-      if (!cleanPath.startsWith('/')) {
-        cleanPath = '/' + cleanPath;
-      }
-      
-      // Keep only path portion if originalPath already has a query string to prevent double query parameters
-      const pathOnlyIndex = cleanPath.indexOf('?');
-      if (pathOnlyIndex !== -1) {
-        cleanPath = cleanPath.substring(0, pathOnlyIndex);
-      }
-      
-      req.url = cleanPath + queryString;
-    } else {
-      // 2. Fallback to matched path check, excluding index.ts/index.js
-      const matchedPath = (req.headers["x-matched-path"] || req.headers["x-vercel-matched-path"]) as string;
-      
-      if (matchedPath && !matchedPath.includes("index.ts") && !matchedPath.includes("index.js") && !matchedPath.includes("index")) {
-        const queryIndex = req.url.indexOf('?');
-        const queryString = queryIndex !== -1 ? req.url.substring(queryIndex) : '';
-        req.url = matchedPath + queryString;
-      } else {
-        let url = req.url;
-        // If Vercel rewrote it to /?path=... or /?slug=...
-        const match = url.match(/^\/\?(slug|path)=([^&]+)(.*)/);
-        if (match) {
-          url = '/' + decodeURIComponent(match[2]) + match[3].replace(/^&/, '?');
-        }
-        
-        // Express app has routes defined with /api/ prefix.
-        // If Vercel stripped it, we MUST prepend it back!
-        if (!url.startsWith('/api')) {
-          req.url = url === '/' ? '/api' : '/api' + (url.startsWith('/') ? url : '/' + url);
-        } else {
-          req.url = url;
-        }
-      }
-    }
-  }
-  next();
-});
-
 app.use(compression());
-
-// Adaptive body parsing middleware to prevent hanging on Vercel Serverless Gateway
-app.use((req, res, next) => {
-  if (req.body !== undefined) {
-    // If the body is already parsed by Vercel or an upstream gateway, bypass express.json() to prevent stream read hang
-    next();
-  } else {
-    express.json()(req, res, next);
-  }
-});
+app.use(express.json());
 
 // Basic Rate Limiting & Anti-Scraping Middleware
 const rateLimits = new Map<string, { requests: number, lastRequest: number }>();
@@ -141,7 +64,22 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use("/api", backendRouter);
+// Vercel Serverless Function Path Fixer Middleware
+// Sometimes Vercel's Edge/Serverless Router strips the /api/ prefix or rewrites to query params.
+app.use((req, res, next) => {
+  if (process.env.VERCEL) {
+    let url = req.url;
+    // If it's a rewritten generic slug
+    if (url.startsWith('/?slug=')) {
+      url = '/' + url.split('/?slug=')[1];
+    }
+    // If it doesn't have /api prefix but it's an api request
+    if (!url.startsWith('/api') && url !== '/' && !url.includes('sitemap') && !url.includes('robots')) {
+      req.url = '/api' + url;
+    }
+  }
+  next();
+});
 
 // Diagnostic endpoint early
 app.get("/api/server-health", (req, res) => {
@@ -153,34 +91,10 @@ app.get("/api/server-health", (req, res) => {
       memory: process.memoryUsage(),
       platform: process.platform,
       arch: process.arch,
-      nodeVersion: process.version,
-      debug: {
-        url: req.url,
-        originalUrl: req.originalUrl,
-        baseUrl: req.baseUrl,
-        method: req.method,
-        headers: req.headers
-      }
+      nodeVersion: process.version
     });
   } catch (err) {
     res.status(500).json({ status: "error", error: String(err) });
-  }
-});
-
-app.get("/api/debug", (req, res) => {
-  try {
-    res.json({
-      url: req.url,
-      originalUrl: req.originalUrl,
-      baseUrl: req.baseUrl,
-      method: req.method,
-      headers: req.headers,
-      query: req.query,
-      vercel: process.env.VERCEL ? true : false,
-      env: process.env.NODE_ENV || "unknown"
-    });
-  } catch (err) {
-    res.status(500).json({ error: String(err) });
   }
 });
 
@@ -952,8 +866,7 @@ app.get("/api/proxy", async (req, res) => {
     const response = await fetch(videoUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Referer": "https://sportslivetoday.com/",
-        "Origin": "https://sportslivetoday.com",
+        "Referer": "https://movieapi.xcasper.space/",
         "Accept": "*/*",
         "Connection": "keep-alive",
         ...(range && { "Range": range }),
@@ -961,38 +874,11 @@ app.get("/api/proxy", async (req, res) => {
     });
 
     if (!response.ok && response.status !== 206) {
+        // Log error but try to return what we have
         console.warn(`[Proxy] Upstream returned status ${response.status} for ${videoUrl}`);
     }
 
-    const contentType = response.headers.get('content-type') || '';
-    const isM3u8 = videoUrl.includes('.m3u8') || contentType.includes('mpegurl') || contentType.includes('m3u8');
-
-    res.setHeader('Access-Control-Allow-Origin', '*');
-
-    if (isM3u8 && response.ok) {
-      const text = await response.text();
-      const baseUrl = new URL(videoUrl);
-      
-      const rewritten = text.split('\n').map(line => {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith('#')) return line;
-        
-        let absoluteUrl = trimmed;
-        if (!trimmed.startsWith('http')) {
-           try {
-             absoluteUrl = new URL(trimmed, baseUrl).toString();
-           } catch (e) {
-             absoluteUrl = baseUrl.toString().substring(0, baseUrl.toString().lastIndexOf('/') + 1) + trimmed;
-           }
-        }
-        return `/api/proxy?url=${encodeURIComponent(absoluteUrl)}`;
-      }).join('\n');
-
-      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-      res.status(response.status).send(rewritten);
-      return;
-    }
-
+    // Forward crucial headers
     const headersToForward = [
       'content-type',
       'content-length',
@@ -1002,15 +888,18 @@ app.get("/api/proxy", async (req, res) => {
       'last-modified',
       'etag'
     ];
+
     headersToForward.forEach(h => {
       const val = response.headers.get(h);
       if (val) res.setHeader(h, val);
     });
     
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.status(response.status);
 
     if (!response.body) throw new Error("No response body");
 
+    // Optimized streaming
     const { Readable } = await import("stream");
     const reader = Readable.fromWeb(response.body as any);
     
@@ -1023,9 +912,7 @@ app.get("/api/proxy", async (req, res) => {
 
   } catch (error: any) {
     console.error("[Proxy] Error:", error.message);
-    if (!res.headersSent) {
-      res.status(500).send(error.message);
-    }
+    res.status(500).send(error.message);
   }
 });
 

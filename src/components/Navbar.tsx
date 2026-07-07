@@ -14,7 +14,7 @@ function Navbar() {
  const [isScrolled, setIsScrolled] = useState(false);
  const navigate = useNavigate();
  const location = useLocation();
- const { user, siteConfig, preferences } = useAuth();
+ const { user, siteConfig } = useAuth();
  const { showToast } = useToast();
  const { previewId } = useMediaPreview();
  const [searchQuery, setSearchQuery] = useState("");
@@ -47,18 +47,13 @@ function Navbar() {
  }
  };
 
- const SIDEBAR_LINKS = preferences?.kidsMode ? [
-   { label: 'Kids Home', path: '/', icon: Home, isActive: location.pathname === '/' },
-   { label: 'Cartoons', path: '/toons', icon: Tv, isActive: location.pathname === '/toons' },
-   { label: 'Anime & Toons', path: '/anime', icon: Compass, isActive: location.pathname === '/anime' },
-   { label: 'Search Fun', path: '/search', icon: Search, isActive: location.pathname === '/search' },
- ] : [
-   { label: 'Home', path: '/', icon: Home, isActive: location.pathname === '/' },
-   { label: 'Explore', path: '/search', icon: Search, isActive: location.pathname === '/search' },
-   { label: 'Trails', path: '/trails', icon: Compass, isActive: location.pathname === '/trails' },
-   { label: 'Live TV', path: '/live', icon: Radio, isActive: location.pathname === '/live' },
-   { label: 'Series', path: '/series', icon: Tv, isActive: location.pathname === '/series' || location.search.includes('type=2') },
-   { label: 'Sports', path: '/sports', icon: Trophy, isActive: location.pathname === '/sports' },
+ const SIDEBAR_LINKS = [
+ { label: 'Home', path: '/', icon: Home, isActive: location.pathname === '/' },
+ { label: 'Explore', path: '/search', icon: Search, isActive: location.pathname === '/search' },
+ { label: 'Trails', path: '/trails', icon: Compass, isActive: location.pathname === '/trails' },
+ { label: 'Live TV', path: '/live', icon: Radio, isActive: location.pathname === '/live' },
+ { label: 'Series', path: '/series', icon: Tv, isActive: location.pathname === '/series' || location.search.includes('type=2') },
+ { label: 'Rank', path: '/ranking', icon: Trophy, isActive: location.pathname === '/ranking' },
  ];
 
  const shouldHide = !!previewId;
@@ -72,19 +67,15 @@ function Navbar() {
  <div className="p-8">
  <Link to="/" className="flex flex-col gap-0.5 group">
  <div className="flex items-center gap-2 image-glow">
- {preferences?.kidsMode ? (
-   <span className="text-2xl animate-bounce shrink-0 mr-1 select-none">🎈</span>
- ) : (
-   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-white shrink-0">
-   <path d="M12 2L22 20H2L12 2Z" fill="currentColor"/>
-   </svg>
- )}
- <span className={`text-fluid-2xl font-black tracking-tight ${preferences?.kidsMode ? "text-yellow-400" : "text-white"}`}>
- {preferences?.kidsMode ? "AXIS KIDS" : "Axis TV"}
+ <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-white shrink-0">
+ <path d="M12 2L22 20H2L12 2Z" fill="currentColor"/>
+ </svg>
+ <span className="text-fluid-2xl font-semibold text-white tracking-tight">
+ Axis TV
  </span>
  </div>
  <span className="text-fluid-sm font-semibold tracking-wide text-white/60 ml-10">
- {preferences?.kidsMode ? "Fun & Cartoons! 🍭" : "Your Movie Plug"}
+ Your Movie Plug
  </span>
  </Link>
  </div>
@@ -142,7 +133,7 @@ function Navbar() {
  type="text" 
  value={searchQuery}
  onChange={(e) => setSearchQuery(e.target.value)}
- placeholder={preferences?.kidsMode ? "Search for fun cartoons, shows..." : "Search for movies, series, actors..."}
+ placeholder="Search for movies, series, actors..." 
  className="w-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl py-4 pl-14 pr-6 text-fluid-lg text-white focus:outline-none focus:bg-white/10 focus:border-white/20 transition-all font-medium placeholder-white/30 shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
  />
  </form>
@@ -179,23 +170,12 @@ function Navbar() {
  className={`lg:hidden fixed left-4 right-4 top-4 z-50 transition-all duration-500 rounded-[24px] ${ isScrolled ? "bg-[#080808]/60 backdrop-blur-3xl border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)]" : "bg-transparent" }`}>
  <div className="flex items-center justify-between px-5 py-3">
  <Link to="/" className="flex items-center gap-1.5 image-glow">
- {preferences?.kidsMode ? (
-   <>
-     <span className="text-xl animate-bounce">🎈</span>
-     <span className="text-xl font-black text-yellow-400 tracking-tight">
-       AXIS<span className="text-cyan-400">KIDS</span>
-     </span>
-   </>
- ) : (
-   <>
-     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-brand w-6 h-6">
-     <path d="M12 2L22 20H2L12 2Z" fill="currentColor"/>
-     </svg>
-     <span className="text-xl font-bold text-white tracking-tight">
-     AXIS<span className="text-brand">TV</span>
-     </span>
-   </>
- )}
+ <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-brand w-6 h-6">
+ <path d="M12 2L22 20H2L12 2Z" fill="currentColor"/>
+ </svg>
+ <span className="text-xl font-bold text-white tracking-tight">
+ AXIS<span className="text-brand">TV</span>
+ </span>
  </Link>
  <div className="flex items-center gap-4 shrink-0">
  <Link to="/search" className="text-white/70 hover:text-white transition-colors p-1">

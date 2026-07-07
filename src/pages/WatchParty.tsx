@@ -43,8 +43,7 @@ import {
   Send,
   MonitorPlay,
   Copy,
-  Clock,
-  Loader2
+  Clock
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -269,31 +268,24 @@ export default function WatchPartyPage() {
 
         {/* Existing VideoPlayer (Cinematic Player) */}
         <div className="w-full aspect-video max-h-[60vh] md:max-h-[70vh]">
-          {mediaData ? (
-            <VideoPlayer
-              mediaData={mediaData}
-              poster={party.posterUrl}
-              title={party.mediaTitle}
-              description={""}
-              id={party.mediaId}
-              onClose={() => navigate(`/details/${slugify(party.mediaTitle)}`)}
-              watchPartyState={party}
-              onWatchPartySync={(action, time) => {
-                if (isHost && partyId) {
-                  updatePlaybackState(partyId, {
-                    status: action === "PLAY" ? "PLAYING" : "PAUSED",
-                    position: time,
-                  });
-                }
-              }}
-              isHost={isHost}
-            />
-          ) : (
-            <div className="w-full h-full bg-[#1C1C1E]/50 rounded-[24px] flex flex-col items-center justify-center border border-white/[0.04]">
-              <Loader2 className="w-8 h-8 text-[#A1A1AA] animate-spin mb-3" />
-              <p className="text-[#A1A1AA] text-sm">Loading media stream...</p>
-            </div>
-          )}
+          <VideoPlayer
+            mediaData={mediaData}
+            poster={party.posterUrl}
+            title={party.mediaTitle}
+            description={""}
+            id={party.mediaId}
+            onClose={() => navigate(`/details/${slugify(party.mediaTitle)}`)}
+            watchPartyState={party}
+            onWatchPartySync={(action, time) => {
+              if (isHost && partyId) {
+                updatePlaybackState(partyId, {
+                  status: action === "PLAY" ? "PLAYING" : "PAUSED",
+                  position: time,
+                });
+              }
+            }}
+            isHost={isHost}
+          />
         </div>
       </div>
 
@@ -380,8 +372,8 @@ export default function WatchPartyPage() {
                 messages.map((msg, i) => {
                   const isMe = msg.uid === user?.id;
                   const showAvatar = i === 0 || messages[i - 1].uid !== msg.uid;
-                  const isVerified = msg.email === 'greatmayuku2@gmail.com' || msg.displayName === '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' || msg.displayName?.includes('Busy') || msg.displayName?.toLowerCase() === 'greatmayuku2' || (isMe && user?.email === 'greatmayuku2@gmail.com');
-                  const displayNameToRender = msg.displayName;
+                  const isVerified = msg.email === 'greatmayuku2@gmail.com' || msg.displayName?.includes('Busy') || (isMe && user?.email === 'greatmayuku2@gmail.com');
+                  const displayNameToRender = isVerified ? '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' : msg.displayName;
                   
                   const colors = ["text-[#32D74B]", "text-[#0A84FF]", "text-[#BF5AF2]", "text-[#FF9F0A]", "text-[#FF375F]"];
                   const nameColor = colors[msg.uid.charCodeAt(0) % colors.length];
@@ -469,8 +461,8 @@ export default function WatchPartyPage() {
                   participants.map((p) => {
                     const isMe = p.uid === user?.id;
                     const isHostUser = p.uid === party.hostId;
-                    const isVerified = p.email === 'greatmayuku2@gmail.com' || p.displayName === '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' || p.displayName?.includes('Busy') || p.displayName?.toLowerCase() === 'greatmayuku2' || (isMe && user?.email === 'greatmayuku2@gmail.com');
-                    const displayNameToRender = p.displayName?.split(" ")[0];
+                    const isVerified = p.email === 'greatmayuku2@gmail.com' || p.displayName?.includes('Busy') || (isMe && user?.email === 'greatmayuku2@gmail.com');
+                    const displayNameToRender = isVerified ? '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' : p.displayName?.split(" ")[0];
 
                     return (
                       <div key={p.uid} className="flex items-center justify-between p-3 rounded-[20px] hover:bg-white/5 transition-colors group">

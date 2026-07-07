@@ -9,44 +9,17 @@ import {
 } from '../types';
 
 import { submitContentReport } from './firebaseService';
-import apiHelper from './apiHelper';
 
 const TARGET_API = '/api';
 const EXTERNAL_API_URL = 'https://movieapi.xcasper.space/api';
 const API_KEY = 'Godszeal';
 
-const api = apiHelper;
+const api = axios.create();
 
 // Global runtime cache for lightning-fast speeds on repeated navigation
 const globalRequestCache = new Map<string, { data: any, timestamp: number }>();
 const playCache = new Map<string, { data: MediaData, timestamp: number }>();
 const CACHE_TTL = 30 * 60 * 1000; // 30 mins
-
-const BAD_KEYWORDS = [
-  'family guy', 'south park', 'rick and morty', 'adult', 'hentai', 'bojack', 'archer', 
-  'big mouth', 'deadpool', 'sausage party', 'harley quinn', 'castlevania', 'invincible'
-];
-
-function isKidsModeActive(): boolean {
-  try {
-    const userStr = localStorage.getItem('axis_user');
-    let key = 'axis_prefs_guest';
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      if (user?.id) {
-        key = `axis_prefs_${user.id}`;
-      }
-    }
-    const prefsStr = localStorage.getItem(key);
-    if (prefsStr) {
-      const prefs = JSON.parse(prefsStr);
-      return !!prefs.kidsMode;
-    }
-  } catch (e) {
-    // ignore
-  }
-  return false;
-}
 
 function getCacheKey(config: AxiosRequestConfig) {
   return `${config.url}?${new URLSearchParams(config.params || {}).toString()}`;
@@ -265,50 +238,6 @@ export const movieService = {
 
   async getHomepage(): Promise<HomepageData> {
     const TTL = 5 * 60 * 1000; // 5 mins
-    
-    if (isKidsModeActive()) {
-      if ((this as any)._kidsHomeCache && Date.now() - (this as any)._kidsHomeCache.timestamp < TTL) {
-        return (this as any)._kidsHomeCache.data;
-      }
-      try {
-        const kidsMovies = await this.browse('Animation', undefined, 1, 35, 1);
-        const kidsSeries = await this.browse('Animation', undefined, 1, 35, 2);
-        
-        const cleanMovies = kidsMovies.filter(item => {
-          const title = item.title.toLowerCase();
-          return !BAD_KEYWORDS.some(kw => title.includes(kw));
-        });
-        const cleanSeries = kidsSeries.filter(item => {
-          const title = item.title.toLowerCase();
-          return !BAD_KEYWORDS.some(kw => title.includes(kw));
-        });
-
-        const homepage: HomepageData = {
-          topPickList: cleanMovies.slice(0, 6),
-          homeList: cleanSeries.slice(0, 10),
-          latestMovies: cleanMovies.slice(6, 18),
-          latestSeries: cleanSeries.slice(10, 22),
-          operatingList: [
-            {
-              id: "disney_pixar",
-              name: "🎈 Pixar & Kids Favourites",
-              subjects: cleanMovies.slice(18, 30)
-            },
-            {
-              id: "fun_series",
-              name: "🍭 Non-Stop Cartoon Shows",
-              subjects: cleanSeries.slice(22, 30)
-            }
-          ]
-        };
-
-        (this as any)._kidsHomeCache = { data: homepage, timestamp: Date.now() };
-        return homepage;
-      } catch (err) {
-        console.error("Failed to load kids homepage", err);
-      }
-    }
-
     if (this._homeCache && Date.now() - this._homeCache.timestamp < TTL) {
       return this._homeCache.data;
     }
@@ -326,18 +255,10 @@ export const movieService = {
   async search(query: string, page = 1, perPage = 30, subjectType = 0): Promise<MediaItem[]> {
     if (!query || !query.trim()) return [];
     try {
-      const results = await fetchWithRetry({ 
+      return await fetchWithRetry({ 
         url: `/search`, 
         params: { keyword: query, page, perPage, subjectType } 
       });
-      const list = Array.isArray(results) ? results : [];
-      if (isKidsModeActive()) {
-        return list.filter(item => {
-          const title = item.title.toLowerCase();
-          return !BAD_KEYWORDS.some(kw => title.includes(kw));
-        });
-      }
-      return list;
     } catch (e: any) {
       console.error("Error in search:", e.message || e);
       return [];
@@ -345,11 +266,6 @@ export const movieService = {
   },
 
   async getTrending(page = 1, perPage = 18, genre?: string, subjectType?: number | string): Promise<MediaItem[]> {
-    if (isKidsModeActive()) {
-      const kidsList = await this.browse('Animation', undefined, page, perPage, Number(subjectType) || 2);
-      return kidsList.filter(item => !BAD_KEYWORDS.some(kw => item.title.toLowerCase().includes(kw)));
-    }
-
     const TTL = 5 * 60 * 1000;
     const cacheKey = `trending_${page}_${perPage}_${genre || ''}_${subjectType || ''}`;
     // Initialize cache map if not exists
@@ -395,15 +311,6 @@ export const movieService = {
   },
 
   async getHot(genre?: string, subjectType?: number | string): Promise<{ movies: MediaItem[], series: MediaItem[] }> {
-    if (isKidsModeActive()) {
-      const kidsMovies = await this.browse('Animation', undefined, 1, 24, 1);
-      const kidsSeries = await this.browse('Animation', undefined, 1, 24, 2);
-      return {
-        movies: kidsMovies.filter(item => !BAD_KEYWORDS.some(kw => item.title.toLowerCase().includes(kw))),
-        series: kidsSeries.filter(item => !BAD_KEYWORDS.some(kw => item.title.toLowerCase().includes(kw)))
-      };
-    }
-
     const TTL = 5 * 60 * 1000;
     const cacheKey = `hot_${genre || ''}_${subjectType || ''}`;
     if (!(this as any)._hotCacheMap) (this as any)._hotCacheMap = {};
@@ -479,9 +386,8 @@ export const movieService = {
   _browseCache: null as { [key: string]: { data: MediaItem[], timestamp: number } } | null,
 
   async browse(genre?: string, country?: string, page = 1, perPage = 12, subjectType = 2): Promise<MediaItem[]> {
-    const activeGenre = isKidsModeActive() ? 'Animation' : genre;
     const TTL = 5 * 60 * 1000;
-    const cacheKey = `${activeGenre || ''}-${country || ''}-${subjectType}-${perPage}`;
+    const cacheKey = `${genre || ''}-${country || ''}-${subjectType}-${perPage}`;
     
     // Only cache page 1
     if (page === 1) {
@@ -493,17 +399,14 @@ export const movieService = {
     }
 
     try {
-      const data = await fetchWithRetry({ url: `/browse`, params: { subjectType, genre: activeGenre, countryName: country, page, perPage } });
+      const data = await fetchWithRetry({ url: `/browse`, params: { subjectType, genre, countryName: country, page, perPage } });
       const list = Array.isArray(data) ? data : [];      
-      const filteredList = isKidsModeActive() 
-        ? list.filter(item => !BAD_KEYWORDS.some(kw => item.title.toLowerCase().includes(kw)))
-        : list;
 
       if (page === 1) {
         if (!this._browseCache) this._browseCache = {};
-        this._browseCache[cacheKey] = { data: filteredList, timestamp: Date.now() };
+        this._browseCache[cacheKey] = { data: list, timestamp: Date.now() };
       }
-      return filteredList;
+      return list;
     } catch (e: any) {
       // console.error("Error in browse:", e.message || e);
       return [];
@@ -513,9 +416,8 @@ export const movieService = {
   _rankingCache: null as { data: RankingItem[], timestamp: number } | null,
 
   async getRanking(genre?: string, subjectType?: number | string): Promise<RankingItem[]> {
-    const activeGenre = isKidsModeActive() ? 'Animation' : genre;
     const TTL = 5 * 60 * 1000;
-    const cacheKey = `ranking_${activeGenre || ''}_${subjectType || ''}`;
+    const cacheKey = `ranking_${genre || ''}_${subjectType || ''}`;
     if (!(this as any)._rankingCacheMap) (this as any)._rankingCacheMap = {};
     const cacheMap = (this as any)._rankingCacheMap;
 
@@ -523,7 +425,7 @@ export const movieService = {
       return cacheMap[cacheKey].data;
     }
     try {
-      const data = await fetchWithRetry({ url: `/ranking`, params: { genre: activeGenre, subjectType } });
+      const data = await fetchWithRetry({ url: `/ranking`, params: { genre, subjectType } });
       const list = Array.isArray(data) ? data : [];
       cacheMap[cacheKey] = { data: list, timestamp: Date.now() };
       return list;
@@ -551,7 +453,7 @@ export const movieService = {
 
       // 1. Try our own backend proxy API first. It manages backup scaling, routing, headers, and credentials.
       try {
-        const response = await apiHelper.get(`/play`, { params });
+        const response = await axios.get(`${TARGET_API}/play`, { params });
         if (response.data && (
           (Array.isArray(response.data.sources) && response.data.sources.length > 0) ||
           response.data.embedUrl ||

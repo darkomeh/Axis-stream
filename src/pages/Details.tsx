@@ -104,18 +104,7 @@ export default function Details() {
 
   const location = useLocation();
   const isWatchPage = location.pathname.startsWith("/watch");
-  const [isPlaying, setIsPlaying] = useState(isWatchPage);
-
-  useEffect(() => {
-    setIsPlaying(isWatchPage);
-  }, [isWatchPage]);
-
-  const progressResolvedRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    // Reset resolved ref when movie/series id changes
-    progressResolvedRef.current = null;
-  }, [id]);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const trailerUrl =
     details?.trailerUrl ||
@@ -414,14 +403,13 @@ export default function Details() {
         let initialTime = 0;
 
         // Check for saved progress
-        const savedProgress = continueWatching.find((i) => String(i.id) === String(resolvedId));
+        const savedProgress = continueWatching.find((i) => i.id === resolvedId);
         if (savedProgress) {
           if (isSeries) {
             s = savedProgress.season || 1;
             e = savedProgress.episode || 1;
           }
           initialTime = savedProgress.progress;
-          progressResolvedRef.current = String(resolvedId);
         }
 
         setSelectedSeason(s);
@@ -457,41 +445,6 @@ export default function Details() {
 
     loadData();
   }, [id, user?.id]); // FIX: Prevent full reload on heartbeat user change
-
-  // Dynamically sync and restore continue watching progress when continueWatching finishes loading asynchronously
-  useEffect(() => {
-    if (!details || !continueWatching || progressResolvedRef.current === String(details.id)) return;
-
-    const saved = continueWatching.find((i) => String(i.id) === String(details.id));
-    if (saved) {
-      progressResolvedRef.current = String(details.id);
-      
-      const isSeries = details.type === "Series";
-      const s = isSeries ? (saved.season || 1) : 0;
-      const e = isSeries ? (saved.episode || 1) : 0;
-      const initialTime = saved.progress || 0;
-
-      setSelectedSeason(s);
-      setSelectedEpisode(e);
-
-      // Fetch precise play sources for this saved progress
-      movieService.getPlay(
-        details.id,
-        s,
-        e,
-        details.detailPath,
-        details.title,
-        details.year,
-        details.type ? String(details.type) : undefined,
-      ).then((itemMedia) => {
-        if (itemMedia) {
-          setMediaData({ ...itemMedia, initialTime });
-        }
-      }).catch((err) => {
-        console.warn("Error syncing saved progress sources:", err);
-      });
-    }
-  }, [details, continueWatching]);
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
@@ -966,7 +919,7 @@ export default function Details() {
                       poster={details.background || details.poster}
                       title={details.title}
                       description={details.description}
-                      id={details ? String(details.id) : (id || "")}
+                      id={id || ""}
                       seasons={details.seasons}
                       selectedSeason={selectedSeason}
                       selectedEpisode={selectedEpisode}
@@ -1075,15 +1028,13 @@ export default function Details() {
                   </button>
 
                   {/* Watch Party Pill */}
-                  {!preferences?.kidsMode && (
-                    <button
-                      onClick={handleWatchParty}
-                      className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white px-4 py-2.5 md:px-5 md:py-3 rounded-full font-bold text-xs md:text-sm tracking-wide transition-all active:scale-95 backdrop-blur-md shrink-0 cursor-pointer"
-                    >
-                      <Users className="w-3.5 h-3.5 text-white" />
-                      Watch Party
-                    </button>
-                  )}
+                  <button
+                    onClick={handleWatchParty}
+                    className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white px-4 py-2.5 md:px-5 md:py-3 rounded-full font-bold text-xs md:text-sm tracking-wide transition-all active:scale-95 backdrop-blur-md shrink-0 cursor-pointer"
+                  >
+                    <Users className="w-3.5 h-3.5 text-white" />
+                    Watch Party
+                  </button>
 
                   {/* Playlist Pill */}
                   <button
@@ -1306,15 +1257,13 @@ export default function Details() {
                     <Download className="w-5 h-5" />
                     Download
                   </button>
-                  {!preferences?.kidsMode && (
-                    <button
-                      onClick={handleWatchParty}
-                      className="flex-1 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white py-3.5 rounded-xl font-semibold backdrop-blur-md active:scale-95 transition-all text-fluid-base shadow-sm"
-                    >
-                      <Users className="w-5 h-5" />
-                      Watch Party
-                    </button>
-                  )}
+                  <button
+                    onClick={handleWatchParty}
+                    className="flex-1 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white py-3.5 rounded-xl font-semibold backdrop-blur-md active:scale-95 transition-all text-fluid-base shadow-sm"
+                  >
+                    <Users className="w-5 h-5" />
+                    Watch Party
+                  </button>
                 </motion.div>
 
                 {/* Action Chips */}

@@ -38,31 +38,10 @@ import { NoticeMessage } from "../components/NoticeMessage";
 
 
 
-const isItemKidSafe = (item: MediaItem) => {
-  if (!item) return false;
-  const title = (item.title || (item as any).name || '').toLowerCase();
-  const category = (item.category || '').toLowerCase();
-  
-  // Non-kid keywords to filter out of kids feed
-  const blockedKeywords = [
-    'horror', 'thriller', 'crime', 'murder', 'slasher', 'gore', 'sexy', 'erotic', 'adult', 'rated r', 'restricted', 'violence',
-    'zombie', 'demonic', 'evil', 'blood', 'scary', 'psycho', 'killer', 'drugs', 'mafia', 'gangster', 'sex', 'kill', 'devil',
-    'satan', 'demon', 'vampire', 'ghost', 'haunt', 'dead', 'death', 'sinister', 'nightmare', 'paranormal', 'insidious', 'scream',
-    'conjuring', 'purge', 'saw', 'annabelle', 'dracula', 'frankenstein', 'witch', 'occult', 'brutal', 'slay', 'suicide', 'lucifer'
-  ];
-  
-  for (const keyword of blockedKeywords) {
-    if (title.includes(keyword) || category.includes(keyword)) {
-      return false;
-    }
-  }
-  return true;
-};
-
 export default function Search() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { setLastActionType, user, preferences, history = [], continueWatching = [] } = useAuth();
+  const { setLastActionType, user, history = [], continueWatching = [] } = useAuth();
   const { openPreview } = useMediaPreview();
   const initialQuery = searchParams.get("q") || "";
 
@@ -362,18 +341,15 @@ export default function Search() {
       }
 
       const processedData = processSearchResults(rawData, searchQuery);
-      const finalProcessedData = preferences?.kidsMode
-        ? processedData.filter(isItemKidSafe)
-        : processedData;
 
       if (reset) {
-        setResults(finalProcessedData);
-        if (finalProcessedData.length > 0) {
+        setResults(processedData);
+        if (processedData.length > 0) {
           saveToHistory(searchQuery);
         }
       } else {
         setResults((prev) => {
-          const combined = [...prev, ...finalProcessedData];
+          const combined = [...prev, ...processedData];
           return processSearchResults(combined, searchQuery);
         });
       }
@@ -512,7 +488,6 @@ export default function Search() {
   };
 
   const filteredRecs = recommendations.filter((item) => {
-    if (preferences?.kidsMode && !isItemKidSafe(item)) return false;
     if (recFilter === "All") return true;
     const typeLower = String(item.type || "").toLowerCase();
     const genreLower = String((item as any).genre || "").toLowerCase();
@@ -753,103 +728,69 @@ export default function Search() {
                   </button>
                 </div>
 
-                {preferences?.kidsMode ? (
-                  <section className="bg-white/[0.04] border border-white/5 rounded-2xl p-5" id="kids-cartoon-searches">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Smile className="w-5 h-5 text-[#FF3B30] animate-pulse" />
-                      <h3 className="text-sm font-bold text-[#F5F5F7]">
-                        AxisKids Cartoon Search Ideas
-                      </h3>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        "Toy Story",
-                        "Frozen",
-                        "Kung Fu Panda",
-                        "Spirited Away",
-                        "Mickey Mouse",
-                        "Minions",
-                        "SpongeBob",
-                        "Spider-Man Animated",
-                        "Peppa Pig",
-                        "My Neighbor Totoro"
-                      ].map((term, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] hover:border-[#FF3B30]/30 transition-all cursor-pointer text-xs font-semibold text-[#A1A1AA] hover:text-[#F5F5F7]"
-                          onClick={() => handlePopularClick(term)}
-                        >
-                          <Sparkles className="w-3.5 h-3.5 text-[#FF3B30] opacity-75" />
-                          <span>{term}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {searchHistory.length > 0 && (
-                      <section className="bg-white/[0.04] border border-white/5 rounded-2xl p-5">
-                        <div className="flex items-center gap-2 mb-4">
-                          <History className="w-4 h-4 text-[#FF3B30]" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {searchHistory.length > 0 && (
+                    <section className="bg-white/[0.04] border border-white/5 rounded-2xl p-5">
+                      <div className="flex items-center gap-2 mb-4">
+                        <History className="w-4 h-4 text-[#FF3B30]" />
+                        <h3 className="text-sm font-bold text-[#F5F5F7]">
+                          Recent Searches
+                        </h3>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {searchHistory.map((term, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] transition-all cursor-pointer text-xs text-[#A1A1AA]"
+                          >
+                            <span onClick={() => handlePopularClick(term)}>
+                              {term}
+                            </span>
+                            <X
+                              className="w-3.5 h-3.5 text-[#A1A1AA] hover:text-[#F5F5F7] p-0.5 hover:bg-white/10 rounded-full transition-all"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newHistory = searchHistory.filter(
+                                  (h) => h !== term,
+                                );
+                                localStorage.setItem(
+                                  "axis_search_history",
+                                  JSON.stringify(newHistory),
+                                );
+                                setSearchHistory(newHistory);
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {popularSearches.length > 0 && (
+                    <section className="bg-white/[0.04] border border-white/5 rounded-2xl p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4 text-[#FF3B30]" />
                           <h3 className="text-sm font-bold text-[#F5F5F7]">
-                            Recent Searches
+                            Popular Searches
                           </h3>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          {searchHistory.map((term, idx) => (
-                            <div
-                              key={idx}
-                              className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] transition-all cursor-pointer text-xs text-[#A1A1AA]"
-                            >
-                              <span onClick={() => handlePopularClick(term)}>
-                                {term}
-                              </span>
-                              <X
-                                className="w-3.5 h-3.5 text-[#A1A1AA] hover:text-[#F5F5F7] p-0.5 hover:bg-white/10 rounded-full transition-all"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const newHistory = searchHistory.filter(
-                                    (h) => h !== term,
-                                  );
-                                  localStorage.setItem(
-                                    "axis_search_history",
-                                    JSON.stringify(newHistory),
-                                  );
-                                  setSearchHistory(newHistory);
-                                }}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </section>
-                    )}
-
-                    {popularSearches.length > 0 && (
-                      <section className="bg-white/[0.04] border border-white/5 rounded-2xl p-5">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-2">
-                            <TrendingUp className="w-4 h-4 text-[#FF3B30]" />
-                            <h3 className="text-sm font-bold text-[#F5F5F7]">
-                              Popular Searches
-                            </h3>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {popularSearches.slice(0, 8).map((term, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] transition-all cursor-pointer text-xs font-medium text-[#A1A1AA] hover:text-[#F5F5F7]"
+                            onClick={() => handlePopularClick(term)}
+                          >
+                            <ArrowUpRight className="w-3.5 h-3.5 opacity-50" />
+                            <span>{term}</span>
                           </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {popularSearches.slice(0, 8).map((term, idx) => (
-                            <div
-                              key={idx}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] transition-all cursor-pointer text-xs font-medium text-[#A1A1AA] hover:text-[#F5F5F7]"
-                              onClick={() => handlePopularClick(term)}
-                            >
-                              <ArrowUpRight className="w-3.5 h-3.5 opacity-50" />
-                              <span>{term}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </section>
-                    )}
-                  </div>
-                )}
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </div>
 
                 {/* Recommended For You - Horizontal Carousel with Infinite Scroll */}
                 {filteredRecs.length > 0 && (
@@ -932,25 +873,14 @@ export default function Search() {
 
                 {/* Horizontal Category Carousels with Infinite Scroll */}
                 <div className="space-y-6">
-                  {preferences?.kidsMode ? (
-                    <>
-                      <BrowseGenreRow genreId="" genreName="Trending Hits" subjectType={0} />
-                      <BrowseGenreRow genreId="family" genreName="Kids & Family" subjectType={0} />
-                      <BrowseGenreRow genreId="comedy" genreName="Funny Cartoons" subjectType={0} />
-                      <BrowseGenreRow genreId="adventure" genreName="Fun Adventures" subjectType={0} />
-                    </>
-                  ) : (
-                    <>
-                      <BrowseGenreRow genreId="" genreName="Trending" subjectType={0} />
-                      <BrowseGenreRow genreId="sci-fi" genreName="Sci-Fi" subjectType={0} />
-                      <BrowseGenreRow genreId="action" genreName="Action" subjectType={0} />
-                      <BrowseGenreRow genreId="comedy" genreName="Comedy" subjectType={0} />
-                      <BrowseGenreRow genreId="drama" genreName="Drama" subjectType={0} />
-                      <BrowseGenreRow genreId="thriller" genreName="Thriller" subjectType={0} />
-                      <BrowseGenreRow genreId="documentary" genreName="Documentaries" subjectType={0} />
-                      <BrowseGenreRow genreId="family" genreName="Kids & Family" subjectType={0} />
-                    </>
-                  )}
+                  <BrowseGenreRow genreId="" genreName="Trending" subjectType={0} />
+                  <BrowseGenreRow genreId="sci-fi" genreName="Sci-Fi" subjectType={0} />
+                  <BrowseGenreRow genreId="action" genreName="Action" subjectType={0} />
+                  <BrowseGenreRow genreId="comedy" genreName="Comedy" subjectType={0} />
+                  <BrowseGenreRow genreId="drama" genreName="Drama" subjectType={0} />
+                  <BrowseGenreRow genreId="thriller" genreName="Thriller" subjectType={0} />
+                  <BrowseGenreRow genreId="documentary" genreName="Documentaries" subjectType={0} />
+                  <BrowseGenreRow genreId="family" genreName="Kids & Family" subjectType={0} />
                 </div>
               </div>
             ) : (

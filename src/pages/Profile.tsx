@@ -27,10 +27,6 @@ import {
   Mail,
   Trash2,
   Download,
-  Smile,
-  Gamepad2,
-  Sparkles,
-  RefreshCw,
 } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
@@ -41,27 +37,6 @@ import { slugify, MediaItem } from "../types";
 import Admin from "./Admin";
 import { MetaVerifiedBadge } from "../components/MetaVerifiedBadge";
 import { getAchievementsList } from "./Achievements";
-import KidsGameHub from "../components/KidsGameHub";
-
-const isItemKidSafe = (item: any) => {
-  if (!item) return false;
-  const title = (item.title || item.name || '').toLowerCase();
-  const category = (item.category || '').toLowerCase();
-  
-  const blockedKeywords = [
-    'horror', 'thriller', 'crime', 'murder', 'slasher', 'gore', 'sexy', 'erotic', 'adult', 'rated r', 'restricted', 'violence',
-    'zombie', 'demonic', 'evil', 'blood', 'scary', 'psycho', 'killer', 'drugs', 'mafia', 'gangster', 'sex', 'kill', 'devil',
-    'satan', 'demon', 'vampire', 'ghost', 'haunt', 'dead', 'death', 'sinister', 'nightmare', 'paranormal', 'insidious', 'scream',
-    'conjuring', 'purge', 'saw', 'annabelle', 'dracula', 'frankenstein', 'witch', 'occult', 'brutal', 'slay', 'suicide', 'lucifer'
-  ];
-  
-  for (const keyword of blockedKeywords) {
-    if (title.includes(keyword) || category.includes(keyword)) {
-      return false;
-    }
-  }
-  return true;
-};
 
 const AVATARS = [
   {
@@ -107,9 +82,6 @@ export default function Profile() {
     updateFeaturedCollection,
     playlists,
   } = useAuth();
-  const isKids = preferences?.kidsMode;
-  const filteredWatchlist = isKids ? (watchlist || []).filter(isItemKidSafe) : (watchlist || []);
-  const filteredHistory = isKids ? (history || []).filter(isItemKidSafe) : (history || []);
   const { showToast } = useToast();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -416,7 +388,7 @@ export default function Profile() {
                   <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
                     {user.username}
                   </h2>
-                  {user.email === "greatmayuku2@gmail.com" && (
+                  {isAdmin && (
                     <MetaVerifiedBadge className="w-6 h-6 drop-shadow-[0_0_8px_rgba(0,149,246,0.4)]" />
                   )}
                 </div>
@@ -462,9 +434,7 @@ export default function Profile() {
           </div>
         </motion.div>
 
-        {isKids && (
-          <KidsGameHub />
-        )}
+
 
         {/* QUICK ACCESS GRID */}
         <div className="bg-white/[0.03] backdrop-blur-[30px] border border-white/10 rounded-3xl p-6">
@@ -639,16 +609,16 @@ export default function Profile() {
         <div className="bg-white/[0.03] backdrop-blur-[30px] border border-white/10 rounded-3xl p-5 sm:p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-sm font-semibold tracking-wide flex items-center gap-2 text-white">
-              <Bookmark className="w-5 h-5 text-brand" /> {isKids ? "My Kids Watchlist" : "My Watchlist"} ({filteredWatchlist?.length || 0})
+              <Bookmark className="w-5 h-5 text-brand" /> My Watchlist ({watchlist?.length || 0})
             </h3>
             <button onClick={() => navigate('/playlist')} className="text-xs font-semibold text-brand tracking-wide hover:underline">
               View All &gt;
             </button>
           </div>
 
-          {filteredWatchlist && filteredWatchlist.length > 0 ? (
+          {watchlist && watchlist.length > 0 ? (
             <div className="flex overflow-x-auto gap-4 pb-4 scrollbar-hide snap-x">
-              {filteredWatchlist.map((item, index) => (
+              {watchlist.map((item, index) => (
                 <motion.div
                   key={`${item.id}-${index}`}
                   whileHover={{ y: -5 }}
@@ -730,7 +700,7 @@ export default function Profile() {
         <div className="bg-white/[0.03] backdrop-blur-[30px] border border-white/10 rounded-3xl p-5 sm:p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-sm font-semibold tracking-wide flex items-center gap-2 text-white">
-              <Clock className="w-5 h-5 text-brand" /> {isKids ? "My Cartoon Watch History" : "Watch History"}
+              <Clock className="w-5 h-5 text-brand" /> Watch History
             </h3>
             <button
               onClick={clearHistory}
@@ -740,9 +710,9 @@ export default function Profile() {
             </button>
           </div>
 
-          {filteredHistory?.length > 0 ? (
+          {history?.length > 0 ? (
             <div className="space-y-3">
-              {filteredHistory.slice(0, 4).map((item, index) => (
+              {history.slice(0, 4).map((item, index) => (
                 <motion.div
                   key={`${item.id}-${index}`}
                   whileHover={{ x: 5 }}
@@ -839,29 +809,27 @@ export default function Profile() {
         </div>
 
         {/* SUPPORT & HELP SECTION */}
-        {!isKids && (
-          <div className="bg-white/[0.03] backdrop-blur-[30px] border border-white/10 rounded-3xl p-5 sm:p-6 flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
-            <div className="w-16 h-16 shrink-0 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
-              <Shield className="w-8 h-8 text-gray-400" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-sm font-bold tracking-wide text-white mb-1">
-                Support & Bug Report
-              </h3>
-              <p className="text-xs text-gray-400 leading-relaxed max-w-md">
-                Spotted a glitch? Need help with your account? Our tech team is on
-                standby 24/7. Send us a message and we'll reply to your notification
-                board.
-              </p>
-            </div>
-            <button
-              onClick={() => setIsSupportOpen(true)}
-              className="px-5 py-2.5 bg-brand/10 hover:bg-brand/20 text-brand border border-brand/30 rounded-xl text-xs font-bold tracking-wide transition-all shrink-0"
-            >
-              Open Ticket
-            </button>
+        <div className="bg-white/[0.03] backdrop-blur-[30px] border border-white/10 rounded-3xl p-5 sm:p-6 flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+          <div className="w-16 h-16 shrink-0 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
+            <Shield className="w-8 h-8 text-gray-400" />
           </div>
-        )}
+          <div className="flex-1">
+            <h3 className="text-sm font-bold tracking-wide text-white mb-1">
+              Support & Bug Report
+            </h3>
+            <p className="text-xs text-gray-400 leading-relaxed max-w-md">
+              Spotted a glitch? Need help with your account? Our tech team is on
+              standby 24/7. Send us a message and we'll reply to your notification
+              board.
+            </p>
+          </div>
+          <button
+            onClick={() => setIsSupportOpen(true)}
+            className="px-5 py-2.5 bg-brand/10 hover:bg-brand/20 text-brand border border-brand/30 rounded-xl text-xs font-bold tracking-wide transition-all shrink-0"
+          >
+            Open Ticket
+          </button>
+        </div>
       </div>
 
       <AnimatePresence>

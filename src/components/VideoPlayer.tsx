@@ -833,11 +833,6 @@ export default function VideoPlayer({
  });
  } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
  video.src = source.url;
- video.onloadedmetadata = () => {
- if (currentTimeToRestore > 0)
- video.currentTime = currentTimeToRestore;
- if (isPlaying) video.play().catch(() => {});
- };
  }
  } else {
  video.src = source.url;

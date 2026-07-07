@@ -4,29 +4,7 @@ import { movieService } from "../services/movieService";
 import { MovieImage } from "./MovieImage";
 import { Star, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useMediaPreview } from "../contexts/MediaPreviewContext";
-import { useAuth } from "../contexts/AuthContext";
 import { motion } from "motion/react";
-
-const isItemKidSafe = (item: MediaItem) => {
-  if (!item) return false;
-  const title = (item.title || (item as any).name || '').toLowerCase();
-  const category = (item.category || '').toLowerCase();
-  
-  // Non-kid keywords to filter out of kids feed
-  const blockedKeywords = [
-    'horror', 'thriller', 'crime', 'murder', 'slasher', 'gore', 'sexy', 'erotic', 'adult', 'rated r', 'restricted', 'violence',
-    'zombie', 'demonic', 'evil', 'blood', 'scary', 'psycho', 'killer', 'drugs', 'mafia', 'gangster', 'sex', 'kill', 'devil',
-    'satan', 'demon', 'vampire', 'ghost', 'haunt', 'dead', 'death', 'sinister', 'nightmare', 'paranormal', 'insidious', 'scream',
-    'conjuring', 'purge', 'saw', 'annabelle', 'dracula', 'frankenstein', 'witch', 'occult', 'brutal', 'slay', 'suicide', 'lucifer'
-  ];
-  
-  for (const keyword of blockedKeywords) {
-    if (title.includes(keyword) || category.includes(keyword)) {
-      return false;
-    }
-  }
-  return true;
-};
 
 interface BrowseGenreRowProps {
   genreId: string;
@@ -36,7 +14,6 @@ interface BrowseGenreRowProps {
 
 export default function BrowseGenreRow({ genreId, genreName, subjectType }: BrowseGenreRowProps) {
   const { openPreview } = useMediaPreview();
-  const { preferences } = useAuth();
   const [items, setItems] = useState<MediaItem[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -139,9 +116,7 @@ export default function BrowseGenreRow({ genreId, genreName, subjectType }: Brow
     });
   };
 
-  const displayedItems = preferences?.kidsMode ? items.filter(isItemKidSafe) : items;
-
-  if (!loading && displayedItems.length === 0) return null;
+  if (!loading && items.length === 0) return null;
 
   return (
     <div className="relative group/row mb-10 md:mb-14">
@@ -181,7 +156,7 @@ export default function BrowseGenreRow({ genreId, genreName, subjectType }: Brow
             ))
           ) : (
             <>
-              {displayedItems.map((item, index) => (
+              {items.map((item, index) => (
                 <div
                   key={`${item.id}-${index}`}
                   className="flex-none w-[34vw] sm:w-[150px] md:w-[180px] lg:w-[200px] snap-start"

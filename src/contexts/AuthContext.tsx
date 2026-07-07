@@ -71,7 +71,6 @@ export interface UserPreferences {
   subtitleSettings: SubtitlePreferences;
   theme?: string;
   accentColor?: string;
-  kidsMode?: boolean;
 }
 
 export interface ContinueWatchingItem extends MediaItem {
@@ -172,7 +171,6 @@ export const defaultPreferences: UserPreferences = {
   skipIntro: false,
   playbackSpeed: 1,
   dataSaver: false,
-  kidsMode: false,
   subtitleSettings: {
     fontSize: 14,
     color: '#ffffff',
@@ -277,21 +275,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
           setUser(newUser);
           setIsBanned(data.isBanned || false);
-          localStorage.setItem('axis_user', JSON.stringify(newUser));
-        } else {
-          const isOwner = (firebaseUser.email || '').toLowerCase() === 'greatmayuku2@gmail.com';
-          const newUser = {
-            id: firebaseUser.uid,
-            username: isOwner ? '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' : (firebaseUser.displayName || 'User'),
-            name: isOwner ? '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' : (firebaseUser.displayName || 'User'),
-            email: firebaseUser.email || '',
-            avatar: firebaseUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.uid}`,
-            bio: '',
-            role: 'user' as const,
-            joinedAt: firebaseUser.metadata.creationTime || new Date().toISOString()
-          };
-          setUser(newUser);
-          setIsBanned(false);
           localStorage.setItem('axis_user', JSON.stringify(newUser));
         }
       }, (error) => {
@@ -555,10 +538,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, firebaseUser]);
 
   const updatePreferences = useCallback((prefs: Partial<UserPreferences>) => {
+    if (!user) return;
     setPreferences(prev => {
       const updated = { ...prev, ...prefs };
-      const key = user ? `axis_prefs_${user.id}` : `axis_prefs_guest`;
-      localStorage.setItem(key, JSON.stringify(updated));
+      localStorage.setItem(`axis_prefs_${user.id}`, JSON.stringify(updated));
       return updated;
     });
   }, [user]);
@@ -782,12 +765,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (storedFollowing) setFollowing(JSON.parse(storedFollowing));
     } else {
       setFeaturedCollection([]);
-      const storedPrefs = localStorage.getItem('axis_prefs_guest');
-      if (storedPrefs) {
-        setPreferences(JSON.parse(storedPrefs));
-      } else {
-        setPreferences(defaultPreferences);
-      }
+      setPreferences(defaultPreferences);
       setStats(initialStats);
       setPlaylists([]);
       setFollowing([]);

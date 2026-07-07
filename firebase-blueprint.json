@@ -174,39 +174,6 @@
         "createdAt": { "type": "number" }
       },
       "required": ["uid", "displayName", "text", "createdAt"]
-    },
-    "SportsPoll": {
-      "title": "SportsPoll",
-      "description": "Poll results for a sports match",
-      "type": "object",
-      "properties": {
-        "home": { "type": "number" },
-        "draw": { "type": "number" },
-        "away": { "type": "number" }
-      },
-      "required": ["home", "draw", "away"]
-    },
-    "SportsChatMessage": {
-      "title": "SportsChatMessage",
-      "description": "Live chat message for a sports match",
-      "type": "object",
-      "properties": {
-        "text": { "type": "string" },
-        "uid": { "type": "string" },
-        "displayName": { "type": "string" },
-        "photoURL": { "type": "string" },
-        "timestamp": { "type": "string", "format": "date-time" }
-      },
-      "required": ["text", "uid", "displayName", "timestamp"]
-    },
-    "SportsViewerSession": {
-      "title": "SportsViewerSession",
-      "description": "Active live stream viewer session",
-      "type": "object",
-      "properties": {
-        "joinedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["joinedAt"]
     }
   },
   "firestore": {
@@ -265,18 +232,6 @@
     "reports/{reportId}": {
       "schema": "Report",
       "description": "User reports"
-    },
-    "sports_polls/{matchId}": {
-      "schema": "SportsPoll",
-      "description": "Match winner voting poll results"
-    },
-    "sports_chat/{matchId}/messages/{messageId}": {
-      "schema": "SportsChatMessage",
-      "description": "Live match specific chat messages"
-    },
-    "sports_viewers/{matchId}/active/{userId}": {
-      "schema": "SportsViewerSession",
-      "description": "Active viewer presence for a live sports match"
     }
   }
 }

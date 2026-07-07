@@ -33,27 +33,6 @@ let cachedDiscoverItems: MediaItem[] = [];
 let cachedDiscoverPage = 1;
 let cachedHasMore = true;
 
-const isItemKidSafe = (item: MediaItem) => {
-  if (!item) return false;
-  const title = (item.title || (item as any).name || '').toLowerCase();
-  const category = (item.category || '').toLowerCase();
-  
-  // Non-kid keywords to filter out of kids feed
-  const blockedKeywords = [
-    'horror', 'thriller', 'crime', 'murder', 'slasher', 'gore', 'sexy', 'erotic', 'adult', 'rated r', 'restricted', 'violence',
-    'zombie', 'demonic', 'evil', 'blood', 'scary', 'psycho', 'killer', 'drugs', 'mafia', 'gangster', 'sex', 'kill', 'devil',
-    'satan', 'demon', 'vampire', 'ghost', 'haunt', 'dead', 'death', 'sinister', 'nightmare', 'paranormal', 'insidious', 'scream',
-    'conjuring', 'purge', 'saw', 'annabelle', 'dracula', 'frankenstein', 'witch', 'occult', 'brutal', 'slay', 'suicide', 'lucifer'
-  ];
-  
-  for (const keyword of blockedKeywords) {
-    if (title.includes(keyword) || category.includes(keyword)) {
-      return false;
-    }
-  }
-  return true;
-};
-
 export default function Home() {
   const [homepageData, setHomepageData] = useState<HomepageData | null>(cachedHomepageData);
   const [trending, setTrending] = useState<MediaItem[]>(cachedTrending);
@@ -65,7 +44,7 @@ export default function Home() {
   const [popularSearches, setPopularSearches] = useState<string[]>(cachedPopularSearches);
   const [loading, setLoading] = useState(!cachedHomepageData);
   const [error, setError] = useState<string | null>(null);
-  const { user, history, continueWatching, watchlist, preferences } = useAuth();
+  const { user, history, continueWatching, watchlist } = useAuth();
 
   // Infinite scroll for "Discover More"
   const [discoverItems, setDiscoverItems] = useState<MediaItem[]>(cachedDiscoverItems);
@@ -259,9 +238,7 @@ export default function Home() {
 
  // Load 3 completely random, rotating discovery genre categories per session
  try {
- const RANDOM_GENRES = preferences?.kidsMode
-    ? ["Animation", "Comedy", "Adventure", "Fantasy"]
-    : ["Action", "Adventure", "Animation", "Comedy", "Crime", "Drama", "Fantasy", "Horror", "Sci-Fi", "Thriller", "Romance", "Mystery"];
+ const RANDOM_GENRES = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Drama", "Fantasy", "Horror", "Sci-Fi", "Thriller", "Romance", "Mystery"];
  const selectedGenres = [...RANDOM_GENRES].sort(() => 0.5 - Math.random()).slice(0, 3);
  
  const genrePromises = selectedGenres.map(async (genre) => {
@@ -311,25 +288,9 @@ export default function Home() {
  }
  };
 
-  useEffect(() => {
-    // Reset global module caching when Kids Mode state changes to prevent cross-contamination
-    cachedHomepageData = null;
-    cachedTrending = [];
-    cachedRanking = [];
-    cachedHotMovies = [];
-    cachedHotSeries = [];
-    cachedDiscoverItems = [];
-    cachedDynamicSections = [];
-    
-    setHomepageData(null);
-    setTrending([]);
-    setRanking([]);
-    setHotMovies([]);
-    setHotSeries([]);
-    setDiscoverItems([]);
-    setDynamicSections([]);
-    loadData();
-  }, [preferences?.kidsMode]);
+ useEffect(() => {
+ loadData();
+ }, []);
 
  useEffect(() => {
  if (page === 1 || !hasMore) return;
@@ -426,66 +387,33 @@ export default function Home() {
  // Build list of active homepage elements dynamically to support clean separators
  const activeSections: React.ReactNode[] = [];
 
- const isKids = preferences?.kidsMode;
-
- const filteredCarouselItems = isKids ? carouselItems.filter(isItemKidSafe) : carouselItems;
- const filteredWatchlist = isKids ? watchlist.filter(isItemKidSafe) : watchlist;
- const filteredContinueWatching = isKids ? continueWatching.filter(isItemKidSafe) : continueWatching;
- const filteredRanking = isKids ? ranking.filter(isItemKidSafe) : ranking;
- const filteredTrending = isKids ? trending.filter(isItemKidSafe) : trending;
- const filteredRecommendations = isKids ? recommendations.filter(isItemKidSafe) : recommendations;
- const filteredHotSeries = isKids ? hotSeries.filter(isItemKidSafe) : hotSeries;
- const filteredDiscoverItems = isKids ? discoverItems.filter(isItemKidSafe) : discoverItems;
-
- const filteredHomepageData = homepageData && isKids
-   ? {
-       ...homepageData,
-       topPickList: homepageData.topPickList ? homepageData.topPickList.filter(isItemKidSafe) : [],
-       latestMovies: homepageData.latestMovies ? homepageData.latestMovies.filter(isItemKidSafe) : [],
-       latestSeries: homepageData.latestSeries ? homepageData.latestSeries.filter(isItemKidSafe) : [],
-       operatingList: homepageData.operatingList
-         ? homepageData.operatingList.map((section: any) => ({
-             ...section,
-             subjects: (section.subjects || []).filter(isItemKidSafe)
-           })).filter((section: any) => section.subjects && section.subjects.length > 0)
-         : []
-     }
-   : homepageData;
-
- const filteredDynamicSections = isKids 
-   ? dynamicSections.map(sec => ({
-       ...sec,
-       items: sec.items.filter(isItemKidSafe)
-     })).filter(sec => sec.items.length > 0)
-   : dynamicSections;
-
- if (user && filteredWatchlist.length > 0) {
+ if (user && watchlist.length > 0) {
    activeSections.push(
-     <PosterGrid key="watchlist" title="My Watchlist" items={filteredWatchlist} viewAllLink="/profile" />
+     <PosterGrid key="watchlist" title="My Watchlist" items={watchlist} viewAllLink="/profile" />
    );
  }
 
  if (user && continueWatching.length > 0) {
    activeSections.push(
-     <ContinueWatchingGrid key="continue-watching" title="Continue Watching" items={filteredContinueWatching} />
+     <ContinueWatchingGrid key="continue-watching" title="Continue Watching" items={continueWatching} />
    );
  }
 
  if (ranking.length > 0) {
    activeSections.push(
-     <TopTenGrid key="top10" title="Top 10 on Axis TV" items={filteredRanking.slice(0, 10)} />
+     <TopTenGrid key="top10" title="Top 10 on Axis TV" items={ranking.slice(0, 10)} />
    );
  }
 
  if (trending.length > 6) {
    activeSections.push(
-     <PosterGrid key="trending" title="Trending Now" items={filteredTrending.slice(6)} />
+     <PosterGrid key="trending" title="Trending Now" items={trending.slice(6)} />
    );
  }
 
  if (recommendations.length > 0) {
    activeSections.push(
-     <PosterGrid key="recommendations" title="Because You Watched" items={filteredRecommendations} />
+     <PosterGrid key="recommendations" title="Because You Watched" items={recommendations} />
    );
  }
 
@@ -517,17 +445,17 @@ export default function Home() {
 
  if (homepageData?.latestSeries && homepageData.latestSeries.length > 0) {
    activeSections.push(
-     <PosterGrid key="latest" title="Latest Featured" items={filteredHomepageData?.latestSeries} viewAllLink="/browse?type=2" />
+     <PosterGrid key="latest" title="Latest Featured" items={homepageData.latestSeries} viewAllLink="/browse?type=2" />
    );
  }
 
  if (hotSeries.length > 0) {
    activeSections.push(
-     <PosterGrid key="hot" title="Hot Picks" items={filteredHotSeries} viewAllLink="/series" />
+     <PosterGrid key="hot" title="Hot Picks" items={hotSeries} viewAllLink="/series" />
    );
  }
 
- filteredDynamicSections.forEach((section, idx) => {
+ dynamicSections.forEach((section, idx) => {
    activeSections.push(
      <PosterGrid 
        key={`dyn-${section.title}-${idx}`}
@@ -538,7 +466,7 @@ export default function Home() {
    );
  });
 
- filteredHomepageData?.operatingList?.forEach((section: any, idx: number) => {
+ homepageData?.operatingList?.forEach((section: any, idx: number) => {
    activeSections.push(
      <PosterGrid 
        key={`op-${section.name || section.title}-${idx}`}
@@ -551,7 +479,7 @@ export default function Home() {
  // Discover More Section with Infinite Scroll as the final element
  activeSections.push(
    <div key="discover" className="space-y-6">
-     <PosterGrid title="Discover More" items={filteredDiscoverItems} variant="grid" />
+     <PosterGrid title="Discover More" items={discoverItems} variant="grid" />
      
      {hasMore && (
        <div ref={lastElementRef} className="flex justify-center py-6">
@@ -572,7 +500,7 @@ export default function Home() {
 
  <Navbar />
  
- <Carousel items={filteredCarouselItems} />
+ <Carousel items={carouselItems} />
  
  <div className="relative z-10 -mt-fluid md:-mt-24 space-y-4 md:space-y-6 pb-10 md:pb-24">
    {activeSections.map((section, idx) => (

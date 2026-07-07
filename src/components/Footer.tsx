@@ -109,7 +109,7 @@ function Footer() {
                   </Link>
                 </li>
                 <li>
-                  <Link to="/sports" className="text-sm text-white/50 hover:text-brand transition-colors duration-300 flex items-center gap-2 group">
+                  <Link to="/ranking" className="text-sm text-white/50 hover:text-brand transition-colors duration-300 flex items-center gap-2 group">
                     <Trophy className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all" />
                     <span className="font-medium">Global Rankings</span>
                   </Link>

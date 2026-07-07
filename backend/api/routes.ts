@@ -35,8 +35,7 @@ backendRouter.get("/matches/live", async (req, res) => {
       res.status(503).json({ error: "No working domains available" });
       return;
     }
-    const sport = (req.query.sport as string) || "football";
-    const matches = await MatchScraper.scrapeLiveMatches(domainInfo.domain, sport);
+    const matches = await MatchScraper.scrapeLiveMatches(domainInfo.domain);
     const liveMatches = matches.filter(m => m.status === "LIVE");
     res.json({ total: liveMatches.length, matches: liveMatches });
   } catch (err: any) {
@@ -52,25 +51,9 @@ backendRouter.get("/matches/upcoming", async (req, res) => {
       res.status(503).json({ error: "No working domains available" });
       return;
     }
-    const sport = (req.query.sport as string) || "football";
-    const matches = await MatchScraper.scrapeLiveMatches(domainInfo.domain, sport);
+    const matches = await MatchScraper.scrapeLiveMatches(domainInfo.domain);
     const upcomingMatches = matches.filter(m => m.status === "UPCOMING");
     res.json({ total: upcomingMatches.length, matches: upcomingMatches });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /stream/rank
-backendRouter.post("/stream/rank", async (req, res) => {
-  const { streams } = req.body;
-  if (!streams || !Array.isArray(streams)) {
-    res.status(400).json({ error: "Missing or invalid streams array" });
-    return;
-  }
-  try {
-    const ranked = await StreamValidator.rankStreams(streams);
-    res.json({ streams: ranked });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -105,7 +88,7 @@ backendRouter.get("/proxy/playlist.m3u8", async (req, res) => {
       timeout: 10000
     });
 
-    if (response.status < 200 || response.status >= 300) {
+    if (response.status !== 200) {
       res.status(response.status).send(`Upstream returned ${response.status}`);
       return;
     }

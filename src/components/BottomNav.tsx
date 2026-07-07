@@ -25,7 +25,7 @@ export default function BottomNav() {
     { path: "/", icon: Home, label: "Home" },
     { path: "/search", icon: Search, label: "Explore" },
     { path: "/trails", icon: Compass, label: "Trails" },
-    { path: "/sports", icon: Trophy, label: "Sports" },
+    { path: "/ranking", icon: Trophy, label: "Ranking" },
     { path: "/live", icon: Radio, label: "Live TV" },
     { path: "/profile", label: "Profile", isProfile: true },
   ];

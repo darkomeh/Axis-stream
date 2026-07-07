@@ -50,7 +50,7 @@ const ActorPage = lazyWithRetry(() => import("./pages/Actor"));
 const Toons = lazyWithRetry(() => import("./pages/Toons"));
 const Profile = lazyWithRetry(() => import("./pages/Profile"));
 const Playlist = lazyWithRetry(() => import("./pages/Playlist"));
-const Sports = lazyWithRetry(() => import("./pages/Sports"));
+const Ranking = lazyWithRetry(() => import("./pages/Ranking"));
 const Legal = lazyWithRetry(() => import("./pages/Legal"));
 const Admin = lazyWithRetry(() => import("./pages/Admin"));
 const Trails = lazyWithRetry(() => import("./pages/Trails"));
@@ -149,7 +149,7 @@ function AppContent() {
   }, [siteConfig, preferences.theme, preferences.accentColor]);
 
   // Routes where BottomNav should be visible
-  const showNavRoutes = ["/", "/search", "/browse", "/anime", "/toons", "/playlist", "/profile", "/sports", "/live", "/sports", "/series", "/movies"];
+  const showNavRoutes = ["/", "/search", "/browse", "/anime", "/toons", "/playlist", "/profile", "/ranking", "/live", "/sports", "/series", "/movies"];
   const shouldShowNav = showNavRoutes.includes(location.pathname) && !location.pathname.startsWith("/trails") && !location.pathname.startsWith("/live/");
 
   return (
@@ -191,7 +191,7 @@ function AppContent() {
             <Route path="/profile" element={<PageWrapper><Profile /></PageWrapper>} />
             <Route path="/settings" element={<PageWrapper><Settings /></PageWrapper>} />
             <Route path="/achievements" element={<PageWrapper><Achievements /></PageWrapper>} />
-            <Route path="/sports" element={<PageWrapper><Sports /></PageWrapper>} />
+            <Route path="/ranking" element={<PageWrapper><Ranking /></PageWrapper>} />
             <Route path="/trails" element={<PageWrapper><Trails /></PageWrapper>} />
             <Route path="/trails/:movieSlug" element={<PageWrapper><Trails /></PageWrapper>} />
             <Route path="/sports" element={<PageWrapper><Browse /></PageWrapper>} />

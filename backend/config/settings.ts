@@ -29,8 +29,8 @@ export const config = {
   STREAM_HEADERS: {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     "Accept": "*/*",
-    "Referer": "https://sportslivetoday.com/",
-    "Origin": "https://sportslivetoday.com",
+    "Referer": "https://thesports.today/",
+    "Origin": "https://thesports.today",
     "Connection": "keep-alive",
   }
 };

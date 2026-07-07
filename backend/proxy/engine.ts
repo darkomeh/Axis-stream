@@ -62,10 +62,7 @@ export function rewritePlaylistForProxy(playlistContent: string, targetM3u8Url: 
       originalUrl = new URL(originalUrl, baseUrl).toString();
     }
     
-    const isPlaylist = originalUrl.includes(".m3u8") || originalUrl.includes("/playlist");
-    const proxyUrl = isPlaylist
-      ? `/api/proxy/playlist.m3u8?url=${encodeURIComponent(originalUrl)}`
-      : `/api/proxy/segment?url=${encodeURIComponent(originalUrl)}`;
+    const proxyUrl = `${reqBaseUrl}${config.PROXY_SEGMENT_PREFIX}?url=${encodeURIComponent(originalUrl)}`;
     rewritten.push(proxyUrl);
   }
   
@@ -88,7 +85,7 @@ export async function fetchSegmentStreaming(url: string, res: Response): Promise
         timeout: 15000
       });
 
-      if (response.status >= 200 && response.status < 300) {
+      if (response.status === 200) {
         res.setHeader("Content-Type", "video/MP2T");
         res.setHeader("Cache-Control", "no-cache");
         res.setHeader("Connection", "keep-alive");

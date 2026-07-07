@@ -10,81 +10,81 @@ export class StreamValidator {
     }
 
     try {
-      const startTime = Date.now();
-      
-      const resp = await axios.head(m3u8Url, {
+      // Step 1: Fetch m3u8
+      const resp = await axios.get(m3u8Url, {
         headers: config.STREAM_HEADERS,
-        timeout: 8000,
-        maxRedirects: 5,
-        validateStatus: () => true // resolve on any status
+        timeout: 10000,
+        maxRedirects: 5
       });
-      
-      const latency = Date.now() - startTime;
-      
-      const result: StreamValidationResult = {
-        status: "UNKNOWN",
-        url: m3u8Url,
-        latency: latency
-      };
 
-      if (resp.status === 200 || resp.status === 206) {
-        const ct = (resp.headers['content-type'] || "").toLowerCase();
-        const cl = parseInt(resp.headers['content-length'] || "0", 10);
-        
-        if (ct.includes("mpegurl") || ct.includes("m3u8")) {
-            result.quality = "HLS";
-            result.status = "ONLINE";
-        } else if (ct.includes("video") || ct.includes("mp2t") || ct.includes("mpeg")) {
-            result.quality = "HD";
-            result.status = "ONLINE";
-        } else if (cl > 1000) {
-            result.quality = "SD";
-            result.status = "ONLINE";
-        } else {
-            result.quality = "?";
-            result.status = "ONLINE";
-        }
-        
-        result.speed = Math.round((1.0 / Math.max(latency / 1000, 0.001)) * 10) / 10;
-        
-      } else if (resp.status === 403) {
-        result.status = "BLOCKED";
-        result.reason = "403 Forbidden - signature expired or blocked";
-      } else {
-        result.status = "OFFLINE";
-        result.reason = `HTTP ${resp.status}`;
+      if (resp.status === 403) {
+        return { status: "UNKNOWN", reason: "403 Forbidden - signature expired" };
       }
-      
-      return result;
-
-    } catch (e: any) {
-      if (e.code === 'ECONNABORTED' || e.message?.includes('timeout')) {
-        return { status: "TIMEOUT", reason: "Timeout during validation" };
+      if (resp.status !== 200) {
+        return { status: "OFFLINE", reason: `HTTP ${resp.status}` };
       }
-      return { status: "ERROR", reason: `UNKNOWN ERROR: ${e.message?.substring(0, 100)}` };
-    }
-  }
 
-  static async rankStreams(streams: any[]) {
-      const results = await Promise.all(streams.map(async (stream) => {
-          const res = await this.validateStream(stream.url);
+      const contentType = (resp.headers['content-type'] || "").toLowerCase();
+      if (!contentType.includes("mpegurl") && !contentType.includes("m3u8") && !contentType.includes("text")) {
+        return { status: "UNKNOWN", reason: `Unexpected Content-Type: ${contentType}` };
+      }
+
+      const content: string = typeof resp.data === 'string' ? resp.data : JSON.stringify(resp.data);
+
+      // Step 2: Parse segments
+      const segments = content
+        .split("\n")
+        .map(line => line.trim())
+        .filter(line => line && !line.startsWith("#"));
+
+      if (segments.length === 0) {
+        return { status: "UNKNOWN", reason: "No segments found in playlist" };
+      }
+
+      // Step 3: Resolve segment URL
+      const firstSegment = segments[0];
+      let segmentUrl = firstSegment;
+      if (!firstSegment.startsWith("http")) {
+        const base = m3u8Url.substring(0, m3u8Url.lastIndexOf("/") + 1);
+        segmentUrl = new URL(firstSegment, base).toString();
+      }
+
+      // Step 4: Send Range request
+      const segResp = await axios.get(segmentUrl, {
+        headers: { ...config.STREAM_HEADERS, "Range": "bytes=0-1024" },
+        timeout: 10000,
+        validateStatus: () => true, // resolve on any status
+        responseType: 'arraybuffer'
+      });
+
+      const segContentType = (segResp.headers['content-type'] || "").toLowerCase();
+      const validTypes = ["video", "mp2t", "mpeg", "octet"];
+      const isValidType = validTypes.some(v => segContentType.includes(v));
+
+      // Step 5: Determine status
+      if (segResp.status === 206) {
+        if (isValidType) {
           return {
-              ...stream,
-              status: res.status,
-              latency: res.latency,
-              speed: res.speed,
-              quality: res.quality !== "?" ? res.quality : stream.quality
+            status: "LIVE",
+            segment_url: segmentUrl,
+            content_type: segContentType,
+            segment_size: segResp.headers['content-length'],
           };
-      }));
-
-      // Sort by status (ONLINE first) then by speed
-      results.sort((a, b) => {
-          const aOnline = a.status === "ONLINE" ? 1 : 0;
-          const bOnline = b.status === "ONLINE" ? 1 : 0;
-          if (aOnline !== bOnline) return bOnline - aOnline;
-          return (b.speed || 0) - (a.speed || 0);
-      });
-
-      return results;
+        }
+        return { status: "LIVE", note: `206 but type=${segContentType}` };
+      } else if (segResp.status === 200) {
+        if (isValidType) {
+          return { status: "LIVE", segment_url: segmentUrl, content_type: segContentType };
+        }
+        return { status: "UNKNOWN", reason: `200 OK but type=${segContentType}` };
+      } else {
+        return { status: "OFFLINE", reason: `Segment HTTP ${segResp.status}` };
+      }
+    } catch (e: any) {
+      if (e.code === 'ECONNABORTED') {
+        return { status: "UNKNOWN", reason: "Timeout during validation" };
+      }
+      return { status: "UNKNOWN", reason: `UNKNOWN ERROR: ${e.message?.substring(0, 100)}` };
+    }
   }
 }

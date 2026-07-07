@@ -8,15 +8,15 @@
     "bio": "Your lovely ×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永",
     "role": "admin",
     "watchlistCount": 0,
-    "historyCount": 7,
+    "historyCount": 5,
     "stats": {
       "watchTimeMinutes": 125,
-      "totalViews": 35,
+      "totalViews": 33,
       "lastWatchDate": "2026-07-04",
       "currentStreak": 6,
       "genreProgress": {
         "Action": 6,
-        "Series": 28,
+        "Series": 26,
         "Mystery": 1
       },
       "weekendCount": 0,
@@ -40,12 +40,12 @@
       },
       "accentColor": "Red",
       "theme": "Dark",
-      "kidsMode": false
+      "kidsMode": true
     },
-    "lastAction": "2026-07-05T12:12:47.629Z",
+    "lastAction": "2026-07-04T14:32:12.497Z",
     "lastActionType": null,
     "createdAt": "2026-06-04T20:26:08.846Z",
-    "updatedAt": "2026-07-05T12:12:49.793Z",
+    "updatedAt": "2026-07-04T14:32:13.729Z",
     "joinedAt": "Sat, 25 Apr 2026 17:38:28 GMT"
   }
 ]

@@ -868,8 +868,7 @@ app.get("/api/proxy", async (req, res) => {
     const response = await fetch(videoUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Referer": "https://sportslivetoday.com/",
-        "Origin": "https://sportslivetoday.com",
+        "Referer": "https://movieapi.xcasper.space/",
         "Accept": "*/*",
         "Connection": "keep-alive",
         ...(range && { "Range": range }),
@@ -877,38 +876,11 @@ app.get("/api/proxy", async (req, res) => {
     });
 
     if (!response.ok && response.status !== 206) {
+        // Log error but try to return what we have
         console.warn(`[Proxy] Upstream returned status ${response.status} for ${videoUrl}`);
     }
 
-    const contentType = response.headers.get('content-type') || '';
-    const isM3u8 = videoUrl.includes('.m3u8') || contentType.includes('mpegurl') || contentType.includes('m3u8');
-
-    res.setHeader('Access-Control-Allow-Origin', '*');
-
-    if (isM3u8 && response.ok) {
-      const text = await response.text();
-      const baseUrl = new URL(videoUrl);
-      
-      const rewritten = text.split('\n').map(line => {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith('#')) return line;
-        
-        let absoluteUrl = trimmed;
-        if (!trimmed.startsWith('http')) {
-           try {
-             absoluteUrl = new URL(trimmed, baseUrl).toString();
-           } catch (e) {
-             absoluteUrl = baseUrl.toString().substring(0, baseUrl.toString().lastIndexOf('/') + 1) + trimmed;
-           }
-        }
-        return `/api/proxy?url=${encodeURIComponent(absoluteUrl)}`;
-      }).join('\n');
-
-      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-      res.status(response.status).send(rewritten);
-      return;
-    }
-
+    // Forward crucial headers
     const headersToForward = [
       'content-type',
       'content-length',
@@ -918,15 +890,18 @@ app.get("/api/proxy", async (req, res) => {
       'last-modified',
       'etag'
     ];
+
     headersToForward.forEach(h => {
       const val = response.headers.get(h);
       if (val) res.setHeader(h, val);
     });
     
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.status(response.status);
 
     if (!response.body) throw new Error("No response body");
 
+    // Optimized streaming
     const { Readable } = await import("stream");
     const reader = Readable.fromWeb(response.body as any);
     
@@ -939,9 +914,7 @@ app.get("/api/proxy", async (req, res) => {
 
   } catch (error: any) {
     console.error("[Proxy] Error:", error.message);
-    if (!res.headersSent) {
-      res.status(500).send(error.message);
-    }
+    res.status(500).send(error.message);
   }
 });
 

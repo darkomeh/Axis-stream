@@ -5,7 +5,7 @@ import { Actor, MediaItem } from "../types";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import PosterGrid from "../components/PosterGrid";
-import { ActorSkeleton } from "../components/Skeleton";
+import PopcornLoader from "../components/PopcornLoader";
 import { ChevronRight, User, Film, Star, Share2, ArrowLeft } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -89,7 +89,18 @@ export default function ActorPage() {
  }, [page, id]);
 
  if (loading) {
-   return <ActorSkeleton />;
+ return (
+ <div className="min-h-screen bg-transparent flex flex-col items-center justify-center text-white">
+ <button 
+ onClick={handleBack}
+ className="absolute top-8 left-6 p-2 hover:bg-white/10 rounded-full transition-colors flex items-center gap-2 text-gray-400 hover:text-white z-50"
+ >
+ <ArrowLeft className="w-6 h-6" />
+ <span className="text-fluid-sm font-medium">Back</span>
+ </button>
+ <PopcornLoader />
+ </div>
+ );
  }
 
  if (!actor) {

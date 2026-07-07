@@ -6,126 +6,7 @@ import {
   MediaData, 
   Actor, 
   RankingItem 
-} from '../types.js';
-
-const FALLBACK_MOVIES: MediaItem[] = [
-  {
-    id: "301533-dune",
-    title: "Dune: Part Two",
-    poster: "https://images.unsplash.com/photo-1547483238-f400e65ccd56?auto=format&fit=crop&q=80&w=600",
-    rating: "8.6",
-    contentRating: "PG-13",
-    type: "Movie",
-    year: "2024",
-    quality: "UltraHD"
-  },
-  {
-    id: "301534-oppen",
-    title: "Oppenheimer",
-    poster: "https://images.unsplash.com/photo-1440404653325-ab127d49abc1?auto=format&fit=crop&q=80&w=600",
-    rating: "8.4",
-    contentRating: "R",
-    type: "Movie",
-    year: "2023",
-    quality: "UltraHD"
-  },
-  {
-    id: "305135-spidey",
-    title: "Spider-Man: Across the Spider-Verse",
-    poster: "https://images.unsplash.com/photo-1635805737707-575885ab0820?auto=format&fit=crop&q=80&w=600",
-    rating: "8.7",
-    contentRating: "PG",
-    type: "Movie",
-    year: "2023",
-    quality: "UltraHD"
-  },
-  {
-    id: "301536-batman",
-    title: "The Batman",
-    poster: "https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?auto=format&fit=crop&q=80&w=600",
-    rating: "7.8",
-    contentRating: "PG-13",
-    type: "Movie",
-    year: "2022",
-    quality: "UltraHD"
-  },
-  {
-    id: "301537-inter",
-    title: "Interstellar",
-    poster: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=600",
-    rating: "8.7",
-    contentRating: "PG-13",
-    type: "Movie",
-    year: "2014",
-    quality: "UltraHD"
-  },
-  {
-    id: "301538-incep",
-    title: "Inception",
-    poster: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&q=80&w=600",
-    rating: "8.8",
-    contentRating: "PG-13",
-    type: "Movie",
-    year: "2010",
-    quality: "UltraHD"
-  }
-];
-
-const FALLBACK_SERIES: MediaItem[] = [
-  {
-    id: "301551-dragon",
-    title: "House of the Dragon",
-    poster: "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=600",
-    rating: "8.5",
-    contentRating: "TV-MA",
-    type: "Series",
-    year: "2022",
-    quality: "UltraHD"
-  },
-  {
-    id: "301552-tlou",
-    title: "The Last of Us",
-    poster: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80&w=600",
-    rating: "8.8",
-    contentRating: "TV-MA",
-    type: "Series",
-    year: "2023",
-    quality: "UltraHD"
-  },
-  {
-    id: "301553-succ",
-    title: "Succession",
-    poster: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=600",
-    rating: "8.9",
-    contentRating: "TV-MA",
-    type: "Series",
-    year: "2018",
-    quality: "UltraHD"
-  },
-  {
-    id: "301554-bb",
-    title: "Breaking Bad",
-    poster: "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=600",
-    rating: "9.5",
-    contentRating: "TV-MA",
-    type: "Series",
-    year: "2008",
-    quality: "UltraHD"
-  }
-];
-
-const FALLBACK_POPULAR_SEARCHES = [
-  "Dune Part Two",
-  "Oppenheimer",
-  "House of the Dragon",
-  "The Last of Us",
-  "Succession",
-  "Breaking Bad",
-  "Interstellar",
-  "The Batman",
-  "Inception",
-  "Spider-Man"
-];
+} from '../types';
 
 const BASE_URL_MAIN = 'https://movieapi.xcasper.space/api';
 const BASE_URL_BACKUP = 'https://gzmovieboxapi.septorch.tech/api';
@@ -197,8 +78,6 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 2, backoff =
         config.url = '/recommendations';
       } else if (config.url === '/detail') {
         config.url = '/item-details';
-      } else if (config.url === '/search/suggest') {
-        config.url = '/search-suggestions';
       } else if (config.url === '/ranking') {
         // Return a processed or empty ranking response safely to avoid 404
         return {
@@ -226,7 +105,10 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 2, backoff =
   } catch (error: any) {
     const isMainDown = currentApiSource === 'main' && (
       !error.response || 
-      (error.response.status >= 400 && error.response.status <= 599) ||
+      error.response.status === 522 || 
+      error.response.status === 502 || 
+      error.response.status === 503 ||
+      error.response.status === 504 ||
       error.code === 'ECONNABORTED' ||
       error.code === 'ETIMEDOUT'
     );
@@ -234,35 +116,6 @@ async function fetchWithRetry(config: AxiosRequestConfig, retries = 2, backoff =
     if (isMainDown) {
       setApiSource('backup');
       config.baseURL = BASE_URL_BACKUP;
-      
-      // Translate URLs for backup API
-      if (config.url === '/hot') config.url = '/hot-movies-series';
-      if (config.url === '/play') config.url = '/media';
-      if (config.url === '/search/suggest') config.url = '/search-suggestions';
-      if (config.url === '/recommend') config.url = '/recommendations';
-      if (config.url === '/popular-search') config.url = '/popular-searches';
-
-      return fetchWithRetry(config, retries, backoff);
-    }
-
-    const isBackupDown = currentApiSource === 'backup' && (
-      !error.response || 
-      (error.response.status >= 400 && error.response.status <= 599) ||
-      error.code === 'ECONNABORTED' ||
-      error.code === 'ETIMEDOUT'
-    );
-
-    if (isBackupDown) {
-      setApiSource('main');
-      config.baseURL = BASE_URL_MAIN;
-      
-      // Translate URLs back to main API
-      if (config.url === '/hot-movies-series') config.url = '/hot';
-      if (config.url === '/media') config.url = '/play';
-      if (config.url === '/search-suggestions') config.url = '/search/suggest';
-      if (config.url === '/recommendations') config.url = '/recommend';
-      if (config.url === '/popular-searches') config.url = '/popular-search';
-
       return fetchWithRetry(config, retries, backoff);
     }
 
@@ -294,14 +147,6 @@ function normalizeItem(item: any): MediaItem {
   
   poster = sanitizeImageUrl(poster);
 
-  const rawGenre = item.genre || item.genres;
-  let genres: string[] = [];
-  if (Array.isArray(rawGenre)) {
-    genres = rawGenre;
-  } else if (typeof rawGenre === 'string') {
-    genres = rawGenre.split(',').map(g => g.trim());
-  }
-
   return {
     id: String(item.subjectId || item.id),
     title: item.title || 'Unknown Title',
@@ -311,9 +156,7 @@ function normalizeItem(item: any): MediaItem {
     type: item.subjectType === 2 ? 'Series' : item.subjectType === 1 ? 'Movie' : (item.type || (item.subjectType === 6 ? 'Video' : 'Media')),
     year: item.releaseDate ? item.releaseDate.substring(0, 4) : item.year,
     quality: item.quality,
-    detailPath: item.detailPath,
-    genres: genres.length > 0 ? genres : undefined,
-    category: genres[0]
+    detailPath: item.detailPath
   };
 }
 
@@ -342,9 +185,9 @@ function sanitizeImageUrl(url: string, width: number = 500): string {
 export const externalMovieService = {
   async getHomepage(): Promise<HomepageData> {
     try {
-      const url = '/homepage';
+      const url = currentApiSource === 'backup' ? '/homepage' : '/homepage';
       const response = await fetchWithRetry({ url });
-      const data = response.data?.data || response.data || {};
+      const data = response.data?.data || {};
       
       let topPickList = Array.isArray(data.topPickList) ? data.topPickList.map(normalizeItem) : [];
       let homeList = Array.isArray(data.homeList) ? data.homeList.map(normalizeItem) : [];
@@ -352,7 +195,7 @@ export const externalMovieService = {
       let latestSeries = Array.isArray(data.latestSeries) ? data.latestSeries.map(normalizeItem) : [];
       
       // Fallback data if API doesn't provide latestMovies / latestSeries
-      if (latestMovies.length === 0) {
+      if (currentApiSource === 'backup' && latestMovies.length === 0) {
         try {
           const hot = await this.getHot();
           latestMovies = hot.movies || [];
@@ -360,47 +203,25 @@ export const externalMovieService = {
         } catch (err) {}
       }
 
-      if (topPickList.length === 0 && homeList.length === 0 && latestMovies.length === 0) {
-        throw new Error("Empty homepage data returned from API, using fallbacks.");
-      }
-
       return {
         topPickList,
         homeList,
         latestMovies,
         latestSeries,
-        operatingList: Array.isArray(data.operatingList) && data.operatingList.length > 0 ? data.operatingList.map((op: any) => ({
+        operatingList: Array.isArray(data.operatingList) ? data.operatingList.map((op: any) => ({
           ...op,
           name: op.name || op.title || 'Recommended',
           subjects: Array.isArray(op.subjects) ? op.subjects.map(normalizeItem) : [],
-        })) : [
-          {
-            name: "Premium Selection",
-            subjects: FALLBACK_MOVIES
-          },
-          {
-            name: "Binge-Worthy Series",
-            subjects: FALLBACK_SERIES
-          }
-        ],
+        })) : [],
       };
     } catch (e: any) {
-      console.warn("Recovering with fallback homepage data due to API error:", e.message || e);
+      console.error("Error in getHomepage:", e.message || e);
       return {
-        topPickList: FALLBACK_MOVIES.slice(0, 3),
-        homeList: [...FALLBACK_MOVIES, ...FALLBACK_SERIES],
-        latestMovies: FALLBACK_MOVIES,
-        latestSeries: FALLBACK_SERIES,
-        operatingList: [
-          {
-            name: "Premium Selection",
-            subjects: FALLBACK_MOVIES
-          },
-          {
-            name: "Binge-Worthy Series",
-            subjects: FALLBACK_SERIES
-          }
-        ],
+        topPickList: [],
+        homeList: [],
+        latestMovies: [],
+        latestSeries: [],
+        operatingList: [],
       };
     }
   },
@@ -409,98 +230,41 @@ export const externalMovieService = {
     if (!query || !query.trim()) return [];
     try {
       const isBackup = currentApiSource === 'backup';
-      
-      let mappedSubjectType = 'ALL';
-      if (subjectType === 1 || String(subjectType) === '1' || String(subjectType).toUpperCase() === 'MOVIE') {
-        mappedSubjectType = 'MOVIE';
-      } else if (subjectType === 2 || String(subjectType) === '2' || String(subjectType).toUpperCase() === 'TV' || String(subjectType).toUpperCase() === 'SERIES') {
-        mappedSubjectType = 'TV';
-      }
-
       const params = isBackup 
-        ? { query, page, perPage: perPage * 3, subjectType: mappedSubjectType } 
-        : { keyword: query, page, perPage: Math.min(50, perPage * 2), subjectType };
+        ? { query, page, perPage, subjectType: 'ALL' } 
+        : { keyword: query, page, perPage, subjectType };
       
       const response = await fetchWithRetry({ 
         url: `/search`, 
         params 
       });
-      const items = response.data?.data?.items || response.data?.items || [];
-      const normalized = Array.isArray(items) ? items.map(normalizeItem) : [];
-      
-      // Filter out mismatches to prevent any leakage
-      const filtered = normalized.filter(item => {
-        const tLower = String(item.type || "").toLowerCase(); const sStr = String(subjectType).toUpperCase(); if (subjectType === 1 || sStr === "1" || sStr === "MOVIE") return tLower.includes("movie") || tLower === "1"; if (subjectType === 2 || sStr === "2" || sStr === "TV" || sStr === "SERIES") return tLower.includes("series") || tLower.includes("tv") || tLower === "2";
-        return true;
-      });
-      return filtered.slice(0, perPage);
+      const items = response.data?.data?.items || [];
+      return Array.isArray(items) ? items.map(normalizeItem) : [];
     } catch (e: any) {
-      console.warn("Search API failed, providing filtered fallback data:", e.message || e);
-      const queryLower = query.toLowerCase();
-      const allFallback = [...FALLBACK_MOVIES, ...FALLBACK_SERIES];
-      const match = allFallback.filter(item => {
-        const matchesQuery = item.title.toLowerCase().includes(queryLower);
-        const tLower = String(item.type || "").toLowerCase();
-        if (subjectType === 1 || String(subjectType) === "1" || String(subjectType).toUpperCase() === "MOVIE") {
-          return matchesQuery && (tLower.includes("movie") || tLower === "1");
-        }
-        if (subjectType === 2 || String(subjectType) === "2" || String(subjectType).toUpperCase() === "TV" || String(subjectType).toUpperCase() === "SERIES") {
-          return matchesQuery && (tLower.includes("series") || tLower.includes("tv") || tLower === "2");
-        }
-        return matchesQuery;
-      });
-      return match.length > 0 ? match : allFallback.slice(0, perPage);
+      console.error("Error in search:", e.message || e);
+      return [];
     }
   },
 
-  async getTrending(page = 1, perPage = 18, genre?: string, subjectType?: number | string): Promise<MediaItem[]> {
+  async getTrending(page = 1, perPage = 18): Promise<MediaItem[]> {
     try {
       const isBackup = currentApiSource === 'backup';
       const params: any = { page };
       if (isBackup) {
         params.type = 'ALL'; // Fallback type
       } else {
-        params.perPage = Math.min(50, perPage * (genre ? 5 : 1)); // fetch more if filtering, max 50
+        params.perPage = perPage;
       }
       
       const response = await fetchWithRetry({ 
         url: `/trending`, 
         params
       });
-      const list = response.data?.data?.subjectList || response.data?.subjectList || [];
-      const normalized = Array.isArray(list) ? list.map(normalizeItem) : [];
-      let filtered = normalized;
-      
-      if (genre || subjectType) {
-         filtered = filtered.filter(item => {
-           // 1. Strict Type Filter
-           if (subjectType) {
-             const numericType = Number(subjectType);
-             const tLower = String(item.type || "").toLowerCase();
-             let typeMatch = false;
-             if (numericType === 1) typeMatch = tLower.includes("movie") || tLower === "1";
-             else if (numericType === 2) typeMatch = tLower.includes("series") || tLower.includes("tv") || tLower === "2";
-             else typeMatch = true;
-             
-             if (!typeMatch) return false;
-           }
-           // 2. Strict Genre Filter
-           if (genre) {
-             const genresStr = ((item as any).genre || item.genres?.join(',') || "").toLowerCase();
-             const genreLower = genre.toLowerCase();
-             if (!genresStr.includes(genreLower)) return false;
-           }
-           return true;
-         });
-      }
-
-      if (filtered.length === 0) {
-        return [...FALLBACK_MOVIES, ...FALLBACK_SERIES].slice(0, perPage);
-      }
-      return filtered.slice(0, perPage);
+      const list = response.data?.data?.subjectList || [];
+      return Array.isArray(list) ? list.map(normalizeItem) : [];
     } catch (e: any) {
-      console.warn("Trending API failed, utilizing fallbacks:", e.message || e);
-      return [...FALLBACK_MOVIES, ...FALLBACK_SERIES].slice(0, perPage);
+      console.error("Error in getTrending:", e.message || e);
+      return [];
     }
   },
 
@@ -508,51 +272,26 @@ export const externalMovieService = {
     try {
       const url = currentApiSource === 'backup' ? '/popular-searches' : '/popular-search';
       const response = await fetchWithRetry({ url });
-      const searches = response.data?.data?.everyoneSearch || response.data?.everyoneSearch || [];
-      const titles = Array.isArray(searches) ? searches.map((item: any) => item.title) : [];
-      if (titles.length === 0) return FALLBACK_POPULAR_SEARCHES;
-      return titles;
+      const searches = response.data?.data?.everyoneSearch || [];
+      return Array.isArray(searches) ? searches.map((item: any) => item.title) : [];
     } catch (e: any) {
-      console.warn("PopularSearch API failed, utilizing fallbacks:", e.message || e);
-      return FALLBACK_POPULAR_SEARCHES;
+      console.error("Error in getPopularSearch:", e.message || e);
+      return [];
     }
   },
 
-  async getHot(genre?: string, subjectType?: number | string): Promise<{ movies: MediaItem[], series: MediaItem[] }> {
+  async getHot(): Promise<{ movies: MediaItem[], series: MediaItem[] }> {
     try {
       const url = currentApiSource === 'backup' ? '/hot-movies-series' : '/hot';
       const response = await fetchWithRetry({ url });
-      const data = response.data?.data || response.data || {};
-      const moviesList = Array.isArray(data.movie) ? data.movie : (Array.isArray(data.movies) ? data.movies : []);
-      const tvList = Array.isArray(data.tv) ? data.tv : (Array.isArray(data.series) ? data.series : []);
-      
-      let normalizedMovies = moviesList.map(normalizeItem);
-      let normalizedSeries = tvList.map(normalizeItem);
-      
-      if (genre) {
-         const genreLower = genre.toLowerCase();
-         const filterByGenre = (item: MediaItem) => ((item as any).genre || item.genres?.join(',') || "").toLowerCase().includes(genreLower);
-         normalizedMovies = normalizedMovies.filter(filterByGenre);
-         normalizedSeries = normalizedSeries.filter(filterByGenre);
-      }
-      
-      if (subjectType !== undefined) {
-         const numericType = Number(subjectType);
-         if (numericType === 1) normalizedSeries = []; // Only movies
-         else if (numericType === 2) normalizedMovies = []; // Only series
-      }
-      
-      if (normalizedMovies.length === 0 && normalizedSeries.length === 0 && !genre) {
-        return { movies: FALLBACK_MOVIES, series: FALLBACK_SERIES };
-      }
-      
+      const data = response.data?.data || {};
       return {
-        movies: normalizedMovies,
-        series: normalizedSeries,
+        movies: Array.isArray(data.movie) ? data.movie.map(normalizeItem) : [],
+        series: Array.isArray(data.tv) ? data.tv.map(normalizeItem) : [],
       };
     } catch (e: any) {
-      console.warn("getHot failed, utilizing fallback movies and series:", e.message || e);
-      return { movies: FALLBACK_MOVIES, series: FALLBACK_SERIES };
+      console.error("Error in getHot:", e.message || e);
+      return { movies: [], series: [] };
     }
   },
 
@@ -560,16 +299,6 @@ export const externalMovieService = {
     if (!query || !query.trim()) return [];
     try {
       if (currentApiSource === 'backup') {
-        try {
-          const response = await fetchWithRetry({ 
-            url: `/search/suggest`, 
-            params: { keyword: query } 
-          });
-          const list = response.data?.data || response.data || [];
-          if (Array.isArray(list)) return list;
-        } catch (err) {
-          // ignore and fall back to full search mapping
-        }
         const searchRes = await this.search(query, 1, 5, 'ALL' as any);
         return searchRes.map(item => item.title);
       }
@@ -690,145 +419,58 @@ export const externalMovieService = {
 
   async browse(genre?: string, country?: string, page = 1, perPage = 12, subjectType = 2): Promise<MediaItem[]> {
     try {
-      const numericType = Number(subjectType);
-      
-      const strictGenreFilter = (items: MediaItem[]) => {
-        return items.filter(item => {
-          // 1. Strict Type Filter
-          const tLower = String(item.type || "").toLowerCase();
-          let typeMatch = false;
-          if (numericType === 1) typeMatch = tLower.includes("movie") || tLower === "1";
-          else if (numericType === 2) typeMatch = tLower.includes("series") || tLower.includes("tv") || tLower === "2";
-          else typeMatch = true;
-          
-          if (!typeMatch) return false;
-
-          // 2. Strict Genre Filter
-          if (genre) {
-            const genresStr = ((item as any).genre || item.genres?.join(',') || "").toLowerCase();
-            const genreLower = genre.toLowerCase();
-            // Need to match the exact word or be contained explicitly 
-            // to avoid "Action" matching "Drama" due to unrelated fields if search fallback returned it
-            const matchedGenre = genresStr.includes(genreLower);
-            if (!matchedGenre) return false;
-          }
-          return true;
-        });
-      };
-
       if (currentApiSource === 'backup') {
         if (genre || country) {
-          // Increase perPage to get a large pool, strict filter, then slice
-          const data = await this.search(genre || country || '', page, perPage * 5, numericType);
-          const filtered = strictGenreFilter(data);
-          return filtered.slice(0, perPage);
+          return this.search(genre || country || '', page, perPage, 'ALL' as any);
         }
-        
-        const trendingData = await this.getTrending(page, perPage * 3);
-        const filtered = strictGenreFilter(trendingData);
-        return filtered.slice(0, perPage);
+        return this.getTrending(page, perPage);
       }
       
       const response = await fetchWithRetry({ 
         url: `/browse`, 
-        params: { subjectType: numericType, genre, countryName: country, page, perPage: perPage * 3 } 
+        params: { subjectType, genre, countryName: country, page, perPage } 
       });
       const list = response.data?.data?.items || [];
-      const normalized = Array.isArray(list) ? list.map(normalizeItem) : [];
-      
-      // Filter out mismatches as a safety guarantee for MAIN API too
-      const filtered = strictGenreFilter(normalized);
-      return filtered.slice(0, perPage);
+      return Array.isArray(list) ? list.map(normalizeItem) : [];
     } catch (e: any) {
       // console.error("Error in browse:", e.message || e);
       return [];
     }
   },
 
-  async getRanking(genre?: string, subjectType?: number | string): Promise<RankingItem[]> {
+  async getRanking(): Promise<RankingItem[]> {
     try {
-      // 1. Fetch hot items for both APIs to ensure hot trends are prioritized (e.g. "Prison Break")
-      let hotItems: MediaItem[] = [];
-      try {
-        const hot = await this.getHot(genre, subjectType);
-        const maxLength = Math.max(hot.movies.length, hot.series.length);
-        for (let i = 0; i < maxLength; i++) {
-          if (i < hot.movies.length) hotItems.push(hot.movies[i]);
-          if (i < hot.series.length) hotItems.push(hot.series[i]);
-        }
-      } catch (err) {
-        console.warn("Error fetching hot items in getRanking:", err);
+      if (currentApiSource === 'backup') {
+          const hot = await this.getHot();
+          const items = [...hot.movies, ...hot.series].sort((a,b) => (Number(b.rating) || 0) - (Number(a.rating) || 0));
+          return items.map((item, index) => ({
+             id: item.id,
+             title: item.title,
+             cover: item.poster,
+             score: item.rating,
+             rank: index + 1,
+             type: item.type === 'Movie' ? 1 : 2,
+             year: item.year
+          }));
       }
 
-      let rankingItems: MediaItem[] = [];
-
-      // 2. Fetch ranking from /ranking if on main API
-      if (currentApiSource === 'main') {
-        try {
-          const response = await fetchWithRetry({ url: '/ranking' });
-          const subjectList = response.data?.data?.subjectList || response.data?.subjectList || [];
-          if (subjectList.length > 0) {
-            const normalized = subjectList.map(normalizeItem);
-            let filtered = normalized;
-            
-            if (genre || subjectType) {
-               filtered = filtered.filter(item => {
-                 // 1. Strict Type Filter
-                 if (subjectType) {
-                   const numericType = Number(subjectType);
-                   const tLower = String(item.type || "").toLowerCase();
-                   let typeMatch = false;
-                   if (numericType === 1) typeMatch = tLower.includes("movie") || tLower === "1";
-                   else if (numericType === 2) typeMatch = tLower.includes("series") || tLower.includes("tv") || tLower === "2";
-                   else typeMatch = true;
-                   
-                   if (!typeMatch) return false;
-                 }
-                 // 2. Strict Genre Filter
-                 if (genre) {
-                   const genresStr = ((item as any).genre || item.genres?.join(',') || "").toLowerCase();
-                   const genreLower = genre.toLowerCase();
-                   if (!genresStr.includes(genreLower)) return false;
-                 }
-                 return true;
-               });
-            }
-            rankingItems = filtered;
-          }
-        } catch (err) {
-          console.warn("Main API /ranking failed", err);
-        }
-      }
-
-      // 3. Merge hotItems and rankingItems with deduplication, prioritizing hot items
-      const mergedItems: MediaItem[] = [];
-      const seenIds = new Set<string | number>();
-
-      for (const item of hotItems) {
-        if (item && item.id && !seenIds.has(item.id)) {
-          seenIds.add(item.id);
-          mergedItems.push(item);
-        }
-      }
-
-      for (const item of rankingItems) {
-        if (item && item.id && !seenIds.has(item.id)) {
-          seenIds.add(item.id);
-          mergedItems.push(item);
-        }
-      }
-
-      return mergedItems.map((item, index) => ({
-         id: item.id,
-         title: item.title,
-         cover: item.poster,
-         score: item.rating,
-         rank: index + 1,
-         type: item.type === 'Movie' ? 1 : 2,
-         year: item.year
-      }));
+      const response = await fetchWithRetry({ url: `/ranking` });
+      const list = response.data?.data?.subjectList || [];
+      if (!Array.isArray(list)) return [];
+      return list.map((item: any, index: number) => {
+        let poster = (typeof item.cover === 'string' ? item.cover : item.cover?.url) || item.poster || '';
+        return {
+          id: String(item.subjectId || item.id),
+          title: item.title,
+          cover: poster,
+          score: item.score || item.imdbRatingValue || item.rating,
+          rank: index + 1,
+          type: item.subjectType,
+          year: item.releaseDate ? item.releaseDate.substring(0, 4) : item.year,
+        };
+      });
     } catch (e: any) {
-      console.error("Error in getRanking override:", e.message || e);
+      console.error("Error in getRanking:", e.message || e);
       return [];
     }
   },
@@ -895,14 +537,13 @@ export const externalMovieService = {
       if (sources.length > 0) {
         // Construct a fallback embed URL if not provided by API
         const embedUrl = data.embedUrl || data.iframeUrl || data.playerUrl || 
-          (params.se ? `https://vidsrc.wiki/embed/tv/${subjectId}/${params.se}/${params.ep || 1}` : `https://vidsrc.wiki/embed/movie/${subjectId}`);
+          (params.se ? `https://vidsrc.to/embed/tv/${subjectId}/${params.se}/${params.ep || 1}` : `https://vidsrc.to/embed/movie/${subjectId}`);
 
         return { 
           sources, 
           subtitles,
           embedUrl,
-          audioTracks,
-          isBackup: currentApiSource === 'backup'
+          audioTracks
         };
       }
     } catch (e: any) {
@@ -910,24 +551,23 @@ export const externalMovieService = {
     }
 
     // Fallback to constructed stream URLs and embed URL if API fails or returns no sources
-    const baseURL = currentApiSource === 'backup' ? BASE_URL_BACKUP : BASE_URL_MAIN;
     const constructedSources = [
       {
         quality: '1080p',
-        url: `${baseURL}/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=1080${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
-        downloadUrl: `${baseURL}/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=1080&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        url: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=1080${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        downloadUrl: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=1080&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
         type: 'mp4' as const
       },
       {
         quality: '720p',
-        url: `${baseURL}/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=720${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
-        downloadUrl: `${baseURL}/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=720&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        url: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=720${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        downloadUrl: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=720&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
         type: 'mp4' as const
       },
       {
         quality: '360p',
-        url: `${baseURL}/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=360${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
-        downloadUrl: `${baseURL}/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=360&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        url: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=360${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
+        downloadUrl: `https://movieapi.xcasper.space/api/bff/stream?subjectId=${subjectId}&apikey=${API_KEY}&resolution=360&download=1${season ? `&se=${season}&ep=${episode || 1}` : ''}`,
         type: 'mp4' as const
       }
     ];
@@ -935,8 +575,7 @@ export const externalMovieService = {
     return {
       sources: constructedSources,
       subtitles: [],
-      embedUrl: season ? `https://vidsrc.wiki/embed/tv/${subjectId}/${season}/${episode || 1}` : `https://vidsrc.wiki/embed/movie/${subjectId}`,
-      isBackup: currentApiSource === 'backup'
+      embedUrl: season ? `https://vidsrc.to/embed/tv/${subjectId}/${season}/${episode || 1}` : `https://vidsrc.to/embed/movie/${subjectId}`
     };
   },
 

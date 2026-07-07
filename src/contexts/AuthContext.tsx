@@ -10,18 +10,19 @@ import {
 } from '../lib/firebase';
 import { 
   loginWithGoogle, 
+  loginWithEmail as firebaseLoginWithEmail, 
+  signupWithEmail as firebaseSignupWithEmail,
+  sendMagicLink as firebaseSendMagicLink,
+  completeMagicLinkSignIn as firebaseCompleteMagicLinkSignIn,
   logoutUser,
   addWatchHistory,
   addFavorite,
   removeFavorite,
-  removeContinueWatching as firebaseRemoveContinueWatching,
   getWatchHistory,
-  removeWatchHistory,
-  clearWatchHistory,
-  deleteUserProfileData as firebaseDeleteUserProfileData,
   updateProfile as firebaseUpdateProfile,
   saveContinueWatching as firebaseSaveContinueWatching,
   sendChatMessage as firebaseSendChatMessage,
+  resetPassword as firebaseResetPassword,
   trackVisitor,
   trackWatchTime,
   createSupportTicket,
@@ -29,8 +30,7 @@ import {
   replyToTicket,
   getAdvancedUserStats,
   getGlobalStats,
-  handleFirestoreError,
-  OperationType
+  logGuestCreation
 } from '../services/firebaseService';
 import { 
   collection, 
@@ -50,7 +50,7 @@ interface User {
   avatar?: string;
   bio?: string;
   role?: 'user' | 'admin' | 'moderator';
-  joinedAt?: string;
+  isGuest?: boolean;
 }
 
 export interface SubtitlePreferences {
@@ -69,9 +69,6 @@ export interface UserPreferences {
   playbackSpeed: number;
   dataSaver: boolean;
   subtitleSettings: SubtitlePreferences;
-  theme?: string;
-  accentColor?: string;
-  kidsMode?: boolean;
 }
 
 export interface ContinueWatchingItem extends MediaItem {
@@ -103,9 +100,13 @@ interface AuthContextType {
   user: User | null;
   login: (username: string, email: string, avatar?: string) => void;
   loginWithGoogle: () => Promise<void>;
+  loginWithEmail: (email: string, pass: string) => Promise<void>;
+  signupWithEmail: (email: string, pass: string, name: string) => Promise<void>;
+  sendMagicLink: (email: string, name?: string) => Promise<void>;
   updateProfile: (data: { name?: string, photoURL?: string, bio?: string, username?: string }) => Promise<void>;
   saveContinueWatching: (item: ContinueWatchingItem) => Promise<void>;
   sendChatMessage: (text: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   submitSupportTicket: (subject: string, message: string) => Promise<void>;
   trackWatchTime: (seconds: number) => Promise<void>;
   getSupportTickets: () => Promise<any[]>;
@@ -121,9 +122,6 @@ interface AuthContextType {
   removeFromHistory: (id: string) => void;
   clearHistory: () => void;
   
-  featuredCollection: MediaItem[];
-  updateFeaturedCollection: (items: MediaItem[]) => void;
-  
   // New Features
   preferences: UserPreferences;
   updatePreferences: (prefs: Partial<UserPreferences>) => void;
@@ -138,7 +136,7 @@ interface AuthContextType {
   isMaintenance: boolean;
   isBanned: boolean;
   broadcastLevel: 'info' | 'warning' | 'critical';
-  siteConfig: { siteName: string; brandColor: string; tagline: string; logoUrl?: string; streamSource?: 'xcasper' | 'imbed' };
+  siteConfig: { siteName: string; brandColor: string; tagline: string; logoUrl?: string };
   addWatchTime: (minutes: number) => void;
   trackWatchActivity: (item: MediaItem) => void;
   following: string[];
@@ -146,12 +144,13 @@ interface AuthContextType {
   isFollowing: (id: string) => boolean;
   continueWatching: ContinueWatchingItem[];
   updateContinueWatching: (item: ContinueWatchingItem) => void;
-  removeFromContinueWatching: (id: string) => Promise<void>;
+  removeFromContinueWatching: (id: string) => void;
   setLastActionType: (type: string | null) => void;
   isLoginPopupOpen: boolean;
   openLoginPopup: () => void;
   closeLoginPopup: () => void;
-  deleteProfileData: () => Promise<void>;
+  loginAsGuest: () => void;
+  isGuest: boolean;
 }
 
 const initialStats: UserStats = {
@@ -164,7 +163,7 @@ const initialStats: UserStats = {
   badges: []
 };
 
-export const defaultPreferences: UserPreferences = {
+const defaultPreferences: UserPreferences = {
   autoPlayNext: true,
   autoPlay: true,
   showTrailers: true,
@@ -172,7 +171,6 @@ export const defaultPreferences: UserPreferences = {
   skipIntro: false,
   playbackSpeed: 1,
   dataSaver: false,
-  kidsMode: false,
   subtitleSettings: {
     fontSize: 14,
     color: '#ffffff',
@@ -188,7 +186,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [watchlist, setWatchlist] = useState<MediaItem[]>([]);
   const [history, setHistory] = useState<MediaItem[]>([]);
-  const [featuredCollection, setFeaturedCollection] = useState<MediaItem[]>([]);
   
   // New State
   const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
@@ -200,12 +197,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isMaintenance, setIsMaintenance] = useState(false);
   const [isBanned, setIsBanned] = useState(false);
   const [broadcastLevel, setBroadcastLevel] = useState<'info' | 'warning' | 'critical'>('info');
-  const [siteConfig, setSiteConfig] = useState<{ siteName: string; brandColor: string; tagline: string; logoUrl?: string; streamSource?: 'xcasper' | 'imbed'; }>({ siteName: 'Axis TV', brandColor: '#E50914', tagline: 'Your Movie Plug', logoUrl: 'https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg', streamSource: 'xcasper' });
+  const [siteConfig, setSiteConfig] = useState<{ siteName: string; brandColor: string; tagline: string; logoUrl?: string; }>({ siteName: 'Axis TV', brandColor: '#E50914', tagline: 'Your Movie Plug', logoUrl: 'https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg' });
   const [lastActionType, setLastActionType] = useState<string | null>(null);
   const [isLoginPopupOpen, setIsLoginPopupOpen] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
 
   const openLoginPopup = useCallback(() => setIsLoginPopupOpen(true), []);
   const closeLoginPopup = useCallback(() => setIsLoginPopupOpen(false), []);
+  const loginAsGuest = useCallback(() => {
+    logGuestCreation();
+    const guestCount = parseInt(localStorage.getItem('axis_guest_count') || '0') + 1;
+    localStorage.setItem('axis_guest_count', guestCount.toString());
+    const name = `Guest ${guestCount > 1 ? guestCount : ''}`.trim();
+    const newUser = {
+      id: `guest_${Date.now()}`,
+      username: name,
+      name,
+      email: 'guest@axis.tv',
+    };
+    setUser(newUser);
+    setIsGuest(true);
+    localStorage.setItem('axis_user', JSON.stringify({ ...newUser, isGuest: true, createdAt: Date.now() }));
+    setIsLoginPopupOpen(false);
+  }, []);
 
   useEffect(() => {
     let retryCount = 0;
@@ -264,38 +278,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const unsubscribe = onSnapshot(userRef, (snap) => {
         if (snap.exists()) {
           const data = snap.data();
-          const isOwner = (data.email || firebaseUser.email || '').toLowerCase() === 'greatmayuku2@gmail.com';
           const newUser = {
             id: firebaseUser.uid,
-            username: isOwner ? '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' : (data.username || data.name || 'User'),
-            name: isOwner ? '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' : (data.name || data.username || 'User'),
-            email: data.email || firebaseUser.email || '',
+            username: data.username || data.name || 'User',
+            name: data.name || data.username || 'User',
+            email: data.email || '',
             avatar: data.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.uid}`,
             bio: data.bio || '',
-            role: data.role || 'user',
-            joinedAt: firebaseUser.metadata.creationTime || new Date().toISOString()
+            role: data.role || 'user'
           };
           setUser(newUser);
           setIsBanned(data.isBanned || false);
           localStorage.setItem('axis_user', JSON.stringify(newUser));
-        } else {
-          const isOwner = (firebaseUser.email || '').toLowerCase() === 'greatmayuku2@gmail.com';
-          const newUser = {
-            id: firebaseUser.uid,
-            username: isOwner ? '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' : (firebaseUser.displayName || 'User'),
-            name: isOwner ? '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' : (firebaseUser.displayName || 'User'),
-            email: firebaseUser.email || '',
-            avatar: firebaseUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.uid}`,
-            bio: '',
-            role: 'user' as const,
-            joinedAt: firebaseUser.metadata.creationTime || new Date().toISOString()
-          };
-          setUser(newUser);
-          setIsBanned(false);
-          localStorage.setItem('axis_user', JSON.stringify(newUser));
         }
-      }, (error) => {
-        handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
       });
       return () => unsubscribe();
     }
@@ -319,8 +314,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } as MediaItem));
         setWatchlist(items);
         localStorage.setItem(`axis_watchlist_${firebaseUser.uid}`, JSON.stringify(items));
-      }, (error) => {
-        handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}/favorites`);
       });
       return () => unsubscribe();
     }
@@ -338,15 +331,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const items = snapshot.docs.map(doc => ({
           id: doc.data().movieId,
           title: doc.data().title,
-          type: doc.data().type || 'Movie',
-          poster: doc.data().poster || '',
-          year: doc.data().year || '',
-          rating: doc.data().rating || ''
+          type: 'Movie' as const
         } as MediaItem));
         setHistory(items);
         localStorage.setItem(`axis_history_${firebaseUser.uid}`, JSON.stringify(items));
-      }, (error) => {
-        handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}/watchHistory`);
       });
       return () => unsubscribe();
     }
@@ -362,24 +350,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const items = snapshot.docs.map(doc => ({
-          id: doc.id || doc.data().movieId,
+          id: doc.data().movieId,
           title: doc.data().title,
           progress: doc.data().lastPosition || 0,
           duration: doc.data().duration || 1,
           type: doc.data().type || 'Movie',
-          poster: doc.data().poster || '',
-          background: doc.data().background || '',
-          avgHueDark: doc.data().avgHueDark || '',
-          season: doc.data().season || undefined,
-          episode: doc.data().episode || undefined,
-          rating: doc.data().rating || '',
-          year: doc.data().year || '',
-          updatedAt: doc.data().updatedAt ? (doc.data().updatedAt.toMillis ? doc.data().updatedAt.toMillis() : doc.data().updatedAt) : Date.now()
+          poster: doc.data().poster || ''
         } as ContinueWatchingItem));
         setContinueWatching(items);
         localStorage.setItem(`axis_continue_watching_${firebaseUser.uid}`, JSON.stringify(items));
-      }, (error) => {
-        handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}/continueWatching`);
       });
       return () => unsubscribe();
     }
@@ -430,11 +409,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, watchlist.length, history.length, stats, preferences, isBanned, lastActionType]);
 
   const login = useCallback((username: string, email: string, avatar?: string) => {
-    const isOwner = email.toLowerCase() === 'greatmayuku2@gmail.com';
     const newUser = { 
       id: email, 
-      username: isOwner ? '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' : username, 
-      name: isOwner ? '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' : username,
+      username, 
+      name: username,
       email, 
       avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}` 
     };
@@ -447,6 +425,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await loginWithGoogle();
   }, []);
 
+  const handleLoginWithEmail = useCallback(async (email: string, pass: string) => {
+    await firebaseLoginWithEmail(email, pass);
+  }, []);
+
+  const handleSignupWithEmail = useCallback(async (email: string, pass: string, name: string) => {
+    await firebaseSignupWithEmail(email, pass, name);
+  }, []);
+
+  const handleSendMagicLink = useCallback(async (email: string, name?: string) => {
+    await firebaseSendMagicLink(email, name);
+  }, []);
+
+  useEffect(() => {
+    // Automatically try to verify email link when AuthContext mounts
+    const url = window.location.href;
+    firebaseCompleteMagicLinkSignIn(url).then(user => {
+      if (user) {
+         setSystemMessage('Successfully signed in with email link!');
+      }
+    }).catch(err => {
+         console.error(err);
+    });
+  }, []);
+
   const handleUpdateProfile = useCallback(async (data: { name?: string, photoURL?: string, bio?: string, username?: string }) => {
     await firebaseUpdateProfile(data);
   }, []);
@@ -457,6 +459,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const handleSendChatMessage = useCallback(async (text: string) => {
     await firebaseSendChatMessage(text);
+  }, []);
+
+  const handleResetPassword = useCallback(async (email: string) => {
+    await firebaseResetPassword(email);
   }, []);
 
   const handleSubmitSupportTicket = useCallback(async (subject: string, message: string) => {
@@ -519,7 +525,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const addToHistory = useCallback(async (item: MediaItem) => {
     if (!user) return;
     if (firebaseUser) {
-      await addWatchHistory(item);
+      await addWatchHistory(item.id, item.title);
     } else {
       setHistory(prev => {
         const updated = [item, ...prev.filter(i => i.id !== item.id)].slice(0, 50);
@@ -530,35 +536,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, firebaseUser]);
 
-  const removeFromHistory = useCallback(async (id: string) => {
+  const removeFromHistory = useCallback((id: string) => {
     if (!user) return;
-    if (firebaseUser) {
-      await removeWatchHistory(id);
-    } else {
-      setHistory(prev => {
-        const updated = prev.filter(item => item.id !== id);
-        setLastActionType(`HISTORY_REMOVE: ${id}`);
-        localStorage.setItem(`axis_history_${user.id}`, JSON.stringify(updated));
-        return updated;
-      });
-    }
-  }, [user, firebaseUser]);
+    setHistory(prev => {
+      const updated = prev.filter(item => item.id !== id);
+      setLastActionType(`HISTORY_REMOVE: ${id}`);
+      localStorage.setItem(`axis_history_${user.id}`, JSON.stringify(updated));
+      return updated;
+    });
+  }, [user]);
 
-  const clearHistory = useCallback(async () => {
+  const clearHistory = useCallback(() => {
     if (!user) return;
-    if (firebaseUser) {
-      await clearWatchHistory();
-    } else {
-      setHistory([]);
-      localStorage.removeItem(`axis_history_${user.id}`);
-    }
-  }, [user, firebaseUser]);
+    setHistory([]);
+    localStorage.removeItem(`axis_history_${user.id}`);
+  }, [user]);
 
   const updatePreferences = useCallback((prefs: Partial<UserPreferences>) => {
+    if (!user) return;
     setPreferences(prev => {
       const updated = { ...prev, ...prefs };
-      const key = user ? `axis_prefs_${user.id}` : `axis_prefs_guest`;
-      localStorage.setItem(key, JSON.stringify(updated));
+      localStorage.setItem(`axis_prefs_${user.id}`, JSON.stringify(updated));
       return updated;
     });
   }, [user]);
@@ -576,29 +574,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     setStats(prev => {
       const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const today = `${year}-${month}-${day}`;
+      const today = now.toISOString().split('T')[0];
       const isWeekend = now.getDay() === 0 || now.getDay() === 6;
       
       let newStreak = prev.currentStreak;
       if (prev.lastWatchDate) {
-        if (prev.lastWatchDate === today) {
-          // Already watched today, keep current streak
-          newStreak = prev.currentStreak || 1;
-        } else {
-          const parts = prev.lastWatchDate.split('-');
-          const lastDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-          const todayDate = new Date(year, now.getMonth(), now.getDate());
-          const diffTime = todayDate.getTime() - lastDate.getTime();
-          const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-          
-          if (diffDays === 1) {
-            newStreak = (prev.currentStreak || 0) + 1;
-          } else {
-            newStreak = 1;
-          }
+        const lastDate = new Date(prev.lastWatchDate);
+        const diffTime = Math.abs(now.getTime() - lastDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 1) {
+          newStreak += 1;
+        } else if (diffDays > 1) {
+          newStreak = 1;
         }
       } else {
         newStreak = 1;
@@ -655,18 +643,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, firebaseUser]);
 
-  const removeFromContinueWatching = useCallback(async (id: string) => {
+  const removeFromContinueWatching = useCallback((id: string) => {
     if (!user) return;
-    if (firebaseUser) {
-      await firebaseRemoveContinueWatching(id);
-    } else {
-      setContinueWatching(prev => {
-        const updated = prev.filter(i => i.id !== id);
-        localStorage.setItem(`axis_continue_watching_${user.id}`, JSON.stringify(updated));
-        return updated;
-      });
-    }
-  }, [user, firebaseUser]);
+    setContinueWatching(prev => {
+      const updated = prev.filter(i => i.id !== id);
+      localStorage.setItem(`axis_continue_watching_${user.id}`, JSON.stringify(updated));
+      return updated;
+    });
+  }, [user]);
 
   const createPlaylist = useCallback((name: string) => {
     if (!user) return;
@@ -717,90 +701,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, [user]);
 
-  const deleteProfileData = useCallback(async () => {
-    if (!user) return;
-    try {
-      if (firebaseUser) {
-        await firebaseDeleteUserProfileData(firebaseUser.uid);
-      }
-      const keysToClear = [
-        `axis_watchlist_${user.id}`,
-        `axis_history_${user.id}`,
-        `axis_continue_watching_${user.id}`,
-        `axis_prefs_${user.id}`,
-        `axis_stats_${user.id}`,
-        `axis_following_${user.id}`,
-        `axis_playlists_${user.id}`
-      ];
-      keysToClear.forEach(key => localStorage.removeItem(key));
-      await logout();
-      setLastActionType("PROFILE_DELETED");
-    } catch (error) {
-      console.error("Error deleting profile data:", error);
-      throw error;
-    }
-  }, [user, firebaseUser, logout]);
-
-  const updateFeaturedCollection = useCallback((items: MediaItem[]) => {
-    if (items.length > 6) return; // Enforce limit
-    setFeaturedCollection(items);
-    if (user) {
-      localStorage.setItem(`axis_featured_${user.id}`, JSON.stringify(items));
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (user) {
-      const storedFeatured = localStorage.getItem(`axis_featured_${user.id}`);
-      if (storedFeatured) setFeaturedCollection(JSON.parse(storedFeatured));
-      
-      const storedPrefs = localStorage.getItem(`axis_prefs_${user.id}`);
-      if (storedPrefs) setPreferences(JSON.parse(storedPrefs));
-      
-      const storedStats = localStorage.getItem(`axis_stats_${user.id}`);
-      if (storedStats) {
-        const statsData = JSON.parse(storedStats);
-        if (statsData.lastWatchDate) {
-          const parts = statsData.lastWatchDate.split('-');
-          const lastDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-          const now = new Date();
-          const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          const diffTime = todayDate.getTime() - lastDate.getTime();
-          const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-          if (diffDays > 1) {
-            statsData.currentStreak = 0;
-            localStorage.setItem(`axis_stats_${user.id}`, JSON.stringify(statsData));
-          }
-        }
-        setStats(statsData);
-      }
-      
-      const storedPlaylists = localStorage.getItem(`axis_playlists_${user.id}`);
-      if (storedPlaylists) setPlaylists(JSON.parse(storedPlaylists));
-      
-      const storedFollowing = localStorage.getItem(`axis_following_${user.id}`);
-      if (storedFollowing) setFollowing(JSON.parse(storedFollowing));
-    } else {
-      setFeaturedCollection([]);
-      const storedPrefs = localStorage.getItem('axis_prefs_guest');
-      if (storedPrefs) {
-        setPreferences(JSON.parse(storedPrefs));
-      } else {
-        setPreferences(defaultPreferences);
-      }
-      setStats(initialStats);
-      setPlaylists([]);
-      setFollowing([]);
-    }
-  }, [user]);
-
   const value = useMemo(() => ({
     user, 
     login, 
     loginWithGoogle: handleLoginWithGoogle,
+    loginWithEmail: handleLoginWithEmail,
+    signupWithEmail: handleSignupWithEmail,
+    sendMagicLink: handleSendMagicLink,
     updateProfile: handleUpdateProfile,
     saveContinueWatching: handleSaveContinueWatching,
     sendChatMessage: handleSendChatMessage,
+    resetPassword: handleResetPassword,
     submitSupportTicket: handleSubmitSupportTicket,
     trackWatchTime: handleTrackWatchTime,
     getSupportTickets: handleGetSupportTickets,
@@ -812,7 +723,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     broadcastLevel, siteConfig,
     watchlist, addToWatchlist, removeFromWatchlist, isInWatchlist,
     history, addToHistory, removeFromHistory, clearHistory,
-    featuredCollection, updateFeaturedCollection,
     preferences, updatePreferences,
     stats, addWatchTime, trackWatchActivity,
     playlists, createPlaylist, deletePlaylist, addToPlaylist, removeFromPlaylist,
@@ -822,7 +732,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoginPopupOpen,
     openLoginPopup,
     closeLoginPopup,
-    deleteProfileData
+    loginAsGuest,
+    isGuest
   }), [
     user, login, logout, isAdmin,
     systemMessage, isMaintenance, isBanned,
@@ -838,7 +749,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoginPopupOpen,
     openLoginPopup,
     closeLoginPopup,
-    deleteProfileData
+    handleSendMagicLink
   ]);
 
   // Visitor Tracking
@@ -847,6 +758,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!hasTracked) {
       trackVisitor();
       sessionStorage.setItem('axis_visitor_tracked', 'true');
+    }
+
+    // Guest Account Expiration Check
+    const userStr = localStorage.getItem('axis_user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      if (user.isGuest && user.createdAt) {
+        const now = Date.now();
+        const age = now - user.createdAt;
+        const week = 7 * 24 * 60 * 60 * 1000;
+        if (age > week) {
+          logout();
+        } else if (age > 6 * 24 * 60 * 60 * 1000) {
+          setSystemMessage("Your guest account will expire soon! Sign up to move your watchlist and data.");
+        }
+      }
     }
   }, [logout]);
 

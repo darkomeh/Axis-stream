@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import Navbar from '../components/Navbar';
-import { Skeleton, ListSkeleton } from '../components/Skeleton';
+import PopcornLoader from '../components/PopcornLoader';
 import ServerHealthMonitor from '../components/admin/ServerHealthMonitor';
 import ApiHealthMonitor from '../components/admin/ApiHealthMonitor';
 import SpotlightManager from '../components/admin/SpotlightManager';
@@ -10,7 +10,7 @@ import {
  Users, Activity, TrendingUp, Calendar, 
  Search, ShieldAlert, Award, Clock, 
  Trash2, Mail, ExternalLink, ChevronRight,
- Lock, Unlock, Key, Database, Ghost, Zap, Bell
+ Lock, Unlock, Key, Database, Ghost, Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
@@ -38,7 +38,6 @@ import {
  deleteReport as deleteFirebaseReport
 } from '../services/firebaseService';
 import { Timestamp } from 'firebase/firestore';
-import NotificationCommandCenter from '../components/admin/NotificationCommandCenter';
 
 interface AdminUser {
  id: string;
@@ -76,7 +75,6 @@ interface AdminState {
  brandColor: string;
  tagline: string;
  apiSource?: 'main' | 'backup';
-	streamSource?: 'xcasper' | 'imbed';
  };
  reports: { id: string, userId: string, category: string, detail: string, createdAt: any, status: string }[];
  serverMetrics: {
@@ -89,6 +87,8 @@ interface AdminState {
  searchVelocity?: number;
  openReports?: number;
  activeUserCount: number;
+ totalGuests: number;
+ activeGuests: number;
  advancedStats: {
  total: number;
  last7Days: number;
@@ -115,7 +115,7 @@ export default function Admin() {
  const { showToast } = useToast();
  const [data, setData] = useState<AdminState | null>(null);
  const [loading, setLoading] = useState(true);
- const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'system' | 'logs' | 'content' | 'branding' | 'reports' | 'support' | 'database' | 'errors' | 'notifications'>('overview');
+ const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'system' | 'logs' | 'content' | 'branding' | 'reports' | 'support' | 'database' | 'errors'>('overview');
  const [broadcastInput, setBroadcastInput] = useState('');
  const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
  const [broadcastLevel, setBroadcastLevel] = useState<'info' | 'warning' | 'critical'>('info');
@@ -157,7 +157,7 @@ export default function Admin() {
  auditLogs: [],
  searchLogs: [],
  featuredMedia: [],
- siteConfig: { siteName: "Axis TV", brandColor: "#E50914", tagline: "The Ultimate Streaming Experience", streamSource: "xcasper" },
+ siteConfig: { siteName: "Axis TV", brandColor: "#E50914", tagline: "The Ultimate Streaming Experience" },
  reports: [],
  serverMetrics: { uptime: 0, memory: { heapUsed: 0 }, platform: 'browser', arch: 'x64' }
  };
@@ -230,6 +230,8 @@ export default function Admin() {
  ...adminConfigObj, // Overwrite with real firebase config
  totalUsers: firebaseUserCount || statsData.totalUsers,
  activeUserCount: activeUserCount || 0,
+ totalGuests: globalAnalytics?.totalGuests || 0,
+ activeGuests: globalAnalytics?.activeGuests || 0,
  allUsers: combinedUsers,
  mostActive: sortedMostActive,
  advancedStats,
@@ -421,7 +423,7 @@ export default function Admin() {
  </div>
  ) : (
  <div className="flex flex-col items-center justify-center">
- <Activity className="w-8 h-8 text-[#FF3B30] animate-pulse mb-4" />
+ <Activity className="w-8 h-8 text-brand animate-pulse mb-4" />
  <h2 className="text-fluid-xl font-bold">Connecting...</h2>
  </div>
  )}
@@ -437,16 +439,15 @@ export default function Admin() {
  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
  <div>
  <h1 className="text-fluid-4xl font-semibold tracking-tight flex items-center gap-4">
- <ShieldAlert className="w-10 h-10 text-[#FF3B30]" />
+ <ShieldAlert className="w-10 h-10 text-brand" />
  AXIS TV COMMAND CENTER
  </h1>
  <p className="text-gray-500 mt-2 font-medium">Full platform control and administrative intelligence.</p>
  </div>
- <div className="flex items-center gap-2 bg-white/[0.04] backdrop-blur-[24px] p-1 rounded-[24px] border border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.3)] overflow-x-auto no-scrollbar max-w-full">
+ <div className="flex items-center gap-2 bg-white/5 p-1 rounded-2xl border border-white/10 overflow-x-auto no-scrollbar max-w-full">
  {[
  { id: 'overview', label: 'Overview', icon: <TrendingUp className="w-4 h-4" /> },
  { id: 'users', label: 'Directory', icon: <Users className="w-4 h-4" /> },
- { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
  { id: 'branding', label: 'Identity', icon: <Search className="w-4 h-4" /> },
  { id: 'content', label: 'Spotlight', icon: <Award className="w-4 h-4" /> },
  { id: 'database', label: 'Data Core', icon: <Database className="w-4 h-4" /> },
@@ -459,7 +460,7 @@ export default function Admin() {
  <button 
  key={tab.id}
  onClick={() => setActiveTab(tab.id as any)}
- className={`px-4 py-2 rounded-xl text-fluid-sm font-semibold tracking-wide flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-[#FF3B30] text-white shadow-lg shadow-[#FF3B30]/20' : 'text-gray-500 hover:text-white hover:bg-white/[0.04] backdrop-blur-[24px]'}`}
+ className={`px-4 py-2 rounded-xl text-fluid-sm font-semibold tracking-wide flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-brand text-white shadow-lg shadow-brand/20' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
  >
  {tab.icon}
  {tab.label}
@@ -469,35 +470,27 @@ export default function Admin() {
  </div>
 
  {loading ? (
-   <div className="space-y-8 py-8">
-     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-       <Skeleton className="h-32 rounded-3xl animate-pulse" />
-       <Skeleton className="h-32 rounded-3xl animate-pulse" />
-       <Skeleton className="h-32 rounded-3xl animate-pulse" />
-     </div>
-     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-       <Skeleton className="h-96 rounded-[2.5rem] animate-pulse" />
-       <Skeleton className="h-96 rounded-[2.5rem] animate-pulse" />
-     </div>
-   </div>
+ <div className="flex items-center justify-center py-40">
+ <PopcornLoader />
+ </div>
  ) : data && (
  <div className="space-y-12">
  {activeTab === 'overview' && (
  <>
  {/* Global Intelligence Section */}
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
- {/* demographics */}
- <div className="bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] rounded-[24px] shadow-2xl p-8 shadow-2xl relative overflow-hidden group">
- <div className="absolute -right-20 -top-20 w-64 h-64 bg-[#FF3B30]/5 rounded-full blur-3xl group-hover:bg-[#FF3B30]/10 transition-all duration-700" />
+ {/* Demographics */}
+ <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group">
+ <div className="absolute -right-20 -top-20 w-64 h-64 bg-brand/5 rounded-full blur-3xl group-hover:bg-brand/10 transition-all duration-700" />
  <div className="flex items-center justify-between mb-8 relative z-10">
  <div>
  <h3 className="text-fluid-2xl font-semibold tracking-tight flex items-center gap-3">
- <Zap className="w-6 h-6 text-[#FF3B30]" />
- Global demographics
+ <Zap className="w-6 h-6 text-brand" />
+ Global Demographics
  </h3>
  <p className="text-fluid-sm font-semibold text-gray-500 tracking-wide mt-1">Real-time visitor distribution</p>
  </div>
- <div className="px-4 py-2 bg-[#FF3B30]/10 border border-[#FF3B30]/20 rounded-xl text-fluid-sm font-semibold text-[#FF3B30]">Live Feed</div>
+ <div className="px-4 py-2 bg-brand/10 border border-brand/20 rounded-xl text-fluid-sm font-semibold text-brand">Live Feed</div>
  </div>
  
  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 relative z-10">
@@ -507,16 +500,16 @@ export default function Admin() {
  .sort(([, a], [, b]) => (b as number) - (a as number))
  .slice(0, 6)
  .map(([country, count]) => (
- <div key={country} className="bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] rounded-[16px] p-6 hover:border-[#FF3B30]/30 transition-all">
+ <div key={country} className="bg-black/40 backdrop-blur-3xl border border-white/5 rounded-2xl p-6 hover:border-brand/30 transition-all">
  <p className="text-fluid-sm font-semibold text-gray-500 mb-2 truncate">{country}</p>
  <div className="flex items-baseline gap-2">
  <p className="text-fluid-3xl font-semibold text-white">{count as number}</p>
- <span className="text-fluid-sm font-bold text-[#FF3B30] ">vis</span>
+ <span className="text-fluid-sm font-bold text-brand ">vis</span>
  </div>
  </div>
  ))
  ) : (
- <div className="col-span-full py-12 text-center bg-[#161616]/60 backdrop-blur-2xl rounded-3xl border border-dashed border-white/10">
+ <div className="col-span-full py-12 text-center bg-black/40 backdrop-blur-3xl rounded-3xl border border-dashed border-white/10">
  <Activity className="w-8 h-8 text-gray-700 mx-auto mb-4 animate-pulse" />
  <p className="text-gray-500 text-fluid-xs font-semibold tracking-wide">Scanning for incoming signals...</p>
  </div>
@@ -525,7 +518,7 @@ export default function Admin() {
  </div>
 
  {/* Platform Velocity */}
- <div className="bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] rounded-[24px] shadow-2xl p-8 shadow-2xl relative overflow-hidden group">
+ <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group">
  <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl group-hover:bg-blue-500/10 transition-all duration-700" />
  <div className="flex items-center justify-between mb-8 relative z-10">
  <div>
@@ -548,7 +541,7 @@ export default function Admin() {
  <span className="text-fluid-xl font-semibold text-blue-400 ">Minutes spent</span>
  </div>
  <div className="mt-6 flex items-center gap-2">
- <div className="flex-1 h-1 bg-white/[0.04] backdrop-blur-[24px] rounded-full overflow-hidden">
+ <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
  <div className="h-full bg-blue-400 animate-shimmer" style={{ width: '65%' }} />
  </div>
  <span className="text-fluid-sm font-semibold text-blue-400 ">Live</span>
@@ -560,13 +553,13 @@ export default function Admin() {
 
  {/* Visual Intelligence Section */}
  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
- <div className="lg:col-span-2 bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] rounded-[24px] shadow-2xl p-8 relative overflow-hidden">
+ <div className="lg:col-span-2 bg-white/5 border border-white/10 rounded-[2.5rem] p-8 relative overflow-hidden">
  <div className="flex items-center justify-between mb-8">
  <div>
  <h3 className="text-fluid-xl font-bold tracking-tight ">Registry Velocity</h3>
  <p className="text-fluid-sm font-semibold text-gray-500 tracking-wide mt-1">Daily acquisition metrics</p>
  </div>
- <Activity className="w-5 h-5 text-[#FF3B30]" />
+ <Activity className="w-5 h-5 text-brand" />
  </div>
  <div className="h-[250px] w-full">
  <ResponsiveContainer width="100%" height="100%">
@@ -607,7 +600,7 @@ export default function Admin() {
  label="Platform Health" 
  value={data.platformErrors.filter(e => !e.resolved).length === 0 ? 100 : Math.max(0, 100 - data.platformErrors.filter(e => !e.resolved).length * 10)} 
  icon={<Activity className="w-6 h-6" />}
- color={data.platformErrors.filter(e => !e.resolved).length === 0 ? 'text-green-500' : 'text-[#FF3B30]'}
+ color={data.platformErrors.filter(e => !e.resolved).length === 0 ? 'text-green-500' : 'text-brand'}
  isPercent
  />
  <StatCard 
@@ -635,6 +628,18 @@ export default function Admin() {
  icon={<Clock className="w-6 h-6" />}
  color="text-yellow-500"
  />
+ <StatCard 
+ label="Total Guests" 
+ value={data.totalGuests || 0} 
+ icon={<Ghost className="w-6 h-6" />}
+ color="text-yellow-400"
+ />
+ <StatCard 
+ label="Active Guests" 
+ value={data.activeGuests || 0} 
+ icon={<Zap className="w-6 h-6" />}
+ color="text-purple-400"
+ />
  </div>
  </div>
 
@@ -644,7 +649,7 @@ export default function Admin() {
  label="Active Errors" 
  value={data.platformErrors.filter(e => !e.resolved).length} 
  icon={<Ghost className="w-6 h-6" />}
- color="text-[#FF3B30]"
+ color="text-brand"
  />
  <StatCard 
  label="Joined (7 Days)" 
@@ -693,7 +698,7 @@ export default function Admin() {
  label="Search Momentum" 
  value={data.searchVelocity || 0} 
  icon={<Search className="w-6 h-6" />}
- color="text-[#FF3B30]"
+ color="text-brand"
  />
  <StatCard 
  label="Intel Reports" 
@@ -704,10 +709,10 @@ export default function Admin() {
  </div>
 
  {/* Most Active Users Table */}
- <div className="bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] rounded-[24px] shadow-2xl overflow-hidden">
+ <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden">
  <div className="p-8 border-b border-white/10 flex items-center justify-between">
  <h2 className="text-fluid-xl font-bold flex items-center gap-2">
- <TrendingUp className="w-6 h-6 text-[#FF3B30]" />
+ <TrendingUp className="w-6 h-6 text-brand" />
  Platform elites
  </h2>
  <span className="text-fluid-xs font-semibold text-gray-500 tracking-wide">Global Ranking</span>
@@ -725,7 +730,7 @@ export default function Admin() {
  <tbody className="divide-y divide-white/5">
  {data.mostActive.map((user, idx) => (
  <tr key={`${user.id}-${idx}`} className="hover:bg-white/2 transition-colors group">
- <td className="px-8 py-6 font-semibold text-[#FF3B30] ">#{idx + 1}</td>
+ <td className="px-8 py-6 font-semibold text-brand ">#{idx + 1}</td>
  <td className="px-8 py-6">
  <div className="flex items-center gap-4">
  <img src={user.avatar || undefined} className="w-10 h-10 rounded-2xl bg-transparent border border-white/10" alt="" loading="lazy" />
@@ -740,16 +745,16 @@ export default function Admin() {
  <p className="text-fluid-sm font-bold flex items-center gap-2">
  {user.stats?.totalViews || 0} <span className="text-fluid-sm text-gray-600 font-semibold tracking-tight">Views</span>
  </p>
- <div className="w-24 h-1 bg-white/[0.04] backdrop-blur-[24px] rounded-full overflow-hidden">
- <div className="h-full bg-[#FF3B30]" style={{ width: `${Math.min(100, (user.stats?.totalViews || 0) * 2)}%` }} />
+ <div className="w-24 h-1 bg-white/5 rounded-full overflow-hidden">
+ <div className="h-full bg-brand" style={{ width: `${Math.min(100, (user.stats?.totalViews || 0) * 2)}%` }} />
  </div>
  </div>
  </td>
  <td className="px-8 py-6 text-right">
  <div className="flex items-center justify-end gap-1">
  {user.stats?.badges?.slice(0, 4).map(b => (
- <div key={b} className="w-6 h-6 rounded-lg bg-[#FF3B30]/10 border border-[#FF3B30]/20 flex items-center justify-center" title={b}>
- <Award className="w-3.5 h-3.5 text-[#FF3B30]" />
+ <div key={b} className="w-6 h-6 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center" title={b}>
+ <Award className="w-3.5 h-3.5 text-brand" />
  </div>
  ))}
  </div>
@@ -763,19 +768,19 @@ export default function Admin() {
 
  {/* Country Breakdown Section */}
  {data.globalAnalytics?.countries && (
- <div className="bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] rounded-[24px] shadow-2xl p-8">
+ <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8">
  <div className="flex items-center justify-between mb-8">
  <div>
- <h3 className="text-fluid-xl font-bold tracking-tight ">Global demographics</h3>
+ <h3 className="text-fluid-xl font-bold tracking-tight ">Global Demographics</h3>
  <p className="text-fluid-sm font-semibold text-gray-500 tracking-wide mt-1">Visitor distribution by country</p>
  </div>
- <ExternalLink className="w-5 h-5 text-[#FF3B30]" />
+ <ExternalLink className="w-5 h-5 text-brand" />
  </div>
  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
  {Object.entries(data.globalAnalytics.countries)
  .sort(([, a], [, b]) => (b as number) - (a as number))
  .map(([country, count]) => (
- <div key={country} className="bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] rounded-[16px] p-4 text-center">
+ <div key={country} className="bg-black/40 backdrop-blur-3xl border border-white/5 rounded-2xl p-4 text-center">
  <p className="text-fluid-xs font-semibold text-gray-500 mb-1 truncate">{country}</p>
  <p className="text-fluid-xl font-bold text-white">{count as number}</p>
  </div>
@@ -787,23 +792,12 @@ export default function Admin() {
  </>
  )}
 
- {activeTab === 'notifications' && (
-   <motion.div
-     initial={{ opacity: 0, y: 20 }}
-     animate={{ opacity: 1, y: 0 }}
-     exit={{ opacity: 0, y: -20 }}
-     className="max-w-4xl mx-auto"
-   >
-     <NotificationCommandCenter />
-   </motion.div>
- )}
-
  {activeTab === 'branding' && (
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
- <div className="bg-white/[0.04] backdrop-blur-[24px] border border-white/[0.08] p-8 rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.3)] space-y-8">
+ <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] space-y-8">
  <div className="flex items-center gap-3">
- <div className="p-3 bg-[#FF3B30]/10 rounded-2xl">
- <Activity className="w-6 h-6 text-[#FF3B30]" />
+ <div className="p-3 bg-brand/10 rounded-2xl">
+ <Activity className="w-6 h-6 text-brand" />
  </div>
  <h2 className="text-fluid-2xl font-semibold tracking-tight">Site Identity</h2>
  </div>
@@ -814,7 +808,7 @@ export default function Admin() {
  type="text" 
  defaultValue={data.siteConfig?.siteName}
  onBlur={(e) => handleUpdateConfig({ siteName: e.target.value })}
- className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] rounded-[16px] px-6 py-4 focus:border-[#FF3B30] outline-none font-bold placeholder:opacity-20"
+ className="w-full bg-black/40 backdrop-blur-3xl border border-white/10 rounded-2xl px-6 py-4 focus:border-brand outline-none font-bold placeholder:opacity-20"
  placeholder="Platform designation..."
  />
  </div>
@@ -824,7 +818,7 @@ export default function Admin() {
  type="text" 
  defaultValue={data.siteConfig?.tagline}
  onBlur={(e) => handleUpdateConfig({ tagline: e.target.value })}
- className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] rounded-[16px] px-6 py-4 focus:border-[#FF3B30] outline-none font-bold placeholder:opacity-20"
+ className="w-full bg-black/40 backdrop-blur-3xl border border-white/10 rounded-2xl px-6 py-4 focus:border-brand outline-none font-bold placeholder:opacity-20"
  placeholder="Slogan / Strategic detail..."
  />
  </div>
@@ -833,25 +827,12 @@ export default function Admin() {
  <select 
  defaultValue={data.siteConfig?.apiSource || 'main'}
  onChange={(e) => handleUpdateConfig({ apiSource: e.target.value as 'main' | 'backup' })}
- className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] rounded-[16px] px-6 py-4 focus:border-[#FF3B30] outline-none font-bold text-white cursor-pointer"
+ className="w-full bg-black/40 backdrop-blur-3xl border border-white/10 rounded-2xl px-6 py-4 focus:border-brand outline-none font-bold text-white cursor-pointer"
  >
  <option value="main" className="bg-black text-white">Main Core (xcasper)</option>
  <option value="backup" className="bg-black text-white">Backup Core (gzmoviebox - Septorch)</option>
-</select>
-</div>
-<div>
-<label className="text-fluid-sm font-semibold tracking-wide text-gray-500 block mb-3 px-1">Streaming Source / Video Delivery Option</label>
-<select 
-defaultValue={data.siteConfig?.streamSource || 'xcasper'}
-onChange={(e) => handleUpdateConfig({ streamSource: e.target.value as 'xcasper' | 'imbed' })}
-className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] rounded-[16px] px-6 py-4 focus:border-[#FF3B30] outline-none font-bold text-white cursor-pointer"
->
-<option value="xcasper" className="bg-black text-white">Direct Stream (movieapi.xcasper.space)</option>
-<option value="imbed" className="bg-black text-white">Embed/Iframe Player (Filmu / vidsrc.wiki)</option>
-</select>
-</div>
-
-
+ </select>
+ </div>
  </div>
  </div>
 
@@ -861,10 +842,10 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  )}
 
  {activeTab === 'users' && (
- <div className="bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] rounded-[24px] shadow-2xl overflow-hidden p-8">
+ <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden p-8">
  <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
  <h2 className="text-fluid-xl font-bold flex items-center gap-2">
- <Users className="w-6 h-6 text-[#FF3B30]" />
+ <Users className="w-6 h-6 text-brand" />
  Registry
  </h2>
  <div className="relative w-full md:w-80">
@@ -872,7 +853,7 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  <input 
  type="text" 
  placeholder="Identify user..."
- className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] rounded-[16px] py-3 pl-12 pr-6 focus:outline-none focus:border-[#FF3B30] transition-colors text-fluid-sm font-medium"
+ className="w-full bg-black/40 backdrop-blur-3xl border border-white/10 rounded-2xl py-3 pl-12 pr-6 focus:outline-none focus:border-brand transition-colors text-fluid-sm font-medium"
  />
  </div>
  </div>
@@ -881,10 +862,10 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  {data.allUsers.map((user, idx) => (
  <motion.div 
  key={`${user.id}-${idx}`} 
- className="bg-white/[0.04] backdrop-blur-[24px] border border-white/5 rounded-3xl p-6 hover:border-[#FF3B30]/30 transition-all group relative overflow-hidden"
+ className="bg-white/5 border border-white/5 rounded-3xl p-6 hover:border-brand/30 transition-all group relative overflow-hidden"
  >
  {((user as any).isBanned) && (
- <div className="absolute top-0 right-0 p-2 bg-[#FF3B30] text-fluid-xs font-semibold tracking-wide rotate-45 translate-x-4 -translate-y-1 w-20 text-center shadow-lg">
+ <div className="absolute top-0 right-0 p-2 bg-brand text-fluid-xs font-semibold tracking-wide rotate-45 translate-x-4 -translate-y-1 w-20 text-center shadow-lg">
  Banned
  </div>
  )}
@@ -899,7 +880,7 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  </div>
  </div>
 
- <div className="grid grid-cols-3 gap-3 mb-6 bg-[#161616]/60 backdrop-blur-2xl p-4 rounded-2xl border border-white/5">
+ <div className="grid grid-cols-3 gap-3 mb-6 bg-black/40 backdrop-blur-3xl p-4 rounded-2xl border border-white/5">
  <div className="text-center">
  <p className="text-fluid-sm font-semibold ">{user.stats?.totalViews || 0}</p>
  <p className="text-fluid-xs font-semibold text-gray-600 tracking-wide">Views</p>
@@ -921,7 +902,7 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  Joined {new Date(user.createdAt).toLocaleDateString()}
  </div>
  {user.lastAction && (
- <div className="flex items-center gap-1 text-fluid-xs text-[#FF3B30]/60 font-semibold tracking-wide mt-0.5">
+ <div className="flex items-center gap-1 text-fluid-xs text-brand/60 font-semibold tracking-wide mt-0.5">
  <Activity className="w-3 h-3" />
  Active {new Date(user.lastAction).toLocaleTimeString()}
  </div>
@@ -932,14 +913,14 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  disabled={isUpdating}
  onClick={() => handleRoleChange(user.id, (user as any).role)}
  className={`p-2 transition-colors rounded-lg ${(user as any).role === 'admin' ? 'text-blue-500 hover:bg-blue-500/10' : 'text-gray-700 hover:text-blue-500 hover:bg-blue-500/10'}`}
- title={(user as any).role === 'admin' ? 'demote to User' : 'Promote to Admin'}
+ title={(user as any).role === 'admin' ? 'Demote to User' : 'Promote to Admin'}
  >
  <Key className="w-5 h-5" />
  </button>
  <button 
  disabled={isUpdating}
  onClick={() => handleBanUser(user.email, (user as any).isBanned)}
- className={`p-2 transition-colors rounded-lg ${(user as any).isBanned ? 'text-green-500 hover:bg-green-500/10' : 'text-gray-700 hover:text-[#FF3B30] hover:bg-[#FF3B30]/10'}`}
+ className={`p-2 transition-colors rounded-lg ${(user as any).isBanned ? 'text-green-500 hover:bg-green-500/10' : 'text-gray-700 hover:text-brand hover:bg-brand/10'}`}
  title={(user as any).isBanned ? 'Unban User' : 'Ban User'}
  >
  <ShieldAlert className="w-5 h-5" />
@@ -954,7 +935,7 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
 
  {activeTab === 'content' && (
  <div className="space-y-8">
- <div className="bg-white/[0.04] backdrop-blur-[24px] border border-white/[0.08] p-8 rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+ <div className="bg-white/5 border border-white/10 p-8 rounded-[3rem]">
  <div className="flex items-center justify-between mb-8">
  <div className="flex items-center gap-4">
  <div className="p-4 bg-orange-500/10 rounded-2xl">
@@ -973,7 +954,7 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
 
  {activeTab === 'database' && (
  <div className="space-y-8">
- <div className="bg-white/[0.04] backdrop-blur-[24px] border border-white/[0.08] p-8 rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+ <div className="bg-white/5 border border-white/10 p-8 rounded-[3rem]">
  <div className="flex items-center justify-between mb-8">
  <div className="flex items-center gap-4">
  <div className="p-4 bg-blue-500/10 rounded-2xl">
@@ -987,33 +968,33 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  </div>
 
  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center mb-8">
- <div className="p-6 bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] rounded-[16px]">
+ <div className="p-6 bg-black/40 backdrop-blur-3xl border border-white/5 rounded-3xl">
  <p className="text-fluid-sm font-semibold text-gray-500 tracking-wide mb-2 flex items-center justify-center gap-2">
  <Users className="w-4 h-4" /> User Profiles
  </p>
  <p className="text-fluid-3xl font-semibold text-blue-500">{data.allUsers.length}</p>
  </div>
- <div className="p-6 bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] rounded-[16px]">
+ <div className="p-6 bg-black/40 backdrop-blur-3xl border border-white/5 rounded-3xl">
  <p className="text-fluid-sm font-semibold text-gray-500 tracking-wide mb-2 flex items-center justify-center gap-2">
  <Search className="w-4 h-4" /> Global Searches
  </p>
  <p className="text-fluid-3xl font-semibold text-purple-500">{data.globalAnalytics?.totalSearches || 0}</p>
  </div>
- <div className="p-6 bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] rounded-[16px]">
+ <div className="p-6 bg-black/40 backdrop-blur-3xl border border-white/5 rounded-3xl">
  <p className="text-fluid-sm font-semibold text-gray-500 tracking-wide mb-2 flex items-center justify-center gap-2">
  <Clock className="w-4 h-4" /> Total User Sessions
  </p>
  <p className="text-fluid-3xl font-semibold text-orange-500">{data.globalAnalytics?.totalVisitors || 0}</p>
  </div>
- <div className="p-6 bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] rounded-[16px]">
+ <div className="p-6 bg-black/40 backdrop-blur-3xl border border-white/5 rounded-3xl">
  <p className="text-fluid-sm font-semibold text-gray-500 tracking-wide mb-2 flex items-center justify-center gap-2">
  <Award className="w-4 h-4" /> Admin Roles
  </p>
- <p className="text-fluid-3xl font-semibold text-[#FF3B30]">{data.allUsers.filter(u => u.role === 'admin').length}</p>
+ <p className="text-fluid-3xl font-semibold text-brand">{data.allUsers.filter(u => u.role === 'admin').length}</p>
  </div>
  </div>
 
- <div className="bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] rounded-[16px] p-8">
+ <div className="bg-black/40 backdrop-blur-3xl border border-white/5 rounded-[2.5rem] p-8">
  <h3 className="text-fluid-xl font-bold tracking-tight mb-6">Database Schema & Collections</h3>
  <div className="overflow-x-auto">
  <table className="w-full text-left">
@@ -1039,10 +1020,10 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  <td className="px-8 py-6 text-right"><span className="bg-white/10 px-2 py-1 rounded text-fluid-xs">Public Read</span></td>
  </tr>
  <tr className="hover:bg-white/2 transition-colors">
- <td className="px-8 py-6 font-bold flex items-center gap-2"><Database className="w-4 h-4 text-[#FF3B30]" /> /admin/config</td>
+ <td className="px-8 py-6 font-bold flex items-center gap-2"><Database className="w-4 h-4 text-brand" /> /admin/config</td>
  <td className="px-8 py-6">1</td>
  <td className="px-8 py-6 text-yellow-500">Moderate</td>
- <td className="px-8 py-6 text-right"><span className="bg-[#FF3B30]/20 text-[#FF3B30] px-2 py-1 rounded text-fluid-xs outline outline-1 outline-brand/30">Admin Only</span></td>
+ <td className="px-8 py-6 text-right"><span className="bg-brand/20 text-brand px-2 py-1 rounded text-fluid-xs outline outline-1 outline-brand/30">Admin Only</span></td>
  </tr>
  <tr className="hover:bg-white/2 transition-colors">
  <td className="px-8 py-6 font-bold flex items-center gap-2"><Database className="w-4 h-4 text-purple-500" /> /supportTickets</td>
@@ -1061,9 +1042,9 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  {activeTab === 'system' && (
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
  {/* Broadcast Control */}
- <div className="bg-white/[0.04] backdrop-blur-[24px] border border-white/[0.08] p-8 rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.3)] h-fit">
+ <div className="bg-white/5 border border-white/10 p-8 rounded-3xl h-fit">
  <div className="flex items-center gap-3 mb-8">
- <Mail className="w-6 h-6 text-[#FF3B30]" />
+ <Mail className="w-6 h-6 text-brand" />
  <h2 className="text-fluid-xl font-semibold tracking-tight">Global Broadcast</h2>
  </div>
  <p className="text-fluid-sm text-gray-500 mb-6 font-medium">Send a critical message to all connected sessions across the platform.</p>
@@ -1073,12 +1054,12 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  value={broadcastInput}
  onChange={(e) => setBroadcastInput(e.target.value)}
  placeholder="Type priority transmission... (Leave blank to clear)"
- className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] rounded-[16px] p-6 focus:outline-none focus:border-[#FF3B30] transition-colors text-fluid-sm min-h-[150px] font-medium resize-none"
+ className="w-full bg-black/40 backdrop-blur-3xl border border-white/10 rounded-2xl p-6 focus:outline-none focus:border-brand transition-colors text-fluid-sm min-h-[150px] font-medium resize-none"
  />
  <button 
  disabled={isUpdating}
  onClick={handleUpdateBroadcast}
- className="w-full py-4 bg-[#FF3B30] hover:bg-[#FF3B30]-hover text-white rounded-2xl font-semibold tracking-wide shadow-xl shadow-[#FF3B30]/20 transition-all disabled:opacity-50"
+ className="w-full py-4 bg-brand hover:bg-brand-hover text-white rounded-2xl font-semibold tracking-wide shadow-xl shadow-brand/20 transition-all disabled:opacity-50"
  >
  {isUpdating ? 'Synchronizing...' : 'Transmit Broadcast'}
  </button>
@@ -1094,30 +1075,30 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  </div>
 
  {/* Maintenance Mode */}
- <div className="bg-white/[0.04] backdrop-blur-[24px] border border-white/[0.08] p-8 rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.3)] h-fit">
+ <div className="bg-white/5 border border-white/10 p-8 rounded-3xl h-fit">
  <div className="flex items-center gap-3 mb-8">
  <Activity className="w-6 h-6 text-yellow-500" />
  <h2 className="text-fluid-xl font-semibold tracking-tight">Emergency Lockdown</h2>
  </div>
  <p className="text-fluid-sm text-gray-500 mb-8 font-medium">Instantly put the platform into Maintenance Mode. New sessions will be blocked.</p>
  
- <div className="flex flex-col gap-6 p-8 bg-[#161616]/60 backdrop-blur-2xl rounded-3xl border border-white/5 text-center">
+ <div className="flex flex-col gap-6 p-8 bg-black/40 backdrop-blur-3xl rounded-3xl border border-white/5 text-center">
  <div className="flex items-center justify-center gap-4 mb-2">
  <span className={`text-fluid-sm font-semibold tracking-wide ${data.maintenanceMode ? 'text-gray-600' : 'text-green-500'}`}>Operational</span>
- <div className="w-12 h-6 bg-white/[0.04] backdrop-blur-[24px] rounded-full p-1 relative">
- <div className={`w-4 h-4 rounded-full transition-all ${data.maintenanceMode ? 'translate-x-6 bg-[#FF3B30]' : 'translate-x-0 bg-gray-500'}`} />
+ <div className="w-12 h-6 bg-white/5 rounded-full p-1 relative">
+ <div className={`w-4 h-4 rounded-full transition-all ${data.maintenanceMode ? 'translate-x-6 bg-brand' : 'translate-x-0 bg-gray-500'}`} />
  </div>
- <span className={`text-fluid-sm font-semibold tracking-wide ${data.maintenanceMode ? 'text-[#FF3B30]' : 'text-gray-600'}`}>Locked</span>
+ <span className={`text-fluid-sm font-semibold tracking-wide ${data.maintenanceMode ? 'text-brand' : 'text-gray-600'}`}>Locked</span>
  </div>
  
- <h3 className={`text-fluid-4xl font-semibold tracking-tight ${data.maintenanceMode ? 'text-[#FF3B30]' : 'text-white'}`}>
+ <h3 className={`text-fluid-4xl font-semibold tracking-tight ${data.maintenanceMode ? 'text-brand' : 'text-white'}`}>
  {data.maintenanceMode ? 'SYSTEM LOCKED' : 'SYSTEM ONLINE'}
  </h3>
  
  <button 
  disabled={isUpdating}
  onClick={handleToggleMaintenance}
- className={`mt-4 py-4 px-10 rounded-2xl font-semibold tracking-wide transition-all self-center ${data.maintenanceMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-[#FF3B30]/10 text-[#FF3B30] border border-[#FF3B30]/30 hover:bg-[#FF3B30] hover:text-white'}`}
+ className={`mt-4 py-4 px-10 rounded-2xl font-semibold tracking-wide transition-all self-center ${data.maintenanceMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-brand/10 text-brand border border-brand/30 hover:bg-brand hover:text-white'}`}
  >
  {data.maintenanceMode ? 'Restore Normal Ops' : 'Initiate Lockdown'}
  </button>
@@ -1128,11 +1109,11 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
 
  {activeTab === 'errors' && (
  <div className="space-y-8">
- <div className="bg-white/[0.04] backdrop-blur-[24px] border border-white/[0.08] p-8 rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+ <div className="bg-white/5 border border-white/10 p-8 rounded-[3rem]">
  <div className="flex items-center justify-between mb-8">
  <div className="flex items-center gap-4">
- <div className="p-4 bg-[#FF3B30]/10 rounded-2xl">
- <Ghost className="w-8 h-8 text-[#FF3B30]" />
+ <div className="p-4 bg-brand/10 rounded-2xl">
+ <Ghost className="w-8 h-8 text-brand" />
  </div>
  <div>
  <h2 className="text-fluid-3xl font-semibold tracking-tight">System Surveillance</h2>
@@ -1143,30 +1124,30 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
 
  <div className="grid gap-4">
  {data.platformErrors.length === 0 ? (
- <div className="py-20 text-center bg-[#161616]/60 backdrop-blur-2xl rounded-3xl border border-dashed border-white/10">
+ <div className="py-20 text-center bg-black/40 backdrop-blur-3xl rounded-3xl border border-dashed border-white/10">
  <ShieldAlert className="w-12 h-12 text-gray-700 mx-auto mb-4" />
  <p className="text-gray-500 font-bold">No anomalies detected in the mainframe.</p>
  </div>
  ) : (
  data.platformErrors.map((err: any) => (
- <div key={err.id} className={`bg-[#161616]/60 backdrop-blur-2xl border ${err.resolved ? 'border-green-500/20 opacity-60' : 'border-[#FF3B30]/30'} rounded-3xl p-6 transition-all hover:bg-[#161616]/60 backdrop-blur-2xl`}>
+ <div key={err.id} className={`bg-black/40 backdrop-blur-3xl border ${err.resolved ? 'border-green-500/20 opacity-60' : 'border-brand/30'} rounded-3xl p-6 transition-all hover:bg-black/40 backdrop-blur-3xl`}>
  <div className="flex flex-col lg:flex-row items-start justify-between gap-6">
  <div className="flex-1 min-w-0">
  <div className="flex items-center gap-3">
  {err.resolved ? (
  <span className="bg-green-500/20 text-green-500 px-3 py-1 rounded-full text-fluid-xs font-semibold tracking-wide">Rectified</span>
  ) : (
- <span className="bg-[#FF3B30]/20 text-[#FF3B30] px-3 py-1 rounded-full text-fluid-xs font-semibold tracking-wide">Active Exception</span>
+ <span className="bg-brand/20 text-brand px-3 py-1 rounded-full text-fluid-xs font-semibold tracking-wide">Active Exception</span>
  )}
  <h4 className="font-bold text-fluid-lg truncate text-white">{err.message}</h4>
  </div>
- <p className="text-fluid-xs text-gray-500 font-mono bg-[#161616]/60 backdrop-blur-2xl p-4 rounded-xl overflow-x-auto whitespace-pre">
+ <p className="text-fluid-xs text-gray-500 font-mono bg-black/40 backdrop-blur-3xl p-4 rounded-xl overflow-x-auto whitespace-pre">
  {err.stack?.substring(0, 500) || 'No stack trace available'}
  </p>
  <div className="flex flex-wrap gap-4 text-fluid-sm font-semibold text-gray-500 tracking-wide">
  <span className="flex items-center gap-1.5"><Users className="w-3 h-3" /> {err.userEmail || err.userId}</span>
  <span className="flex items-center gap-1.5"><Activity className="w-3 h-3" /> {err.componentName || 'Global'}</span>
- <span className="flex items-center gap-1.5 text-[#FF3B30]/80"><ExternalLink className="w-3 h-3" /> {err.url ? (new URL(err.url).pathname) : 'Unknown'}</span>
+ <span className="flex items-center gap-1.5 text-brand/80"><ExternalLink className="w-3 h-3" /> {err.url ? (new URL(err.url).pathname) : 'Unknown'}</span>
  <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {err.timestamp?.seconds ? new Date(err.timestamp.seconds * 1000).toLocaleString() : 'Just now'}</span>
  </div>
  </div>
@@ -1190,10 +1171,10 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  )}
 
  {activeTab === 'support' && (
- <div className="bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] rounded-[24px] shadow-2xl overflow-hidden p-8">
+ <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden p-8">
  <div className="flex items-center justify-between mb-8">
  <h2 className="text-fluid-xl font-bold flex items-center gap-2">
- <Mail className="w-6 h-6 text-[#FF3B30]" />
+ <Mail className="w-6 h-6 text-brand" />
  Support Intel
  </h2>
  <span className="text-fluid-xs font-semibold text-gray-500 tracking-wide">{data.supportTickets?.length || 0} Active Tickets</span>
@@ -1205,7 +1186,7 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  key={ticket.id}
  initial={{ opacity: 0, x: -20 }}
  animate={{ opacity: 1, x: 0 }}
- className="bg-white/2 border border-white/5 rounded-[2rem] p-8 hover:bg-white/[0.04] backdrop-blur-[24px] transition-colors"
+ className="bg-white/2 border border-white/5 rounded-[2rem] p-8 hover:bg-white/5 transition-colors"
  >
  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
  <div className="flex items-center gap-4">
@@ -1225,7 +1206,7 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  </div>
  </div>
 
- <div className="bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] rounded-[16px] p-6 mb-6">
+ <div className="bg-black/40 backdrop-blur-3xl border border-white/5 rounded-2xl p-6 mb-6">
  <p className="text-fluid-sm font-medium text-gray-300 leading-relaxed ">"{ticket.message}"</p>
  </div>
 
@@ -1236,12 +1217,12 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  value={replyInputs[ticket.id] || ''}
  onChange={(e) => setReplyInputs(prev => ({ ...prev, [ticket.id]: e.target.value }))}
  placeholder="Type administrative response..."
- className="flex-1 bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] rounded-[16px] px-6 py-4 focus:border-[#FF3B30] outline-none text-fluid-sm font-medium"
+ className="flex-1 bg-black/40 backdrop-blur-3xl border border-white/10 rounded-2xl px-6 py-4 focus:border-brand outline-none text-fluid-sm font-medium"
  />
  <button 
  onClick={() => handleReplyToTicket(ticket.id)}
  disabled={isUpdating}
- className="px-8 py-4 bg-[#FF3B30] hover:bg-[#FF3B30]-hover text-white rounded-2xl font-semibold tracking-wide transition-all shadow-xl shadow-[#FF3B30]/20 active:scale-95"
+ className="px-8 py-4 bg-brand hover:bg-brand-hover text-white rounded-2xl font-semibold tracking-wide transition-all shadow-xl shadow-brand/20 active:scale-95"
  >
  Reply
  </button>
@@ -1265,10 +1246,10 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  )}
 
  {activeTab === 'reports' && (
- <div className="bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] rounded-[24px] shadow-2xl overflow-hidden p-8">
+ <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden p-8">
  <div className="flex items-center justify-between mb-8">
  <h2 className="text-fluid-xl font-bold flex items-center gap-2">
- <ShieldAlert className="w-6 h-6 text-[#FF3B30]" />
+ <ShieldAlert className="w-6 h-6 text-brand" />
  Intel reports
  </h2>
  <span className="text-fluid-sm font-semibold text-gray-500 tracking-wide">{data.reports?.length || 0} Total Records</span>
@@ -1277,14 +1258,14 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  <div className="grid gap-6">
  {data.reports && data.reports.length > 0 ? (
  data.reports.map((report) => (
- <div key={report.id} className={`bg-[#161616]/60 backdrop-blur-2xl border ${report.status === 'open' ? 'border-[#FF3B30]/30' : 'border-white/5 opacity-60'} rounded-[2.5rem] p-8 transition-all hover:bg-[#161616]/60 backdrop-blur-2xl group`}>
+ <div key={report.id} className={`bg-black/40 backdrop-blur-3xl border ${report.status === 'open' ? 'border-brand/30' : 'border-white/5 opacity-60'} rounded-[2.5rem] p-8 transition-all hover:bg-black/40 backdrop-blur-3xl group`}>
  <div className="flex flex-col lg:flex-row items-start justify-between gap-8">
  <div className="flex-1 space-y-4">
  <div className="flex items-center gap-3">
  <span className={`px-4 py-1 rounded-full text-fluid-xs font-semibold tracking-wide ${report.status === 'open' ? 'bg-orange-600/20 text-orange-400' : 'bg-green-600/20 text-green-400'}`}>
  {report.status}
  </span>
- <span className="text-fluid-sm font-semibold text-gray-600 tracking-wide bg-white/[0.04] backdrop-blur-[24px] px-3 py-1 rounded-full">
+ <span className="text-fluid-sm font-semibold text-gray-600 tracking-wide bg-white/5 px-3 py-1 rounded-full">
  {report.category}
  </span>
  </div>
@@ -1308,7 +1289,7 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  <button 
  onClick={() => handleResolveReport(report.id)}
  disabled={isUpdating}
- className="px-6 py-3 bg-[#FF3B30] text-white rounded-2xl text-fluid-sm font-semibold tracking-wide hover:bg-[#FF3B30]-hover transition-all flex items-center gap-2 shadow-lg shadow-[#FF3B30]/20"
+ className="px-6 py-3 bg-brand text-white rounded-2xl text-fluid-sm font-semibold tracking-wide hover:bg-brand-hover transition-all flex items-center gap-2 shadow-lg shadow-brand/20"
  >
  <Lock className="w-4 h-4" /> Resolve
  </button>
@@ -1316,7 +1297,7 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  <button 
  onClick={() => handleDeleteReport(report.id)}
  disabled={isUpdating}
- className="p-3 bg-white/[0.04] backdrop-blur-[24px] text-gray-500 hover:text-white hover:bg-white/10 rounded-2xl transition-all"
+ className="p-3 bg-white/5 text-gray-500 hover:text-white hover:bg-white/10 rounded-2xl transition-all"
  >
  <Trash2 className="w-5 h-5" />
  </button>
@@ -1325,7 +1306,7 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  </div>
  ))
  ) : (
- <div className="py-20 text-center bg-[#161616]/60 backdrop-blur-2xl rounded-[3rem] border border-dashed border-white/5">
+ <div className="py-20 text-center bg-black/40 backdrop-blur-3xl rounded-[3rem] border border-dashed border-white/5">
  <ShieldAlert className="w-16 h-16 text-gray-700 mx-auto mb-6 opacity-20" />
  <h3 className="text-fluid-xl font-bold text-gray-500 tracking-tight">No intelligence reports filed</h3>
  <p className="text-fluid-sm font-semibold text-gray-600 tracking-wide mt-2">Buffer clear. Monitoring global uplink.</p>
@@ -1336,10 +1317,10 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
  )}
 
  {activeTab === 'logs' && (
- <div className="bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] rounded-[24px] shadow-2xl overflow-hidden p-8">
+ <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden p-8">
  <div className="flex items-center justify-between mb-8">
  <h2 className="text-fluid-xl font-bold flex items-center gap-2">
- <Clock className="w-6 h-6 text-[#FF3B30]" />
+ <Clock className="w-6 h-6 text-brand" />
  Audit Log Transmission
  </h2>
  <button onClick={fetchData} className="text-fluid-sm font-semibold text-gray-500 hover:text-white tracking-wide transition-colors flex items-center gap-2">
@@ -1349,7 +1330,7 @@ className="w-full bg-[#161616]/60 backdrop-blur-2xl border border-white/[0.08] r
 
  <div className="space-y-3 max-h-[600px] overflow-y-auto no-scrollbar pr-2">
  {data.auditLogs?.map((log, idx) => (
- <div key={`${log.id}-${idx}`} className="flex gap-4 p-5 bg-white/2 border border-white/5 rounded-2xl hover:bg-white/[0.04] backdrop-blur-[24px] transition-colors group">
+ <div key={`${log.id}-${idx}`} className="flex gap-4 p-5 bg-white/2 border border-white/5 rounded-2xl hover:bg-white/5 transition-colors group">
  <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${ log.type === 'BAN' ? 'bg-red-500' : log.type === 'MAINTENANCE' ? 'bg-yellow-500' : log.type === 'BROADCAST' ? 'bg-blue-500' : 'bg-gray-500' }`} />
  <div className="flex-1 min-w-0">
  <div className="flex items-center justify-between gap-4 mb-1">
@@ -1386,11 +1367,11 @@ function StatCard({ label, value, icon, color, isPercent, unit, durationSeconds 
  };
 
  return (
- <div className="bg-white/[0.04] backdrop-blur-[24px] border border-white/[0.08] p-8 rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:border-[#FF3B30]/30 transition-all group relative overflow-hidden">
+ <div className="bg-white/5 border border-white/10 p-8 rounded-3xl hover:border-brand/30 transition-all group relative overflow-hidden">
  <div className="absolute top-0 right-0 p-1 opacity-5">
  {icon}
  </div>
- <div className={`w-12 h-12 rounded-2xl bg-white/[0.04] backdrop-blur-[24px] flex items-center justify-center mb-6 group-hover:scale-110 transition-transform ${color}`}>
+ <div className={`w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform ${color}`}>
  {icon}
  </div>
  <div>

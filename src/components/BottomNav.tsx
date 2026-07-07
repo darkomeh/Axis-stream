@@ -1,130 +1,63 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Search, Compass, Radio, Trophy, Tv } from "lucide-react";
+import { Home, Search, LayoutGrid, Trophy, User, Activity } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useMediaPreview } from "../contexts/MediaPreviewContext";
-import { useAuth } from "../contexts/AuthContext";
-import { useState, useEffect } from "react";
 
 export default function BottomNav() {
-  const location = useLocation();
-  const { previewId } = useMediaPreview();
-  const { user, preferences } = useAuth();
-  
-  // Dynamic user initial for the profile bubble, defaulting to 'G'
-  const userInitial = user?.username 
-    ? user.username[0].toUpperCase() 
-    : user?.email 
-      ? user.email[0].toUpperCase() 
-      : "G";
+ const location = useLocation();
+ const { previewId } = useMediaPreview();
+ 
+ const navItems = [
+ { path: "/", icon: Home, label: "Home" },
+ { path: "/browse", icon: LayoutGrid, label: "Browse" },
+ { path: "/search", icon: Search, label: "Search" },
+ { path: "/ranking", icon: Trophy, label: "Rank" },
+ { path: "/profile", icon: User, label: "Profile" },
+ ];
 
-  const [isInputFocused, setIsInputFocused] = useState(false);
-  const [isMatchDetailsOpen, setIsMatchDetailsOpen] = useState(false);
-
-  useEffect(() => {
-    const handleFocusCheck = () => {
-      const activeEl = document.activeElement;
-      const isInput = activeEl && (
-        activeEl.tagName === "INPUT" || 
-        activeEl.tagName === "TEXTAREA" || 
-        activeEl.getAttribute("contenteditable") === "true"
-      );
-      setIsInputFocused(!!isInput);
-    };
-
-    const handleMatchDetailsCheck = () => {
-      setIsMatchDetailsOpen(document.querySelector(".sports-match-details") !== null);
-    };
-
-    document.addEventListener("focusin", handleFocusCheck);
-    document.addEventListener("focusout", handleFocusCheck);
-    
-    // Check initially and run interval to detect route overlay changes
-    handleMatchDetailsCheck();
-    const interval = setInterval(handleMatchDetailsCheck, 250);
-
-    return () => {
-      document.removeEventListener("focusin", handleFocusCheck);
-      document.removeEventListener("focusout", handleFocusCheck);
-      clearInterval(interval);
-    };
-  }, []);
-
-  const navItems = preferences?.kidsMode ? [
-    { path: "/", icon: Home, label: "Kids Home" },
-    { path: "/toons", icon: Tv, label: "Cartoons" },
-    { path: "/search", icon: Search, label: "Search" },
-    { path: "/profile", label: "Profile", isProfile: true },
-  ] : [
-    { path: "/", icon: Home, label: "Home" },
-    { path: "/search", icon: Search, label: "Explore" },
-    { path: "/trails", icon: Compass, label: "Trails" },
-    { path: "/sports", icon: Trophy, label: "Sports" },
-    { path: "/live", icon: Radio, label: "Live TV" },
-    { path: "/profile", label: "Profile", isProfile: true },
-  ];
-
-  return (
-    <AnimatePresence>
-      {!previewId && !isInputFocused && !isMatchDetailsOpen && (
-        <motion.div 
-          initial={{ y: 100, x: "-50%", opacity: 0 }}
-          animate={{ y: 0, x: "-50%", opacity: 1 }}
-          exit={{ y: 100, x: "-50%", opacity: 0 }}
-          transition={{ type: "spring", stiffness: 350, damping: 28 }}
-          className="fixed bottom-6 left-1/2 z-[100] w-[92%] max-w-[460px] lg:hidden"
-        >
-          <nav className="bg-[#18181a]/95 backdrop-blur-2xl px-5 py-2.5 rounded-[28px] border border-white/[0.08] shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
-            <div className="flex justify-between items-center">
-              {navItems.map((item, idx) => {
-                const isActive = location.pathname === item.path || 
-                  (item.path === "/trails" && location.pathname.startsWith("/trails"));
-                
-                return (
-                  <Link
-                    key={`${item.label}-${idx}`}
-                    to={item.path || "/profile"}
-                    className="flex flex-col items-center justify-center gap-1.5 transition-all outline-none py-1 flex-1 group"
-                  >
-                    {item.isProfile ? (
-                      <div className="relative">
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-white text-[11px] transition-transform duration-300 group-hover:scale-105 overflow-hidden bg-brand/20 ${isActive ? "ring-2 ring-brand ring-offset-2 ring-offset-black" : ""}`}>
-                          {user?.avatar ? (
-                            <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
-                          ) : (
-                            userInitial
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="relative">
-                        {item.icon && (
-                          <item.icon 
-                            className={`w-6 h-6 transition-colors duration-300 ${
-                              isActive 
-                                ? "text-brand" 
-                                : "text-[#8e8e93] group-hover:text-zinc-200"
-                            }`} 
-                          />
-                        )}
-                      </div>
-                    )}
-                    
-                    <span 
-                      className={`text-[10px] font-medium tracking-tight transition-colors duration-300 select-none ${
-                        isActive 
-                          ? "text-brand font-semibold" 
-                          : "text-[#8e8e93] group-hover:text-zinc-300"
-                      }`}
-                    >
-                      {item.label}
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
+ return (
+ <AnimatePresence>
+ {!previewId && (
+ <motion.div 
+ initial={{ y: 100, x: "-50%", opacity: 0 }}
+ animate={{ y: 0, x: "-50%", opacity: 1 }}
+ exit={{ y: 100, x: "-50%", opacity: 0 }}
+ transition={{ type: "spring", stiffness: 300, damping: 30 }}
+ className="fixed bottom-6 left-1/2 z-[100] w-[90%] max-w-[400px] md:hidden"
+ >
+ <nav className="glass-panel px-4 py-3 glass-panel shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+ <div className="flex justify-between items-center relative">
+ {navItems.map((item, idx) => {
+ const isActive = location.pathname === item.path;
+ const Icon = item.icon;
+ 
+ return (
+ <Link
+ key={`${item.path}-${idx}`}
+ to={item.path}
+ className="relative flex flex-col items-center gap-1 transition-all outline-none py-1 px-3 group"
+ >
+ {isActive && (
+ <motion.div 
+ layoutId="bottomNavBackground"
+ className="absolute inset-0 bg-white/20 rounded-[20px] -z-10 shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+ transition={{ type: "spring", stiffness: 300, damping: 30 }}
+ />
+ )}
+ <div className={`transition-all duration-300 relative z-10 ${ isActive ? "scale-100" : "hover:scale-105" }`}>
+ <Icon className={`w-5.5 h-5.5 md:w-6 md:h-6 transition-colors duration-300 ${ isActive ? "text-white" : "text-white/40 group-hover:text-white/70" }`} />
+ </div>
+ {/* Only show label optionally or keep extremely subtle */}
+ <span className={`font-semibold tracking-wider transition-colors duration-300 z-10 ${ isActive ? "text-white" : "text-transparent" } text-fluid-sm`}>
+ {item.label}
+ </span>
+ </Link>
+ );
+ })}
+ </div>
+ </nav>
+ </motion.div>
+ )}
+ </AnimatePresence>
+ );
 }

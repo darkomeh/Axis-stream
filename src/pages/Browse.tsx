@@ -6,11 +6,11 @@ import PosterGrid from "../components/PosterGrid";
 import TopTenGrid from "../components/TopTenGrid";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { NoticeMessage } from "../components/NoticeMessage";
+import PopcornLoader from "../components/PopcornLoader";
+import { ErrorMessage } from "../components/ErrorMessage";
 import { SEO } from "../components/SEO";
 import { Filter, ChevronDown, X, Loader2, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import BrowseGenreRow from "../components/BrowseGenreRow";
 
 const GENRES = [
  { id: "", name: "All Genres" },
@@ -39,24 +39,24 @@ const GENRES = [
 
 const COUNTRIES = [
  { id: "", name: "All Countries" },
- { id: "United States", name: "USA" },
- { id: "United Kingdom", name: "UK" },
- { id: "China", name: "China" },
- { id: "Korea", name: "Korea" },
- { id: "Japan", name: "Japan" },
- { id: "France", name: "France" },
- { id: "Germany", name: "Germany" },
- { id: "Italy", name: "Italy" },
- { id: "Spain", name: "Spain" },
- { id: "India", name: "India" },
- { id: "Canada", name: "Canada" },
- { id: "Australia", name: "Australia" },
- { id: "Brazil", name: "Brazil" },
- { id: "Russia", name: "Russia" },
- { id: "Mexico", name: "Mexico" },
- { id: "Nigeria", name: "Nigeria" },
- { id: "Thailand", name: "Thailand" },
- { id: "Turkey", name: "Turkey" },
+ { id: "us", name: "USA" },
+ { id: "gb", name: "UK" },
+ { id: "cn", name: "China" },
+ { id: "kr", name: "Korea" },
+ { id: "jp", name: "Japan" },
+ { id: "fr", name: "France" },
+ { id: "de", name: "Germany" },
+ { id: "it", name: "Italy" },
+ { id: "es", name: "Spain" },
+ { id: "in", name: "India" },
+ { id: "ca", name: "Canada" },
+ { id: "au", name: "Australia" },
+ { id: "br", name: "Brazil" },
+ { id: "ru", name: "Russia" },
+ { id: "mx", name: "Mexico" },
+ { id: "ng", name: "Nigeria" },
+ { id: "th", name: "Thailand" },
+ { id: "tr", name: "Turkey" },
 ];
 
 const TYPES = [
@@ -67,7 +67,7 @@ const TYPES = [
 
 import { ListSkeleton } from "../components/Skeleton";
 
-export default function Browse({ isEmbedded = false }: { isEmbedded?: boolean }) {
+export default function Browse() {
  const [searchParams, setSearchParams] = useSearchParams();
  const location = useLocation();
  const navigate = useNavigate();
@@ -82,7 +82,6 @@ export default function Browse({ isEmbedded = false }: { isEmbedded?: boolean })
 
  const [items, setItems] = useState<MediaItem[]>([]);
  const [trending, setTrending] = useState<MediaItem[]>([]);
- const [hot, setHot] = useState<MediaItem[]>([]);
  const [loading, setLoading] = useState(true);
  const [loadingMore, setLoadingMore] = useState(false);
  const [error, setError] = useState<string | null>(null);
@@ -92,39 +91,11 @@ export default function Browse({ isEmbedded = false }: { isEmbedded?: boolean })
  const [selectedGenre, setSelectedGenre] = useState("");
  const [selectedCountry, setSelectedCountry] = useState("");
  const [selectedType, setSelectedType] = useState(initialType);
-
- const isMoviePage = location.pathname === "/movies" || location.pathname === "/movie";
- const isSeriesPage = location.pathname === "/series";
- const isRestrictedView = isMoviePage || isSeriesPage;
-
- const activeGenres = GENRES.filter(g => g.id !== "");
- const showHorizontalSlices = !selectedGenre && !selectedCountry;
-
- const [visibleGenresCount, setVisibleGenresCount] = useState(4);
- const bottomObserver = useRef<IntersectionObserver | null>(null);
-
- const bottomTrackerRef = useCallback((node: HTMLDivElement | null) => {
-  if (bottomObserver.current) bottomObserver.current.disconnect();
-  bottomObserver.current = new IntersectionObserver((entries) => {
-   if (entries[0].isIntersecting && visibleGenresCount < activeGenres.length) {
-    setVisibleGenresCount(prev => Math.min(prev + 3, activeGenres.length));
-   }
-  }, {
-   rootMargin: "400px"
-  });
-  if (node) bottomObserver.current.observe(node);
- }, [visibleGenresCount, activeGenres.length]);
  
  // Sync selectedType when route changes (e.g. Navigating between /movies and /series)
  useEffect(() => {
-  if (isMoviePage) {
-   setSelectedType("1");
-  } else if (isSeriesPage) {
-   setSelectedType("2");
-  } else {
-   setSelectedType(initialType);
-  }
- }, [initialType, isMoviePage, isSeriesPage]);
+ setSelectedType(initialType);
+ }, [initialType]);
 
  const [showFilters, setShowFilters] = useState(false);
  const observer = useRef<IntersectionObserver | null>(null);
@@ -143,25 +114,19 @@ export default function Browse({ isEmbedded = false }: { isEmbedded?: boolean })
  }, [loading, loadingMore, hasMore]);
 
  useEffect(() => {
-  const trendPage = Math.floor(Math.random() * 4) + 1;
-  movieService.getTrending(trendPage).then(data => setTrending(data.sort(() => 0.5 - Math.random()))).catch(console.error);
-  movieService.getHot().then(data => setHot([...data.movies, ...data.series].sort(() => 0.5 - Math.random()))).catch(console.error);
+ movieService.getTrending().then(setTrending).catch(console.error);
  }, []);
 
  useEffect(() => {
-  if (!showHorizontalSlices) {
-   setPage(1);
-   loadItems(1, true);
-  } else {
-   setLoading(false);
-  }
- }, [selectedGenre, selectedCountry, selectedType, showHorizontalSlices]);
+ setPage(1);
+ loadItems(1, true);
+ }, [selectedGenre, selectedCountry, selectedType]);
 
  useEffect(() => {
-  if (page > 1 && !showHorizontalSlices) {
-   loadItems(page, false);
-  }
- }, [page, showHorizontalSlices]);
+ if (page > 1) {
+ loadItems(page, false);
+ }
+ }, [page]);
 
  const handleBack = () => {
  if (window.history.length > 2) {
@@ -186,7 +151,7 @@ export default function Browse({ isEmbedded = false }: { isEmbedded?: boolean })
  selectedCountry || undefined,
  p,
  20,
- type
+ type > 0 ? type : 1
  );
  
  if (reset) {
@@ -207,16 +172,13 @@ export default function Browse({ isEmbedded = false }: { isEmbedded?: boolean })
  };
 
  return (
- <div className={`text-white relative overflow-hidden ${isEmbedded ? '' : 'min-h-screen bg-transparent pb-20'}`}>
- {!isEmbedded && (
+ <div className="min-h-screen bg-transparent text-white pb-20 relative overflow-hidden">
  <SEO 
  title={`${selectedGenre || 'Discover'} Movies & Series`}
  description={`Browse our extensive catalog of ${selectedGenre || ''} movies and series on Axis TV. Filter by genre, country, and type to find your next favorite watch.`}
  url="/browse"
  />
- )}
  {/* Background Poster Collage (Subtle) */}
- {!isEmbedded && (
  <div className="fixed inset-0 z-0 opacity-10 blur-[80px] pointer-events-none">
  <img 
  src="https://picsum.photos/seed/movie-collage/1920/1080?blur=10" 
@@ -227,12 +189,10 @@ export default function Browse({ isEmbedded = false }: { isEmbedded?: boolean })
  />
  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
  </div>
- )}
 
- {!isEmbedded && <Navbar />}
+ <Navbar />
  
- <div className={`relative z-10 px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto ${isEmbedded ? 'pt-4' : 'pt-28'}`}>
- {!isEmbedded && (
+ <div className="relative z-10 pt-28 px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto">
  <motion.button 
  initial={{ opacity: 0, x: -20 }}
  animate={{ opacity: 1, x: 0 }}
@@ -242,7 +202,6 @@ export default function Browse({ isEmbedded = false }: { isEmbedded?: boolean })
  <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
  <span className="text-fluid-xs font-semibold tracking-wide">Back</span>
  </motion.button>
- )}
 
  <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
  <motion.div
@@ -274,22 +233,18 @@ export default function Browse({ isEmbedded = false }: { isEmbedded?: boolean })
  </div>
  
  <div className="flex-1 flex items-center gap-4">
- {!isRestrictedView && (
-  <>
-   <div className="relative group">
-   <select 
-   value={selectedType}
-   onChange={(e) => setSelectedType(e.target.value)}
-   className="bg-transparent text-white rounded-xl px-4 py-2 focus:outline-none cursor-pointer hover:text-brand transition-colors font-semibold tracking-wide text-fluid-xs appearance-none pr-8"
-   >
-   {TYPES.map(t => <option key={t.id} value={t.id} className="bg-[#141414]">{t.name}</option>)}
-   </select>
-   <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500" />
-   </div>
+ <div className="relative group">
+ <select 
+ value={selectedType}
+ onChange={(e) => setSelectedType(e.target.value)}
+ className="bg-transparent text-white rounded-xl px-4 py-2 focus:outline-none cursor-pointer hover:text-brand transition-colors font-semibold tracking-wide text-fluid-xs appearance-none pr-8"
+ >
+ {TYPES.map(t => <option key={t.id} value={t.id} className="bg-[#141414]">{t.name}</option>)}
+ </select>
+ <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500" />
+ </div>
 
-   <div className="w-px h-6 bg-white/10" />
-  </>
- )}
+ <div className="w-px h-6 bg-white/10" />
 
  <div className="relative group">
  <select 
@@ -316,16 +271,14 @@ export default function Browse({ isEmbedded = false }: { isEmbedded?: boolean })
  </div>
  </div>
  
- {(selectedGenre || selectedCountry || (!isRestrictedView && selectedType !== "0")) && (
+ {(selectedGenre || selectedCountry || selectedType !== "0") && (
  <motion.button
  initial={{ opacity: 0, scale: 0.9 }}
  animate={{ opacity: 1, scale: 1 }}
  onClick={() => {
  setSelectedGenre("");
  setSelectedCountry("");
- if (!isRestrictedView) {
-  setSelectedType("0");
- }
+ setSelectedType("0");
  }}
  className="px-6 py-2.5 bg-brand/10 border border-brand/20 text-brand rounded-full text-fluid-sm font-semibold tracking-wide hover:bg-brand hover:text-white transition-all shadow-[0_0_15px_rgba(255,45,45,0.2)]"
  >
@@ -343,22 +296,20 @@ export default function Browse({ isEmbedded = false }: { isEmbedded?: boolean })
  className="md:hidden overflow-hidden mb-8 p-6 bg-white/5 border border-white/5 rounded-3xl space-y-8"
  >
  <div className="grid grid-cols-1 gap-8">
- {!isRestrictedView && (
-  <div className="space-y-4">
-  <label className="text-fluid-sm font-semibold tracking-[0.3em] text-gray-500">Pick Type</label>
-  <div className="flex flex-wrap gap-2">
-  {TYPES.map(t => (
-  <button
-  key={t.id}
-  onClick={() => setSelectedType(t.id)}
-  className={`px-5 py-2.5 rounded-full text-fluid-sm font-semibold transition-all tracking-wide ${selectedType === t.id ? 'bg-brand text-white shadow-[0_0_20px_rgba(255,45,45,0.4)]' : 'bg-white/5 border border-white/5 text-gray-500 hover:bg-white/10'}`}
-  >
-  {t.name}
-  </button>
-  ))}
-  </div>
-  </div>
- )}
+ <div className="space-y-4">
+ <label className="text-fluid-sm font-semibold tracking-[0.3em] text-gray-500">Pick Type</label>
+ <div className="flex flex-wrap gap-2">
+ {TYPES.map(t => (
+ <button
+ key={t.id}
+ onClick={() => setSelectedType(t.id)}
+ className={`px-5 py-2.5 rounded-full text-fluid-sm font-semibold transition-all tracking-wide ${selectedType === t.id ? 'bg-brand text-white shadow-[0_0_20px_rgba(255,45,45,0.4)]' : 'bg-white/5 border border-white/5 text-gray-500 hover:bg-white/10'}`}
+ >
+ {t.name}
+ </button>
+ ))}
+ </div>
+ </div>
  <div className="space-y-4">
  <label className="text-fluid-sm font-semibold tracking-[0.3em] text-gray-500">Categories</label>
  <div className="flex flex-wrap gap-2">
@@ -374,14 +325,12 @@ export default function Browse({ isEmbedded = false }: { isEmbedded?: boolean })
  </div>
  </div>
  
- {(selectedGenre || selectedCountry || (!isRestrictedView && selectedType !== "0")) && (
+ {(selectedGenre || selectedCountry || selectedType !== "0") && (
  <button
  onClick={() => {
  setSelectedGenre("");
  setSelectedCountry("");
- if (!isRestrictedView) {
-  setSelectedType("0");
- }
+ setSelectedType("0");
  setShowFilters(false);
  }}
  className="w-full py-4 bg-brand text-white rounded-2xl text-fluid-xs font-semibold tracking-wide shadow-xl glow-brand animate-pulse-subtle"
@@ -394,61 +343,40 @@ export default function Browse({ isEmbedded = false }: { isEmbedded?: boolean })
  )}
  </AnimatePresence>
 
- {!selectedGenre && !selectedCountry && selectedType === "0" && hot.length > 0 && (
+ {!selectedGenre && !selectedCountry && selectedType === "0" && trending.length > 0 && (
  <div className="-mx-6 lg:-mx-12 mb-20">
- <TopTenGrid title="Top Content on Axis TV" items={hot.slice(0, 10)} />
+ <TopTenGrid title="Top Content on Axis TV" items={trending.slice(0, 10)} />
  </div>
  )}
 
  {error ? (
  <div className="py-20">
- <NoticeMessage message={error} onRetry={() => loadItems(1, true)} />
+ <ErrorMessage message={error} onRetry={() => loadItems(1, true)} />
  </div>
  ) : (
-  showHorizontalSlices ? (
-   <div className="space-y-4">
-    {activeGenres.slice(0, visibleGenresCount).map((g) => (
-     <BrowseGenreRow
-      key={g.id}
-      genreId={g.id}
-      genreName={g.name}
-      subjectType={isMoviePage || selectedType === "1" ? 1 : (isSeriesPage || selectedType === "2" ? 2 : 0)}
-     />
-    ))}
-    {visibleGenresCount < activeGenres.length && (
-     <div ref={bottomTrackerRef} className="py-12 flex flex-col justify-center items-center gap-2">
-      <Loader2 className="w-8 h-8 animate-spin text-brand" />
-      <span className="text-fluid-xs font-bold text-gray-500 tracking-wider">
-       DISCOVERING MORE CATEGORIES...
-      </span>
-     </div>
-    )}
-   </div>
-  ) : (
-   <div className="space-y-16">
-   <div className="flex items-center gap-4 mb-4">
-   <div className="w-1 h-8 bg-brand rounded-full" />
-   <h2 className="text-fluid-2xl font-semibold tracking-tight">Recommended Gallery</h2>
-   </div>
-   
-   <PosterGrid items={items} loading={loading} variant="grid" />
-   
-   {hasMore && (
-   <div ref={lastElementRef} className="flex justify-center pt-16 h-40">
-   {loadingMore && (
-   <div className="flex flex-col items-center gap-4 text-brand">
-   <Loader2 className="w-10 h-10 animate-spin" />
-   <span className="text-fluid-sm font-semibold tracking-wide">Sycing Archive...</span>
-   </div>
-   )}
-   </div>
-   )}
-   </div>
-  )
+ <div className="space-y-16">
+ <div className="flex items-center gap-4 mb-4">
+ <div className="w-1 h-8 bg-brand rounded-full" />
+ <h2 className="text-fluid-2xl font-semibold tracking-tight">Recommended Gallery</h2>
+ </div>
+ 
+ <PosterGrid items={items} loading={loading} variant="grid" />
+ 
+ {hasMore && (
+ <div ref={lastElementRef} className="flex justify-center pt-16 h-40">
+ {loadingMore && (
+ <div className="flex flex-col items-center gap-4 text-brand">
+ <Loader2 className="w-10 h-10 animate-spin" />
+ <span className="text-fluid-sm font-semibold tracking-wide">Sycing Archive...</span>
+ </div>
+ )}
+ </div>
+ )}
+ </div>
  )}
  </div>
 
- {!isEmbedded && <Footer />}
+ <Footer />
  </div>
  );
 }

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import type Hls from "hls.js";
 import { MediaData, ItemDetails } from "../types";
+import PopcornLoader from "./PopcornLoader";
 import {
- Loader2,
  Download,
  Settings,
  Check,
@@ -36,7 +36,6 @@ import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import { movieService } from "../services/movieService";
 import { parseSRT, SubtitleItem } from "../lib/subtitleParser";
-import { useAudioFeedback } from "../hooks/useAudioFeedback";
 
 // Dynamically import Hls to reduce bundle size
 const loadHls = () => import("hls.js").then((m) => m.default);
@@ -58,9 +57,6 @@ interface VideoPlayerProps {
  isMiniPlayer?: boolean;
  onCloseMiniPlayer?: () => void;
  initialTime?: number;
- watchPartyState?: any;
- onWatchPartySync?: (action: 'PLAY' | 'PAUSE' | 'SEEK', time: number) => void;
- isHost?: boolean;
 }
 
 export default function VideoPlayer({
@@ -80,9 +76,6 @@ export default function VideoPlayer({
  isMiniPlayer,
  onCloseMiniPlayer,
  initialTime,
- watchPartyState,
- onWatchPartySync,
- isHost,
 }: VideoPlayerProps) {
  const videoRef = useRef<HTMLVideoElement>(null);
  const containerRef = useRef<HTMLDivElement>(null);
@@ -95,117 +88,34 @@ export default function VideoPlayer({
  user,
  updateContinueWatching,
  updatePreferences,
- siteConfig,
  } = useAuth();
  const { showToast } = useToast();
- const { playInteractionSound } = useAudioFeedback();
 
  // Reference for tracking elapsed time for global analytics
  const lastTrackedTimeRef = useRef<number>(0);
 
-   const getInitialForceIframe = () => {
-     if (mediaData?.forceIframe) return true;
-     if (siteConfig?.streamSource === 'imbed') return true;
-     if (siteConfig?.streamSource === 'xcasper') return false;
-     return mediaData?.isBackup ?? false;
-   };
-
-   const [forceIframe, setForceIframe] = useState(getInitialForceIframe());
+   const [forceIframe, setForceIframe] = useState(true);
 
   // Track if we need to fall back to an iframe instead of direct video play
   const useIframeFallback =
-    isTrailer || forceIframe || (mediaData.sources.length === 0 && !!mediaData.embedUrl);
-
-  // Update forceIframe dynamically if the API source changes or a new episode starts
-  useEffect(() => {
-    if (mediaData?.forceIframe) {
-      setForceIframe(true);
-    } else if (siteConfig?.streamSource === 'imbed') {
-      setForceIframe(true);
-    } else if (siteConfig?.streamSource === 'xcasper') {
-      setForceIframe(false);
-    } else {
-      setForceIframe(mediaData?.forceIframe || (mediaData?.isBackup ?? false));
-    }
-  }, [mediaData?.isBackup, mediaData?.forceIframe, mediaData?.id, siteConfig?.streamSource]);
+  isTrailer || forceIframe || (mediaData.sources.length === 0 && !!mediaData.embedUrl);
 
  // Server Selection
- const serversList = mediaData.vidsrcServers && mediaData.vidsrcServers.length > 0 
-   ? mediaData.vidsrcServers 
-   : [
-       { id: "filmu", name: "Server 1", url: (type: string, id: string, s: number, e: number) => (type === "series" || type === "tv" || type === "show") ? `https://embed.filmu.in/tv/${id}/${s}/${e}` : `https://embed.filmu.in/movie/${id}` },
-       { id: "vidsrc-wiki", name: "vidsrc.wiki", url: (type: string, id: string, s: number, e: number) => (type === "series" || type === "tv" || type === "show") ? `https://vidsrc.wiki/embed/tv/${id}/${s}/${e}` : `https://vidsrc.wiki/embed/movie/${id}` },
-       { id: "vidsrc-pe", name: "vidsrc.pe", url: (type: string, id: string, s: number, e: number) => (type === "series" || type === "tv" || type === "show") ? `https://vidsrc.pe/embed/tv/${id}/${s}/${e}` : `https://vidsrc.pe/embed/movie/${id}` },
-       { id: "vidsrcme-ru", name: "vidsrc.ru", url: (type: string, id: string, s: number, e: number) => (type === "series" || type === "tv" || type === "show") ? `https://vidsrcme.ru/embed/tv/${id}/${s}/${e}` : `https://vidsrcme.ru/embed/movie/${id}` },
-       { id: "vidsrcme-su", name: "vidsrc.su", url: (type: string, id: string, s: number, e: number) => (type === "series" || type === "tv" || type === "show") ? `https://vidsrcme.su/embed/tv/${id}/${s}/${e}` : `https://vidsrcme.su/embed/movie/${id}` },
-       { id: "vidsrc-me-ru", name: "vidsrc-me.ru", url: (type: string, id: string, s: number, e: number) => (type === "series" || type === "tv" || type === "show") ? `https://vidsrc-me.ru/embed/tv/${id}/${s}/${e}` : `https://vidsrc-me.ru/embed/movie/${id}` }
-     ];
- const defaultServerId = serversList.find((s: any) => s.name?.toLowerCase().includes("pro") || s.id?.toLowerCase().includes("server_"))?.id || serversList[0]?.id || "";
- const [activeServer, setActiveServer] = useState<string>(defaultServerId);
- 
- const computedEmbedUrl = mediaData.vidsrcServers && mediaData.vidsrcServers.length > 0
-   ? (serversList.find((s: any) => s.id === activeServer)?.url || mediaData.embedUrl)
-   : (mediaData.tmdbId && mediaData.type 
-       ? serversList.find((s: any) => s.id === activeServer)?.url(mediaData.type, mediaData.tmdbId, selectedSeason || 1, selectedEpisode || 1) || mediaData.embedUrl 
-       : mediaData.embedUrl);
+ const SERVERS = [
+   { id: "vidsrc.me", name: "VidSrc.me (Fast)", icon: "Globe", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidsrc.me/embed/tv?tmdb=${id}&season=${s}&episode=${e}` : `https://vidsrc.me/embed/movie?tmdb=${id}` },
+   { id: "vidlink.pro", name: "VidLink (Backup)", icon: "Globe", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidlink.pro/tv/${id}/${s}/${e}` : `https://vidlink.pro/movie/${id}` },
+   { id: "vidsrc.in", name: "VidSrc.in (Alt)", icon: "Globe", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidsrc.in/embed/tv?tmdb=${id}&season=${s}&episode=${e}` : `https://vidsrc.in/embed/movie?tmdb=${id}` },
+   { id: "vidsrc.pm", name: "VidSrc.pm (Alt)", icon: "Globe", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidsrc.pm/embed/tv?tmdb=${id}&season=${s}&episode=${e}` : `https://vidsrc.pm/embed/movie?tmdb=${id}` },
+   { id: "vidsrc.io", name: "VidSrc.io (Alt)", icon: "Globe", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://vidsrc.io/embed/tv?tmdb=${id}&season=${s}&episode=${e}` : `https://vidsrc.io/embed/movie?tmdb=${id}` },
+   { id: "2embed", name: "2Embed (Alt)", icon: "Globe", url: (type: string, id: string, s: number, e: number) => type === "series" ? `https://2embed.cc/embed/tv/${id}/${s}/${e}` : `https://2embed.cc/embed/tmdb/movie?id=${id}` }
+ ];
+ const [activeServer, setActiveServer] = useState<string>("vidsrc.me");
+ const computedEmbedUrl = mediaData.tmdbId && mediaData.type 
+   ? SERVERS.find(s => s.id === activeServer)?.url(mediaData.type, mediaData.tmdbId, selectedSeason || 1, selectedEpisode || 1) || mediaData.embedUrl 
+   : mediaData.embedUrl;
 
  const [loading, setLoading] = useState(true);
- const [isCheckingServers, setIsCheckingServers] = useState(false);
- const [hasAutoChecked, setHasAutoChecked] = useState(false);
  const [error, setError] = useState<string | null>(null);
-
- useEffect(() => {
-   if (!useIframeFallback || !serversList || serversList.length === 0) return;
-   
-   setHasAutoChecked(false);
- }, [mediaData.id, selectedSeason, selectedEpisode]);
-
- useEffect(() => {
-   if (!useIframeFallback || !serversList || serversList.length === 0) return;
-   if (hasAutoChecked) return;
-
-   let mounted = true;
-   async function getBestServer() {
-     if (!mounted) return;
-     setIsCheckingServers(true);
-     setLoading(true);
-
-     const serversToTest = serversList.slice(0, 4); // Test top 4 fast ones to avoid heavy delay
-     let foundValid = false;
-
-     for (const s of serversToTest) {
-       if (!mounted) break;
-       try {
-         const testUrl = s.url;
-         const finalUrl = typeof testUrl === "function" 
-             ? testUrl(mediaData.type, mediaData.tmdbId || "0", selectedSeason || 1, selectedEpisode || 1) 
-             : testUrl;
-
-         const res = await fetch(`/api/verify-embed?url=${encodeURIComponent(finalUrl)}`);
-         const data = await res.json();
-         if (data.valid && mounted) {
-           setActiveServer(s.id);
-           foundValid = true;
-           break;
-         }
-       } catch (err) {
-         console.warn("Failed verifying server", s.name);
-       }
-     }
-
-     if (mounted) {
-       setHasAutoChecked(true);
-       setIsCheckingServers(false);
-     }
-   }
-
-   getBestServer();
-   return () => { mounted = false; };
- }, [useIframeFallback, serversList, hasAutoChecked, mediaData.id, selectedSeason, selectedEpisode]);
-
- const rawIframeUrl = typeof computedEmbedUrl === "function" ? computedEmbedUrl(mediaData.type, mediaData.tmdbId || "0", selectedSeason || 1, selectedEpisode || 1) : computedEmbedUrl;
- const actualIframeUrl = rawIframeUrl ? (rawIframeUrl.includes("?") ? `${rawIframeUrl}&quality=sd&sd=1&vq=360` : `${rawIframeUrl}?quality=sd&sd=1&vq=360`) : rawIframeUrl;
-
  const [isPlaying, setIsPlaying] = useState(true);
  const [volume, setVolume] = useState(1);
  const [currentTime, setCurrentTime] = useState(0);
@@ -215,40 +125,7 @@ export default function VideoPlayer({
  const [isLocked, setIsLocked] = useState(false);
 
  // Quality
- const getLowestQualitySourceIdx = (sourcesList: any[]) => {
-  if (!sourcesList || sourcesList.length === 0) return 0;
-  let lowestRes = Infinity;
-  let lowestIdx = 0;
-  for (let i = 0; i < sourcesList.length; i++) {
-   const q = sourcesList[i].quality;
-   if (q) {
-    const match = String(q).match(/\d+/);
-    if (match) {
-     const res = parseInt(match[0], 10);
-     if (res < lowestRes) {
-      lowestRes = res;
-      lowestIdx = i;
-     }
-    } else {
-     const lowerQ = String(q).toLowerCase();
-     if (lowerQ.includes("sd") || lowerQ.includes("lowest") || lowerQ.includes("ld") || lowerQ.includes("360") || lowerQ.includes("480")) {
-      lowestRes = 360;
-      lowestIdx = i;
-     }
-    }
-   }
-  }
-  return lowestIdx;
- };
-
- const [selectedSourceIdx, setSelectedSourceIdx] = useState(() => {
-  return getLowestQualitySourceIdx(mediaData?.sources || []);
- });
-
- // Automatically select lowest quality source when sources list updates (e.g. new movie/episode loaded)
- useEffect(() => {
-  setSelectedSourceIdx(getLowestQualitySourceIdx(mediaData?.sources || []));
- }, [mediaData.sources]);
+ const [selectedSourceIdx, setSelectedSourceIdx] = useState(0);
  const [hlsLevels, setHlsLevels] = useState<any[]>([]);
  const [hlsCurrentLevel, setHlsCurrentLevel] = useState<number>(-1);
 
@@ -571,48 +448,19 @@ export default function VideoPlayer({
 
  // Video State Handlers
  const togglePlay = useCallback(() => {
- if (!isHost && watchPartyState?.playbackState) { showToast("Only the host can control playback", "info"); return; }
  if (!videoRef.current) return;
-
- playInteractionSound('click');
 
  if (videoRef.current.paused) {
  videoRef.current.play().catch(() => {});
- if (onWatchPartySync) onWatchPartySync('PLAY', videoRef.current.currentTime);
  } else {
  videoRef.current.pause();
- if (onWatchPartySync) onWatchPartySync('PAUSE', videoRef.current.currentTime);
  }
- }, [isHost, watchPartyState, onWatchPartySync, showToast]);
+ }, []);
 
  const seekTo = useCallback((time: number) => {
- if (!isHost && watchPartyState?.playbackState) { showToast("Only the host can seek", "info"); return; }
  if (!videoRef.current) return;
  videoRef.current.currentTime = time;
- if (onWatchPartySync) onWatchPartySync('SEEK', time);
- }, [isHost, watchPartyState, onWatchPartySync, showToast]);
-
- useEffect(() => {
-   if (!watchPartyState || isHost || !videoRef.current || useIframeFallback) return;
-   
-   const { status, position, updatedAt } = watchPartyState.playbackState;
-   
-   let expectedPosition = position;
-   if (status === 'PLAYING') {
-      const elapsedSec = (Date.now() - updatedAt) / 1000;
-      expectedPosition += elapsedSec;
-   }
-
-   if (Math.abs(videoRef.current.currentTime - expectedPosition) > 2) {
-      videoRef.current.currentTime = expectedPosition;
-   }
-
-   if (status === 'PLAYING' && videoRef.current.paused) {
-      videoRef.current.play().catch(()=>{});
-   } else if (status === 'PAUSED' && !videoRef.current.paused) {
-      videoRef.current.pause();
-   }
- }, [watchPartyState, isHost, useIframeFallback]);
+ }, []);
 
  const seek = useCallback(
  (seconds: number) => {
@@ -781,22 +629,20 @@ export default function VideoPlayer({
  const hls = new HlsClass({
  enableWorker: true,
  capLevelToPlayerSize: true,
- startLevel: 0, // ALWAYS force lowest quality (level 0) on start to ensure fast and easy loading
- lowLatencyMode: true, // Speeds up startup & lowers buffering requirements
- // AGGRESSIVE BUFFERING TARGETS FOR LIGHTNING FAST STARTUP (1s target instead of 10s)
- maxBufferLength: preferences.dataSaver ? 2 : 4, // Download less ahead of time
- maxMaxBufferLength: preferences.dataSaver ? 5 : 10,
- maxBufferSize: preferences.dataSaver ? 5 * 1000 * 1000 : 15 * 1000 * 1000, // Small buffer size reduces memory and load times
- maxBufferHole: 0.5,
- nudgeMaxRetry: 15,
+ startLevel: preferences.dataSaver ? 0 : -1, // Lowest if data saver, else Auto
+ // LOW DATA SAVING OPTIMIZATIONS
+ maxBufferLength: preferences.dataSaver ? 5 : 10, // Small buffer saves data
+ maxMaxBufferLength: preferences.dataSaver ? 10 : 20,
+ maxBufferSize: preferences.dataSaver ? 15 * 1000 * 1000 : 40 * 1000 * 1000,
  });
+ if (isMobile || preferences.dataSaver) {
+ hls.autoLevelCapping = 0; // Force lowest on data saver/mobile
+ }
  hlsRef.current = hls;
  hls.loadSource(source.url);
  hls.attachMedia(video);
  hls.on(HlsClass.Events.MANIFEST_PARSED, (_, data) => {
  setHlsLevels(data.levels);
- hls.currentLevel = 0; // Force lowest quality on start to guarantee fast loading
- setHlsCurrentLevel(0);
  // Only set from HLS if we don't have them in mediaData
  if (
  (!mediaData.audioTracks ||
@@ -833,11 +679,6 @@ export default function VideoPlayer({
  });
  } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
  video.src = source.url;
- video.onloadedmetadata = () => {
- if (currentTimeToRestore > 0)
- video.currentTime = currentTimeToRestore;
- if (isPlaying) video.play().catch(() => {});
- };
  }
  } else {
  video.src = source.url;
@@ -867,15 +708,6 @@ export default function VideoPlayer({
  if (hlsRef.current) hlsRef.current.destroy();
  };
  }, [selectedSourceIdx, mediaData.sources, initialTime, id, preferences.dataSaver]);
-
- useEffect(() => {
-  if (useIframeFallback && loading) {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 5000);
-    return () => clearTimeout(timer);
-  }
- }, [useIframeFallback, loading, actualIframeUrl]);
 
  // Handle Audio Track Change (Reloading stream)
  const handleAudioTrackChangeInternal = (track: any) => {
@@ -965,28 +797,6 @@ export default function VideoPlayer({
  selectedEpisode,
  updateContinueWatching,
  ]);
-
- // Update continue watching for iframe fallbacks
- useEffect(() => {
-  if (useIframeFallback && !isTrailer) {
-   // Just log it once when the iframe mounts so it appears in continue watching
-   const timer = setTimeout(() => {
-    updateContinueWatching({
-     id,
-     title,
-     poster: poster || "",
-     description: description || "",
-     type: seasons ? "Series" : "Movie",
-     progress: 0,
-     duration: 100, // duration to show it hasn't been finished
-     updatedAt: Date.now(),
-     season: selectedSeason,
-     episode: selectedEpisode,
-    });
-   }, 5000); // 5 seconds after mount
-   return () => clearTimeout(timer);
-  }
- }, [useIframeFallback, isTrailer, id, title, poster, description, seasons, selectedSeason, selectedEpisode, updateContinueWatching]);
 
  // Keyboard Shortcuts
  useEffect(() => {
@@ -1097,22 +907,39 @@ export default function VideoPlayer({
  >
  {/* Video Element */}
  {useIframeFallback ? (
-  <iframe
-    key={actualIframeUrl} // Force iframe to remount on src change
-    src={actualIframeUrl}
+ mediaData.embedCode ? (
+  <div 
     className="w-full h-full border-none absolute inset-0 z-10"
-    allowFullScreen
-    allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-    sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
-    onLoad={() => setLoading(false)}
+    dangerouslySetInnerHTML={{ __html: mediaData.embedCode }}
+    ref={(el) => {
+      if (el) {
+        const iframe = el.querySelector('iframe');
+        if (iframe) {
+          iframe.onload = () => setLoading(false);
+        } else {
+          setLoading(false);
+        }
+      }
+    }}
+  />
+) : (
+  <iframe
+    key={computedEmbedUrl} // Force iframe to remount on src change
+    src={computedEmbedUrl}
+    className="w-full h-full border-none absolute inset-0 z-10"
     style={{
       width: "100%",
       height: "100%",
       position: "absolute",
       top: 0,
-      left: 0
+      left: 0,
     }}
+    allow="autoplay; fullscreen; picture-in-picture"
+    allowFullScreen
+    sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+    onLoad={() => setLoading(false)}
   />
+)
 ) : (
  <>
  <canvas
@@ -1187,20 +1014,9 @@ export default function VideoPlayer({
  initial={{ opacity: 0 }}
  animate={{ opacity: 1 }}
  exit={{ opacity: 0 }}
- className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-3xl z-40 pointer-events-none"
+ className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-3xl z-10"
  >
- <div className="relative w-16 h-16 flex items-center justify-center">
-   <Loader2 className="w-10 h-10 text-brand animate-spin" />
- </div>
- {isCheckingServers && (
-    <motion.p
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mt-4 text-white/70 text-sm font-medium tracking-wide animate-pulse"
-    >
-        Checking fast servers...
-    </motion.p>
- )}
+ <PopcornLoader />
  </motion.div>
  )}
  </AnimatePresence>
@@ -1312,6 +1128,52 @@ export default function VideoPlayer({
  </div>
  </div>
 
+ {(mediaData?.embedUrl || (mediaData?.sources && mediaData.sources.length > 0)) && (
+					<button
+						onClick={() => setForceIframe(!forceIframe)}
+						className={`px-3 py-1.5 md:px-4 md:py-2 text-[10px] md:text-xs font-bold rounded-full border transition-all active:scale-95 flex items-center gap-1.5 backdrop-blur-md shadow-lg ${
+							forceIframe 
+								? "bg-brand/90 text-white border-brand/50 hover:bg-brand shadow-brand/20" 
+								: "bg-white/10 text-white hover:bg-white/20 border-white/20"
+						}`}
+					>
+						{forceIframe ? "🛡️ Ad-Free Server" : "⚡ HLS Player"}
+					</button>
+				)}
+
+				{(useIframeFallback && mediaData?.tmdbId) && (
+					<div className="relative ml-2">
+						<button
+							onClick={() => setActiveMenu(activeMenu === "server" ? null : "server")}
+							className="px-3 py-1.5 md:px-4 md:py-2 text-[10px] md:text-xs font-bold rounded-full border bg-white/10 text-white hover:bg-white/20 border-white/20 transition-all flex items-center gap-1.5 backdrop-blur-md shadow-lg"
+						>
+							<Globe className="w-3 h-3 md:w-4 md:h-4" />
+							<span>{SERVERS.find(s => s.id === activeServer)?.name || "Server"}</span>
+							<ChevronDown className="w-3 h-3" />
+						</button>
+						<AnimatePresence>
+							{activeMenu === "server" && (
+								<motion.div
+									initial={{ opacity: 0, y: -10 }}
+									animate={{ opacity: 1, y: 0 }}
+									exit={{ opacity: 0, y: -10 }}
+									className="absolute top-full right-0 mt-2 w-48 bg-black/90 border border-white/10 rounded-lg shadow-xl overflow-hidden z-50 pointer-events-auto"
+								>
+									{SERVERS.map(s => (
+										<button
+											key={s.id}
+											onClick={() => { setActiveServer(s.id); setActiveMenu(null); setLoading(true); }}
+											className={`w-full text-left px-4 py-3 text-xs md:text-sm hover:bg-white/10 transition-colors border-b border-white/5 last:border-0 ${activeServer === s.id ? 'text-brand font-medium bg-brand/10' : 'text-white'}`}
+										>
+											{s.name}
+										</button>
+									))}
+								</motion.div>
+							)}
+						</AnimatePresence>
+					</div>
+				)}
+				
 				{!useIframeFallback && (
 					<div className="flex items-center gap-2 md:gap-4">
 						<button
@@ -1506,7 +1368,8 @@ export default function VideoPlayer({
  value={currentTime}
  onChange={(e) => {
  const time = parseFloat(e.target.value);
- seekTo(time);
+ if (videoRef.current)
+ videoRef.current.currentTime = time;
  }}
  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 no-click-toggle"
  />
@@ -1610,7 +1473,7 @@ export default function VideoPlayer({
  { id: 'audio', label: 'Audio', value: mediaData.audioTracks?.[currentAudioTrack]?.language || "Default" },
  { id: 'subtitles', label: 'Captions', value: currentSubtitleTrack === -1 ? "Off" : sortedSubtitles[currentSubtitleTrack]?.displayName || "English" },
  { id: 'caption-settings', label: 'Caption Style', value: '' },
- { id: 'quality', label: 'Quality', value: hlsRef.current && hlsRef.current.currentLevel === -1 ? "Auto" : (hlsRef.current ? `${hlsLevels[hlsCurrentLevel]?.height}p` : `${mediaData.sources[selectedSourceIdx]?.quality ? (isNaN(Number(mediaData.sources[selectedSourceIdx]?.quality)) ? mediaData.sources[selectedSourceIdx]?.quality : mediaData.sources[selectedSourceIdx]?.quality + 'p') : 'Original'}`) },
+ { id: 'quality', label: 'Quality', value: hlsRef.current && hlsRef.current.currentLevel === -1 ? "Auto" : (hlsRef.current ? `${hlsLevels[hlsCurrentLevel]?.height}p` : `${mediaData.sources[selectedSourceIdx]?.quality || 'Original'}`) },
  { id: 'speed', label: 'Speed', value: playbackSpeed === 1 ? 'Normal' : `${playbackSpeed}x` },
  ].map((item) => (
  <button
@@ -1960,7 +1823,7 @@ export default function VideoPlayer({
  }}
  className={`w-full flex items-center justify-between px-4 py-2 hover:bg-white/5 transition-colors ${selectedSourceIdx === idx ? "text-brand bg-brand/5" : "text-white/70"}`}
  >
- <span className={`text-fluid-xs ${selectedSourceIdx === idx ? 'font-semibold ' : 'font-medium'}`}>{source.quality ? (isNaN(Number(source.quality)) ? source.quality : `${source.quality}p`) : 'Original'}</span>
+ <span className={`text-fluid-xs ${selectedSourceIdx === idx ? 'font-semibold ' : 'font-medium'}`}>{source.quality}p</span>
  {selectedSourceIdx === idx && <Check className="w-3 h-3" />}
  </button>
  ))
@@ -1996,7 +1859,7 @@ export default function VideoPlayer({
  key={cat.id}
  onClick={async () => {
  const ok = await movieService.reportIssue(
- user?.id || "anonymous",
+ user?.id || "guest",
  cat.id,
  `Issue on ${title} (${id})`,
  );

@@ -42,9 +42,7 @@
     "brandColor": "#E50914",
     "tagline": "The Ultimate Streaming Experience",
     "logoUrl": "https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg",
-    "allowGuestBrowsing": true,
-    "apiSource": "main",
-    "streamSource": "xcasper"
+    "allowGuestBrowsing": true
   },
   "reports": []
 }

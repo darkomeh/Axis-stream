@@ -5,9 +5,10 @@ import { MediaItem } from "../types";
 import PosterGrid from "../components/PosterGrid";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import PopcornLoader from "../components/PopcornLoader";
 import { Search, ArrowLeft, Loader2 } from "lucide-react";
 
-const BAD_KEYWORDS = ['family guy', 'south park', 'rick and morty', 'adult', 'hentai', 'bojack', 'archer', 'big mouth', 'deadpool', 'sausage party', 'harley quinn', 'castlevania', 'invincible'];
+const BAD_KEYWORDS = ['family guy', 'south park', 'rick and morty', 'adult', 'hentai', 'bojack', 'archer', 'big mouth'];
 
 const isToon = (item: MediaItem) => {
  const title = item.title.toLowerCase();
@@ -15,7 +16,7 @@ const isToon = (item: MediaItem) => {
  return !isBad;
 };
 
-import { NoticeMessage } from "../components/NoticeMessage";
+import { ErrorMessage } from "../components/ErrorMessage";
 import { ListSkeleton } from "../components/Skeleton";
 
 export default function Toons() {
@@ -142,7 +143,7 @@ export default function Toons() {
  </form>
 
  {error ? (
- <NoticeMessage message={error} onRetry={() => loadToons(1, true)} />
+ <ErrorMessage message={error} onRetry={() => loadToons(1, true)} />
  ) : loading && items.length === 0 ? (
  <ListSkeleton count={12} />
  ) : items.length > 0 ? (

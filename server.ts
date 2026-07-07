@@ -1,104 +1,14 @@
-import { backendRouter } from "./backend/api/routes.js";
 import express from "express";
 import compression from "compression";
 import path from "path";
-import { externalMovieService, setApiSource } from "./src/services/externalMovieService.js";
+import { externalMovieService, setApiSource } from "./src/services/externalMovieService";
 import axios from "axios";
 import fs from "fs";
 import os from "os";
 
-// Security: SSRF Validation Helper
-function isUrlAllowed(reqUrl: string): boolean {
-  try {
-    const parsed = new URL(reqUrl);
-    
-    // Only allow HTTP/HTTPS
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      return false;
-    }
-    
-    // Block common internal IPs and loopback (Basic SSRF protection)
-    const hostname = parsed.hostname;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') return false;
-    if (hostname.startsWith('10.')) return false;
-    if (hostname.startsWith('192.168.')) return false;
-    if (hostname.startsWith('169.254.')) return false; // Cloud Metadata
-    if (hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) return false; // Private network
-    
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 const app = express();
-
-// Vercel Serverless Function Path Fixer Middleware (MUST RUN FIRST so req.url is corrected before routing)
-// Sometimes Vercel's Edge/Serverless Router strips the /api/ prefix or rewrites to query params.
-app.use((req, res, next) => {
-  if (process.env.VERCEL) {
-    let url = req.url;
-    // If Vercel rewrote it to /?path=... or /?slug=...
-    const match = url.match(/^\/\?(slug|path)=([^&]+)(.*)/);
-    if (match) {
-      url = '/' + decodeURIComponent(match[2]) + match[3].replace(/^&/, '?');
-    }
-    
-    // Express app has routes defined with /api/ prefix.
-    // If Vercel stripped it, we MUST prepend it back!
-    if (!url.startsWith('/api')) {
-      // Avoid turning / into /api/
-      req.url = url === '/' ? '/api' : '/api' + (url.startsWith('/') ? url : '/' + url);
-    } else {
-      req.url = url;
-    }
-  }
-  next();
-});
-
 app.use(compression());
-
-// Adaptive body parsing middleware to prevent hanging on Vercel Serverless Gateway
-app.use((req, res, next) => {
-  if (req.body !== undefined) {
-    // If the body is already parsed by Vercel or an upstream gateway, bypass express.json() to prevent stream read hang
-    next();
-  } else {
-    express.json()(req, res, next);
-  }
-});
-
-// Basic Rate Limiting & Anti-Scraping Middleware
-const rateLimits = new Map<string, { requests: number, lastRequest: number }>();
-app.use((req, res, next) => {
-  if (req.url.startsWith('/api')) {
-    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
-    const now = Date.now();
-    const userLimit = rateLimits.get(ip) || { requests: 0, lastRequest: now };
-    
-    // Reset if more than 1 minute has passed
-    if (now - userLimit.lastRequest > 60000) {
-      userLimit.requests = 0;
-      userLimit.lastRequest = now;
-    }
-    
-    userLimit.requests++;
-    rateLimits.set(ip, userLimit);
-
-    if (userLimit.requests > 600) { // Limit to 600 req/min/IP
-      return res.status(429).json({ error: "Too many requests. Please slow down." });
-    }
-    
-    // Basic User-Agent check
-    const ua = req.headers['user-agent'] || '';
-    if (ua.toLowerCase().includes('python') || ua.toLowerCase().includes('bot') && !ua.toLowerCase().includes('googlebot')) {
-      return res.status(403).json({ error: "Automated access restricted." });
-    }
-  }
-  next();
-});
-
-app.use("/api", backendRouter);
+app.use(express.json());
 
 // Diagnostic endpoint early
 app.get("/api/server-health", (req, res) => {
@@ -136,7 +46,6 @@ interface AdminState {
     logoUrl?: string;
     allowGuestBrowsing: boolean;
     apiSource?: 'main' | 'backup';
-    streamSource?: 'xcasper' | 'imbed';
   };
   reports: { id: string, userId: string, category: string, detail: string, timestamp: string, status: 'open' | 'closed' }[];
 }
@@ -156,48 +65,14 @@ let adminState: AdminState = {
     logoUrl: "https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg",
     allowGuestBrowsing: true,
     apiSource: 'main',
-    streamSource: 'xcasper',
   },
   reports: []
 };
 
-function getActiveAdminStatePath(): string {
-  if (process.env.VERCEL) {
-    const tempPath = path.join(os.tmpdir(), "admin_state.json");
-    // If it doesn't exist in /tmp, copy the root seed state to /tmp to persist modifications safely
-    if (!fs.existsSync(tempPath) && fs.existsSync(ADMIN_STATE_FILE)) {
-      try {
-        fs.writeFileSync(tempPath, fs.readFileSync(ADMIN_STATE_FILE, "utf-8"));
-      } catch (err) {
-        console.warn("[Vercel OS] Failed to copy seed admin_state to /tmp:", err);
-      }
-    }
-    return tempPath;
-  }
-  return ADMIN_STATE_FILE;
-}
-
-function getActiveUsersPath(): string {
-  if (process.env.VERCEL) {
-    const tempPath = path.join(os.tmpdir(), "users.json");
-    // If it doesn't exist in /tmp, copy the root seed state to /tmp to persist modifications safely
-    if (!fs.existsSync(tempPath) && fs.existsSync(USERS_FILE)) {
-      try {
-        fs.writeFileSync(tempPath, fs.readFileSync(USERS_FILE, "utf-8"));
-      } catch (err) {
-        console.warn("[Vercel OS] Failed to copy seed users.json to /tmp:", err);
-      }
-    }
-    return tempPath;
-  }
-  return USERS_FILE;
-}
-
 function loadAdminState() {
   try {
-    const filePath = getActiveAdminStatePath();
-    if (fs.existsSync(filePath)) {
-      const stored = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    if (fs.existsSync(ADMIN_STATE_FILE)) {
+      const stored = JSON.parse(fs.readFileSync(ADMIN_STATE_FILE, "utf-8"));
       adminState = { 
         ...adminState, 
         ...stored,
@@ -211,12 +86,7 @@ function loadAdminState() {
 }
 
 function saveAdminState() {
-  try {
-    const writePath = getActiveAdminStatePath();
-    fs.writeFileSync(writePath, JSON.stringify(adminState, null, 2));
-  } catch (err) {
-    console.error("Error saving admin state (writing to file system):", err);
-  }
+  fs.writeFileSync(ADMIN_STATE_FILE, JSON.stringify(adminState, null, 2));
 }
 
 function logAction(type: string, detail: string) {
@@ -244,9 +114,8 @@ process.on('unhandledRejection', (reason, promise) => {
 
 function getUsers(): any[] {
   try {
-    const filePath = getActiveUsersPath();
-    if (fs.existsSync(filePath)) {
-      const data = fs.readFileSync(filePath, "utf-8");
+    if (fs.existsSync(USERS_FILE)) {
+      const data = fs.readFileSync(USERS_FILE, "utf-8");
       return JSON.parse(data);
     }
   } catch (e) {
@@ -256,19 +125,14 @@ function getUsers(): any[] {
 }
 
 function saveUser(user: any) {
-  try {
-    const users = getUsers();
-    const existingIndex = users.findIndex(u => u.email === user.email);
-    if (existingIndex > -1) {
-      users[existingIndex] = { ...users[existingIndex], ...user, updatedAt: new Date().toISOString() };
-    } else {
-      users.push({ ...user, createdAt: new Date().toISOString() });
-    }
-    const writePath = getActiveUsersPath();
-    fs.writeFileSync(writePath, JSON.stringify(users, null, 2));
-  } catch (err) {
-    console.error("Error saving user (writing to file system):", err);
+  const users = getUsers();
+  const existingIndex = users.findIndex(u => u.email === user.email);
+  if (existingIndex > -1) {
+    users[existingIndex] = { ...users[existingIndex], ...user, updatedAt: new Date().toISOString() };
+  } else {
+    users.push({ ...user, createdAt: new Date().toISOString() });
   }
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
 // Simple in-memory cache
@@ -304,13 +168,13 @@ app.get("/api/homepage", async (req, res) => {
 });
 
 app.get("/api/trending", async (req, res) => {
-  const { page, perPage, genre, subjectType } = req.query;
-  const cacheKey = `trending_${page}_${perPage}_${genre || ''}_${subjectType || ''}`;
+  const { page, perPage } = req.query;
+  const cacheKey = `trending_${page}_${perPage}`;
   const cachedData = getCached(cacheKey);
   if (cachedData) return res.json(cachedData);
 
   try {
-    const data = await externalMovieService.getTrending(Number(page) || 1, Number(perPage) || 18, genre ? String(genre) : undefined, subjectType ? String(subjectType) : undefined);
+    const data = await externalMovieService.getTrending(Number(page) || 1, Number(perPage) || 18);
     setCached(cacheKey, data);
     res.json(data);
   } catch (error: any) {
@@ -374,13 +238,12 @@ app.get("/api/popular-search", async (req, res) => {
 });
 
 app.get("/api/hot", async (req, res) => {
-  const { genre, subjectType } = req.query;
-  const cacheKey = `hot_${genre || ''}_${subjectType || ''}`;
+  const cacheKey = "hot";
   const cachedData = getCached(cacheKey);
   if (cachedData) return res.json(cachedData);
 
   try {
-    const data = await externalMovieService.getHot(genre ? String(genre) : undefined, subjectType ? String(subjectType) : undefined);
+    const data = await externalMovieService.getHot();
     setCached(cacheKey, data);
     res.json(data);
   } catch (error: any) {
@@ -460,13 +323,12 @@ app.get("/api/browse", async (req, res) => {
 });
 
 app.get("/api/ranking", async (req, res) => {
-  const { genre, subjectType } = req.query;
-  const cacheKey = `ranking_${genre || ''}_${subjectType || ''}`;
+  const cacheKey = "ranking";
   const cachedData = getCached(cacheKey);
   if (cachedData) return res.json(cachedData);
 
   try {
-    const data = await externalMovieService.getRanking(genre ? String(genre) : undefined, subjectType ? String(subjectType) : undefined);
+    const data = await externalMovieService.getRanking();
     setCached(cacheKey, data);
     res.json(data);
   } catch (error: any) {
@@ -487,54 +349,52 @@ async function resolveTmdbId(title: string, year: string, type: string): Promise
   }
   
   try {
-    const isSeries = type.toLowerCase() === 'series' || type.toLowerCase() === 'tv';
-    const tmdbType = isSeries ? 'tv' : 'movie';
-    const TMDB_API_KEY = '8265bd1679663a7ea12ac168da84d2e8';
+    const q = encodeURIComponent(`${searchTitle} ${year || ''} ${type === 'Series' ? 'tv tmdb' : 'movie tmdb'}`);
+    const searchUrl = `https://html.duckduckgo.com/html/?q=${q}`;
+    const res = await axios.get(searchUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      },
+      timeout: 5000
+    });
+    const html = res.data;
     
-    // TMDB Search API
-    const params: any = {
-      api_key: TMDB_API_KEY,
-      query: searchTitle,
-      page: 1,
-      include_adult: false
-    };
+    const hrefs: string[] = [];
+    const regex = /href=\"([^\"]+)\"/g;
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+      hrefs.push(match[1]);
+    }
     
-    if (year) {
-      if (isSeries) {
-        params.first_air_date_year = year;
-      } else {
-        params.primary_release_year = year;
-        params.year = year;
+    for (const h of hrefs) {
+      const decoded = decodeURIComponent(h);
+      if (decoded.includes('themoviedb.org')) {
+        const pattern = type === 'Series' 
+          ? /themoviedb\.org\/tv\/(\d+)/i 
+          : /themoviedb\.org\/movie\/(\d+)/i;
+        const idMatch = decoded.match(pattern);
+        if (idMatch && idMatch[1]) {
+          const resolvedId = idMatch[1];
+          tmdbCache.set(cacheKey, resolvedId);
+          console.log(`[TMDB Resolver] Successfully resolved ${searchTitle} to TMDb ID: ${resolvedId}`);
+          return resolvedId;
+        }
       }
     }
-
-    const searchUrl = `https://api.themoviedb.org/3/search/${tmdbType}`;
-    const res = await axios.get(searchUrl, { params, timeout: 5000 });
     
-    if (res.data && res.data.results && res.data.results.length > 0) {
-      const resolvedId = String(res.data.results[0].id);
-      tmdbCache.set(cacheKey, resolvedId);
-      console.log(`[TMDB Resolver API] Successfully resolved ${searchTitle} to TMDb ID: ${resolvedId}`);
-      return resolvedId;
-    }
-    
-    // Fallback if year was too strict
-    if (year) {
-      const fallbackParams = { ...params };
-      delete fallbackParams.first_air_date_year;
-      delete fallbackParams.primary_release_year;
-      delete fallbackParams.year;
-      
-      const fallbackRes = await axios.get(searchUrl, { params: fallbackParams, timeout: 5000 });
-      if (fallbackRes.data && fallbackRes.data.results && fallbackRes.data.results.length > 0) {
-        const resolvedId = String(fallbackRes.data.results[0].id);
-        tmdbCache.set(cacheKey, resolvedId);
-        console.log(`[TMDB Resolver API] Successfully resolved ${searchTitle} (w/o year) to TMDb ID: ${resolvedId}`);
-        return resolvedId;
+    // General fallback pattern
+    for (const h of hrefs) {
+      const decoded = decodeURIComponent(h);
+      if (decoded.includes('themoviedb.org')) {
+        const generalPattern = /themoviedb\.org\/(movie|tv)\/(\d+)/i;
+        const idMatch = decoded.match(generalPattern);
+        if (idMatch && idMatch[2]) {
+          const resolvedId = idMatch[2];
+          tmdbCache.set(cacheKey, resolvedId);
+          return resolvedId;
+        }
       }
     }
-
-    
   } catch (err: any) {
     console.error(`[TMDB Resolver] Failed for ${searchTitle}:`, err.message);
   }
@@ -543,77 +403,36 @@ async function resolveTmdbId(title: string, year: string, type: string): Promise
 
 app.get("/api/play", async (req, res) => {
   try {
-    const { subjectId, detailPath, se, ep, title, year, type } = req.query;
-    const rawPlayData = await externalMovieService.getPlay(
+    const { subjectId, detailPath, se, ep } = req.query;
+    const data = await externalMovieService.getPlay(
       String(subjectId || ""),
       detailPath ? String(detailPath) : undefined,
       se ? Number(se) : undefined,
       ep ? Number(ep) : undefined
     );
     
-    // Clone retrieved object to prevent cache mutations
-    const data = { ...rawPlayData };
-    if (data.sources) {
-      data.sources = [...data.sources];
-    }
-
-    // Apply Stream Source preference (xcasper vs. imbed)
-    if (adminState.siteConfig?.streamSource === 'imbed') {
-      data.sources = [];
-      data.forceIframe = true;
-    }
-    
     // Dynamically resolve TMDb ID and construct the clean, ad-free sandboxed embedUrl
     try {
       const sId = String(subjectId || "");
-      let resolvedTmdbId = "";
-      let mediaType = type ? String(type).toLowerCase() : "movie";
-      const seasonNum = se ? Number(se) : 1;
-      const episodeNum = ep ? Number(ep) : 1;
-      
       if (sId) {
-        // Option 1: Try TMDB Resolver with provided title/year
-        if (title) {
-           const tmdbId = await resolveTmdbId(String(title), year ? String(year) : "", mediaType === "series" ? "Series" : "Movie");
-           if (tmdbId) resolvedTmdbId = tmdbId;
-        }
-
-        // Option 2: Fallback to getDetails
-        if (!resolvedTmdbId) {
-          const details = await externalMovieService.getDetails(sId);
-          if (details && details.title && details.title !== "Content Unavailable") {
-            mediaType = details.type === "Series" ? "series" : "movie";
-            const tmdbId = await resolveTmdbId(details.title, details.year || "", details.type === "Series" ? "Series" : "Movie");
-            if (tmdbId) resolvedTmdbId = tmdbId;
-          }
-        }
-        
-        // Option 3: Extract from upstream embedUrl
-        if (!resolvedTmdbId && data.embedUrl && data.embedUrl.includes('vidsrc')) {
-           const match = data.embedUrl.match(/\/embed\/(movie|tv)\/([a-zA-Z0-9_-]+)/);
-           if (match) {
-             mediaType = match[1];
-             resolvedTmdbId = match[2];
-           }
-        }
-        
-        // Option 4: Fallback assuming subjectId is tmdbId
-        if (!resolvedTmdbId) {
-          resolvedTmdbId = sId;
-        }
-        
-        if (resolvedTmdbId) {
-            data.tmdbId = resolvedTmdbId;
-            data.type = mediaType;
+        const details = await externalMovieService.getDetails(sId);
+        if (details && details.title && details.title !== "Content Unavailable") {
+          const mediaType = details.type === "Series" ? "Series" : "Movie";
+          const tmdbId = await resolveTmdbId(details.title, details.year || "", mediaType);
+          if (tmdbId) {
+            const seasonNum = se ? Number(se) : 1;
+            const episodeNum = ep ? Number(ep) : 1;
             
-            const vidsrcEmbedUrl = mediaType === "series" 
-                ? `https://vidsrc.wiki/embed/tv/${resolvedTmdbId}/${seasonNum}/${episodeNum}`
-                : `https://vidsrc.wiki/embed/movie/${resolvedTmdbId}`;
-
-            data.embedUrl = vidsrcEmbedUrl;
-            data.embedCode = `<iframe src="${data.embedUrl}" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>`;
+            data.embedUrl = mediaType === "Series"
+              ? `https://vidsrc.me/embed/tv?tmdb=${tmdbId}&season=${seasonNum}&episode=${episodeNum}`
+              : `https://vidsrc.me/embed/movie?tmdb=${tmdbId}`;
+            
+            data.tmdbId = tmdbId;
+            data.type = mediaType === "Series" ? "series" : "movie";
+            data.embedCode = `<iframe src="${data.embedUrl}" width="100%" height="100%" frameborder="0" allowfullscreen sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"></iframe>`;
             
             console.log(`[TMDB Resolver] Overwrote embedUrl: ${data.embedUrl}, type: ${data.type}, tmdbId: ${data.tmdbId}`);
+          }
         }
       }
     } catch (e: any) {
@@ -624,33 +443,6 @@ app.get("/api/play", async (req, res) => {
   } catch (error: any) {
     console.error("[API] Play error:", error.message);
     res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.get("/api/verify-embed", async (req, res) => {
-  const { url } = req.query;
-  if (!url || typeof url !== 'string' || !isUrlAllowed(url)) return res.json({ valid: false });
-  try {
-    const response = await axios.get(url, { 
-      timeout: 3000, 
-      validateStatus: () => true 
-    });
-    const html = (typeof response.data === 'string' ? response.data.toLowerCase() : '');
-    const isBad = response.status >= 400 || 
-                  html.includes('<title>404</title>') || 
-                  html.includes('<title>not found</title>') || 
-                  html.includes('page not found') ||
-                  html.includes('this page could not be found') ||
-                  html.includes('error 404');
-    
-    // Some embedders like vidzen explicitly write "404 - Not Found" or similar in the document
-    if (html.includes('404 - not found') || html.includes('not found') && html.length < 5000) {
-       return res.json({ valid: false });
-    }
-    
-    res.json({ valid: !isBad });
-  } catch (err: any) {
-    res.json({ valid: false, error: err.message });
   }
 });
 
@@ -792,11 +584,6 @@ app.get("/api/image-proxy", async (req, res) => {
     return res.send(cached.buffer);
   }
 
-  // SSRF Validation
-  if (!isUrlAllowed(imageUrl)) {
-     return res.status(403).send("Forbidden URL access");
-  }
-
   try {
     // Validate URL
     try {
@@ -875,18 +662,13 @@ app.get("/api/proxy", async (req, res) => {
     return res.status(400).send("URL is required");
   }
 
-  if (!isUrlAllowed(videoUrl)) {
-    return res.status(403).send("Forbidden URL access");
-  }
-
   try {
     const range = req.headers.range;
     
     const response = await fetch(videoUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Referer": "https://sportslivetoday.com/",
-        "Origin": "https://sportslivetoday.com",
+        "Referer": "https://movieapi.xcasper.space/",
         "Accept": "*/*",
         "Connection": "keep-alive",
         ...(range && { "Range": range }),
@@ -894,38 +676,11 @@ app.get("/api/proxy", async (req, res) => {
     });
 
     if (!response.ok && response.status !== 206) {
+        // Log error but try to return what we have
         console.warn(`[Proxy] Upstream returned status ${response.status} for ${videoUrl}`);
     }
 
-    const contentType = response.headers.get('content-type') || '';
-    const isM3u8 = videoUrl.includes('.m3u8') || contentType.includes('mpegurl') || contentType.includes('m3u8');
-
-    res.setHeader('Access-Control-Allow-Origin', '*');
-
-    if (isM3u8 && response.ok) {
-      const text = await response.text();
-      const baseUrl = new URL(videoUrl);
-      
-      const rewritten = text.split('\n').map(line => {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith('#')) return line;
-        
-        let absoluteUrl = trimmed;
-        if (!trimmed.startsWith('http')) {
-           try {
-             absoluteUrl = new URL(trimmed, baseUrl).toString();
-           } catch (e) {
-             absoluteUrl = baseUrl.toString().substring(0, baseUrl.toString().lastIndexOf('/') + 1) + trimmed;
-           }
-        }
-        return `/api/proxy?url=${encodeURIComponent(absoluteUrl)}`;
-      }).join('\n');
-
-      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-      res.status(response.status).send(rewritten);
-      return;
-    }
-
+    // Forward crucial headers
     const headersToForward = [
       'content-type',
       'content-length',
@@ -935,15 +690,18 @@ app.get("/api/proxy", async (req, res) => {
       'last-modified',
       'etag'
     ];
+
     headersToForward.forEach(h => {
       const val = response.headers.get(h);
       if (val) res.setHeader(h, val);
     });
     
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.status(response.status);
 
     if (!response.body) throw new Error("No response body");
 
+    // Optimized streaming
     const { Readable } = await import("stream");
     const reader = Readable.fromWeb(response.body as any);
     
@@ -956,9 +714,7 @@ app.get("/api/proxy", async (req, res) => {
 
   } catch (error: any) {
     console.error("[Proxy] Error:", error.message);
-    if (!res.headersSent) {
-      res.status(500).send(error.message);
-    }
+    res.status(500).send(error.message);
   }
 });
 

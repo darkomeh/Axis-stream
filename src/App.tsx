@@ -12,6 +12,7 @@ import MediaPreviewTray from "./components/MediaPreviewTray";
 import SystemAlerts from "./components/SystemAlerts";
 import NotificationListener from "./components/NotificationListener";
 import WhatsAppBubble from "./components/WhatsAppBubble";
+import { InstallAppBanner } from "./components/InstallAppBanner";
 // import LoginPopup from "./components/LoginPopup"; // Removing as per request
 import { Analytics } from "./components/Analytics";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -50,7 +51,7 @@ const ActorPage = lazyWithRetry(() => import("./pages/Actor"));
 const Toons = lazyWithRetry(() => import("./pages/Toons"));
 const Profile = lazyWithRetry(() => import("./pages/Profile"));
 const Playlist = lazyWithRetry(() => import("./pages/Playlist"));
-const Ranking = lazyWithRetry(() => import("./pages/Ranking"));
+const Sports = lazyWithRetry(() => import("./pages/Sports"));
 const Legal = lazyWithRetry(() => import("./pages/Legal"));
 const Admin = lazyWithRetry(() => import("./pages/Admin"));
 const Trails = lazyWithRetry(() => import("./pages/Trails"));
@@ -149,8 +150,8 @@ function AppContent() {
   }, [siteConfig, preferences.theme, preferences.accentColor]);
 
   // Routes where BottomNav should be visible
-  const showNavRoutes = ["/", "/search", "/browse", "/anime", "/toons", "/playlist", "/profile", "/ranking", "/live", "/sports", "/series", "/movies"];
-  const shouldShowNav = showNavRoutes.includes(location.pathname) && !location.pathname.startsWith("/trails") && !location.pathname.startsWith("/live/");
+  const showNavRoutes = ["/", "/search", "/browse", "/anime", "/toons", "/playlist", "/profile", "/sports", "/live", "/series", "/movies"];
+  const shouldShowNav = showNavRoutes.includes(location.pathname) && !location.pathname.startsWith("/trails") && !location.pathname.startsWith("/live/") && !location.pathname.startsWith("/sports/live/");
 
   return (
     <div className={`min-h-screen bg-transparent text-white selection:bg-brand/30 selection:text-white font-sans antialiased ${shouldShowNav ? "pb-20" : ""}`}>
@@ -160,6 +161,7 @@ function AppContent() {
       <NotificationListener />
       <SystemAlerts />
       <WhatsAppBubble />
+      <InstallAppBanner />
       <main>
         <Suspense fallback={
           <div className="min-h-screen bg-[#080808] text-white pb-20 overflow-hidden">
@@ -191,10 +193,10 @@ function AppContent() {
             <Route path="/profile" element={<PageWrapper><Profile /></PageWrapper>} />
             <Route path="/settings" element={<PageWrapper><Settings /></PageWrapper>} />
             <Route path="/achievements" element={<PageWrapper><Achievements /></PageWrapper>} />
-            <Route path="/ranking" element={<PageWrapper><Ranking /></PageWrapper>} />
+            <Route path="/sports" element={<PageWrapper><Sports /></PageWrapper>} />
             <Route path="/trails" element={<PageWrapper><Trails /></PageWrapper>} />
             <Route path="/trails/:movieSlug" element={<PageWrapper><Trails /></PageWrapper>} />
-            <Route path="/sports" element={<PageWrapper><Browse /></PageWrapper>} />
+            <Route path="/sports/live/:matchSlug" element={<PageWrapper><Sports /></PageWrapper>} />
             <Route path="/live" element={<PageWrapper><LiveTV /></PageWrapper>} />
             <Route path="/live/:channelId" element={<PageWrapper><LiveTVPlayerScreen /></PageWrapper>} />
             <Route path="/watch-party/:partyId" element={<PageWrapper><WatchPartyPage /></PageWrapper>} />

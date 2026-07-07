@@ -31,7 +31,7 @@ const TopTenGrid = memo(({ title = "Top 10 on Axis TV", items, loading }: TopTen
                 {title}
               </h2>
             </div>
-            <Link to="/ranking" className="text-[10px] md:text-xs font-semibold tracking-wide text-[#A1A1AA] hover:text-[#F5F5F7] transition-colors">
+            <Link to="/sports" className="text-[10px] md:text-xs font-semibold tracking-wide text-[#A1A1AA] hover:text-[#F5F5F7] transition-colors">
               View All
             </Link>
           </div>

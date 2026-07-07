@@ -3,6 +3,7 @@ import { Home, Search, Compass, Radio, Trophy, Tv } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useMediaPreview } from "../contexts/MediaPreviewContext";
 import { useAuth } from "../contexts/AuthContext";
+import { useState, useEffect } from "react";
 
 export default function BottomNav() {
   const location = useLocation();
@@ -16,6 +17,38 @@ export default function BottomNav() {
       ? user.email[0].toUpperCase() 
       : "G";
 
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [isMatchDetailsOpen, setIsMatchDetailsOpen] = useState(false);
+
+  useEffect(() => {
+    const handleFocusCheck = () => {
+      const activeEl = document.activeElement;
+      const isInput = activeEl && (
+        activeEl.tagName === "INPUT" || 
+        activeEl.tagName === "TEXTAREA" || 
+        activeEl.getAttribute("contenteditable") === "true"
+      );
+      setIsInputFocused(!!isInput);
+    };
+
+    const handleMatchDetailsCheck = () => {
+      setIsMatchDetailsOpen(document.querySelector(".sports-match-details") !== null);
+    };
+
+    document.addEventListener("focusin", handleFocusCheck);
+    document.addEventListener("focusout", handleFocusCheck);
+    
+    // Check initially and run interval to detect route overlay changes
+    handleMatchDetailsCheck();
+    const interval = setInterval(handleMatchDetailsCheck, 250);
+
+    return () => {
+      document.removeEventListener("focusin", handleFocusCheck);
+      document.removeEventListener("focusout", handleFocusCheck);
+      clearInterval(interval);
+    };
+  }, []);
+
   const navItems = preferences?.kidsMode ? [
     { path: "/", icon: Home, label: "Kids Home" },
     { path: "/toons", icon: Tv, label: "Cartoons" },
@@ -25,14 +58,14 @@ export default function BottomNav() {
     { path: "/", icon: Home, label: "Home" },
     { path: "/search", icon: Search, label: "Explore" },
     { path: "/trails", icon: Compass, label: "Trails" },
-    { path: "/ranking", icon: Trophy, label: "Ranking" },
+    { path: "/sports", icon: Trophy, label: "Sports" },
     { path: "/live", icon: Radio, label: "Live TV" },
     { path: "/profile", label: "Profile", isProfile: true },
   ];
 
   return (
     <AnimatePresence>
-      {!previewId && (
+      {!previewId && !isInputFocused && !isMatchDetailsOpen && (
         <motion.div 
           initial={{ y: 100, x: "-50%", opacity: 0 }}
           animate={{ y: 0, x: "-50%", opacity: 1 }}

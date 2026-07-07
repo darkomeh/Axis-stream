@@ -278,6 +278,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(newUser);
           setIsBanned(data.isBanned || false);
           localStorage.setItem('axis_user', JSON.stringify(newUser));
+        } else {
+          const isOwner = (firebaseUser.email || '').toLowerCase() === 'greatmayuku2@gmail.com';
+          const newUser = {
+            id: firebaseUser.uid,
+            username: isOwner ? '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' : (firebaseUser.displayName || 'User'),
+            name: isOwner ? '×͜× 𝙿𝚛𝚘𝚋𝚊𝚋𝚕𝚢 𝙱𝚞𝚜𝚢 永' : (firebaseUser.displayName || 'User'),
+            email: firebaseUser.email || '',
+            avatar: firebaseUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.uid}`,
+            bio: '',
+            role: 'user' as const,
+            joinedAt: firebaseUser.metadata.creationTime || new Date().toISOString()
+          };
+          setUser(newUser);
+          setIsBanned(false);
+          localStorage.setItem('axis_user', JSON.stringify(newUser));
         }
       }, (error) => {
         handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);

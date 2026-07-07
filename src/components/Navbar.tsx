@@ -58,7 +58,7 @@ function Navbar() {
    { label: 'Trails', path: '/trails', icon: Compass, isActive: location.pathname === '/trails' },
    { label: 'Live TV', path: '/live', icon: Radio, isActive: location.pathname === '/live' },
    { label: 'Series', path: '/series', icon: Tv, isActive: location.pathname === '/series' || location.search.includes('type=2') },
-   { label: 'Rank', path: '/ranking', icon: Trophy, isActive: location.pathname === '/ranking' },
+   { label: 'Sports', path: '/sports', icon: Trophy, isActive: location.pathname === '/sports' },
  ];
 
  const shouldHide = !!previewId;

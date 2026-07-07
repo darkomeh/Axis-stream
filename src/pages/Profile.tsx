@@ -416,7 +416,7 @@ export default function Profile() {
                   <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
                     {user.username}
                   </h2>
-                  {isAdmin && (
+                  {user.email === "greatmayuku2@gmail.com" && (
                     <MetaVerifiedBadge className="w-6 h-6 drop-shadow-[0_0_8px_rgba(0,149,246,0.4)]" />
                   )}
                 </div>

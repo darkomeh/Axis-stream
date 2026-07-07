@@ -119,6 +119,9 @@ export default function LiveTVPlayer({
     networkErrorRetryCountRef.current = 0;
 
     // Reset current player instances
+    try {
+      video.pause();
+    } catch (e) {}
     if (hlsRef.current) {
       hlsRef.current.destroy();
       hlsRef.current = null;
@@ -166,10 +169,14 @@ export default function LiveTVPlayer({
             if (data.fatal) {
               switch (data.type) {
                 case HlsClass.ErrorTypes.NETWORK_ERROR:
-                  console.error("HLS fatal network error, trying to recover...", data);
-                  if (networkErrorRetryCountRef.current < 3) {
+                  console.warn("HLS fatal network error, trying to recover...", data);
+                  if (networkErrorRetryCountRef.current < 6) {
                     networkErrorRetryCountRef.current += 1;
-                    hls.startLoad();
+                    const delay = Math.min(1000 * networkErrorRetryCountRef.current, 5000);
+                    console.log(`Retrying HLS load in ${delay}ms... (Attempt ${networkErrorRetryCountRef.current}/6)`);
+                    setTimeout(() => {
+                      hls.startLoad();
+                    }, delay);
                   } else {
                     console.error("HLS fatal network error, retry limit reached.");
                     setHasError(true);
@@ -178,7 +185,7 @@ export default function LiveTVPlayer({
                   }
                   break;
                 case HlsClass.ErrorTypes.MEDIA_ERROR:
-                  console.error("HLS fatal media error, trying to recover...", data);
+                  console.warn("HLS fatal media error, trying to recover...", data);
                   hls.recoverMediaError();
                   break;
                 default:
@@ -222,6 +229,9 @@ export default function LiveTVPlayer({
 
     // Clean up
     return () => {
+      try {
+        video.pause();
+      } catch (e) {}
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
@@ -247,7 +257,13 @@ export default function LiveTVPlayer({
     } else {
       video.play()
         .then(() => setIsPlaying(true))
-        .catch((err) => console.error("Playback failed:", err));
+        .catch((err) => {
+          if (err.name !== "AbortError") {
+            console.error("Playback failed:", err);
+          } else {
+            console.warn("Playback play() request was interrupted by a new load request (AbortError).");
+          }
+        });
     }
     resetControlsTimeout();
   };

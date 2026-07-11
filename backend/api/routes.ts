@@ -42,7 +42,7 @@ backendRouter.get("/sports", (req, res) => {
 backendRouter.get("/matches/live", async (req, res) => {
   try {
     const domainInfo = await DiscoveryService.getBestDomain();
-    const bestDomain = domainInfo?.domain || "https://sportslivetoday.com";
+    const bestDomain = domainInfo?.domain || "https://moviebox.pk";
     const sport = (req.query.sport as string) || "all";
     const matches = await MatchScraper.scrapeLiveMatches(bestDomain, sport);
     const liveMatches = matches.filter(m => m.status === "LIVE" || m.status === "HALF_TIME");
@@ -56,7 +56,7 @@ backendRouter.get("/matches/live", async (req, res) => {
 backendRouter.get("/matches/upcoming", async (req, res) => {
   try {
     const domainInfo = await DiscoveryService.getBestDomain();
-    const bestDomain = domainInfo?.domain || "https://sportslivetoday.com";
+    const bestDomain = domainInfo?.domain || "https://moviebox.pk";
     const sport = (req.query.sport as string) || "all";
     const matches = await MatchScraper.scrapeLiveMatches(bestDomain, sport);
     const upcomingMatches = matches.filter(m => m.status === "UPCOMING");
@@ -70,7 +70,7 @@ backendRouter.get("/matches/upcoming", async (req, res) => {
 backendRouter.get("/matches", async (req, res) => {
   try {
     const domainInfo = await DiscoveryService.getBestDomain();
-    const bestDomain = domainInfo?.domain || "https://sportslivetoday.com";
+    const bestDomain = domainInfo?.domain || "https://moviebox.pk";
     
     const sport = (req.query.sport as string) || "all";
     const status = (req.query.status as string) || "all";
@@ -114,7 +114,7 @@ backendRouter.get("/leagues", async (req, res) => {
 backendRouter.get("/basketball", async (req, res) => {
   try {
     const domainInfo = await DiscoveryService.getBestDomain();
-    const bestDomain = domainInfo?.domain || "https://sportslivetoday.com";
+    const bestDomain = domainInfo?.domain || "https://moviebox.pk";
     const matches = await MatchScraper.scrapeLiveMatches(bestDomain, "basketball");
     res.json({ total: matches.length, matches });
   } catch (err: any) {

@@ -1,8 +1,6 @@
 export const config = {
   DOMAINS_TO_TEST: [
     "https://moviebox.pk",
-    "https://sportslivetoday.com",
-    "https://thesports.today",
     "https://moviebox.ph",
     "https://moviebox.co",
     "https://moviebox.pro",

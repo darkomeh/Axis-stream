@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import axios from "axios";
 import { useAuth } from "../contexts/AuthContext";
+import { useToast } from "../contexts/ToastContext";
+import { getSubscribedMatches, toggleMatchSubscription } from "../services/sportsNotificationService";
 import LiveTVPlayer from "../components/LiveTVPlayer";
 import SportsMatchDetails from "../components/SportsMatchDetails";
 import { NoticeMessage } from "../components/NoticeMessage";
@@ -199,6 +201,7 @@ const formatDatePill = (date: Date) => {
 
 export default function Sports() {
   const { user, preferences } = useAuth();
+  const { showToast } = useToast();
   const { matchSlug } = useParams();
   const navigate = useNavigate();
 
@@ -211,6 +214,15 @@ export default function Sports() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<{ match: Match; initialStreamUrl?: string } | null>(null);
+  const [subscribedMatchIds, setSubscribedMatchIds] = useState<string[]>(() => getSubscribedMatches());
+
+  useEffect(() => {
+    const handleSubChange = () => {
+      setSubscribedMatchIds(getSubscribedMatches());
+    };
+    window.addEventListener("sports_subscriptions_changed", handleSubChange);
+    return () => window.removeEventListener("sports_subscriptions_changed", handleSubChange);
+  }, []);
 
   const fetchMatches = async (isBackground = false) => {
     if (!isBackground) {
@@ -683,7 +695,18 @@ export default function Sports() {
                       <button className="hidden sm:flex items-center gap-1.5 px-4 py-2 border border-white/10 rounded-full text-xs font-bold hover:bg-white/5 transition-colors text-white">
                         <PlayCircle className="w-3.5 h-3.5 text-[#FF3B30]" /> View Match
                       </button>
-                      <button className="w-10 h-10 rounded-full bg-white/[0.06] flex items-center justify-center text-[#A1A1AA] hover:text-white hover:bg-white/[0.1] transition-colors border border-white/[0.08]">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const isSubbed = toggleMatchSubscription(match.id);
+                          showToast(isSubbed ? "Push notifications enabled!" : "Match alerts disabled", isSubbed ? "success" : "info");
+                        }}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all ${
+                          subscribedMatchIds.includes(match.id)
+                            ? "bg-[#FF3B30]/10 text-[#FF3B30] border-[#FF3B30]/30"
+                            : "bg-white/[0.06] text-[#A1A1AA] hover:text-white hover:bg-white/[0.1] border-white/[0.08]"
+                        }`}
+                      >
                         <Bell className="w-4 h-4" />
                       </button>
                     </div>

@@ -2,107 +2,12 @@ import React, { useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { subscribeToNotifications } from '../services/notificationService';
 import { useToast } from '../contexts/ToastContext';
-import axios from 'axios';
-import { getSubscribedMatches } from '../services/sportsNotificationService';
 
 export default function NotificationListener() {
   const { user, stats } = useAuth();
   const { showToast } = useToast();
   const isFirstLoad = useRef(true);
   const knownNotificationIds = useRef<Set<string>>(new Set());
-
-  const lastMatchesRef = useRef<Record<string, { status: string, home_score: string, away_score: string }>>({});
-  const notifiedUpcomingRef = useRef<Set<string>>(new Set());
-
-  // Background Sports Match Notification Poller
-  useEffect(() => {
-    const checkSubscribedMatches = async () => {
-      try {
-        const response = await axios.get('/api/matches?sport=all');
-        const matches = response.data.matches || [];
-        const subs = getSubscribedMatches();
-
-        matches.forEach((match: any) => {
-          const matchId = String(match.id);
-          const prevState = lastMatchesRef.current[matchId];
-          const isSubbed = subs.includes(matchId);
-
-          if (isSubbed) {
-            // 1. Kickoff schedule check (1 minute before scheduled start)
-            if (match.status === "UPCOMING" && match.start_time) {
-              const targetTime = new Date(match.start_time).getTime();
-              const now = Date.now();
-              if (now >= targetTime - 60000 && !notifiedUpcomingRef.current.has(matchId)) {
-                notifiedUpcomingRef.current.add(matchId);
-                const title = `⏰ MATCH STARTING SOON!`;
-                const msg = `${match.home_team} vs ${match.away_team} is about to kick off!`;
-                
-                if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-                  new Notification(title, {
-                    body: msg,
-                    icon: match.home_logo || 'https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg',
-                    tag: `match-upcoming-${matchId}`
-                  });
-                }
-                showToast(msg, 'info');
-              }
-            }
-
-            // 2. Status change check (UPCOMING -> LIVE)
-            if (prevState && prevState.status === "UPCOMING" && match.status === "LIVE") {
-              const title = `🔥 MATCH IS LIVE!`;
-              const msg = `${match.home_team} vs ${match.away_team} has started! Watch now.`;
-              
-              if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-                new Notification(title, {
-                  body: msg,
-                  icon: match.home_logo || 'https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg',
-                  tag: `match-live-${matchId}`
-                });
-              }
-              showToast(msg, 'info');
-            }
-
-            // 3. Goal check
-            if (prevState && match.status === "LIVE") {
-              const prevHome = parseInt(prevState.home_score) || 0;
-              const prevAway = parseInt(prevState.away_score) || 0;
-              const currHome = parseInt(match.home_score) || 0;
-              const currAway = parseInt(match.away_score) || 0;
-
-              if (currHome > prevHome || currAway > prevAway) {
-                const title = `⚽ GOAL SCORED!`;
-                const msg = `${match.home_team} ${match.home_score} - ${match.away_score} ${match.away_team}`;
-                
-                if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-                  new Notification(title, {
-                    body: msg,
-                    icon: 'https://i.ibb.co/Zz9CLQw3/431d475fa275.jpg',
-                    tag: `match-goal-${matchId}-${match.home_score}-${match.away_score}`
-                  });
-                }
-                showToast(msg, 'success');
-              }
-            }
-          }
-
-          // Always save current state for comparison
-          lastMatchesRef.current[matchId] = {
-            status: match.status,
-            home_score: match.home_score,
-            away_score: match.away_score
-          };
-        });
-      } catch (err) {
-        console.warn("Background sports matches check failed:", err);
-      }
-    };
-
-    // Run initially and then every 15 seconds
-    checkSubscribedMatches();
-    const interval = setInterval(checkSubscribedMatches, 15000);
-    return () => clearInterval(interval);
-  }, [showToast]);
 
   // Request notification and microphone permissions on site entry
   useEffect(() => {

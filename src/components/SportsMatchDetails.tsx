@@ -13,7 +13,6 @@ import { doc, updateDoc, increment, getDoc, setDoc, onSnapshot, collection, quer
 import { handleFirestoreError, OperationType } from "../services/firebaseService";
 import { MetaVerifiedBadge } from "./MetaVerifiedBadge";
 import { useToast } from "../contexts/ToastContext";
-import { isMatchSubscribed, toggleMatchSubscription } from "../services/sportsNotificationService";
 
 interface Match {
   id: string;
@@ -102,7 +101,7 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const [currentMatch, setCurrentMatch] = useState<Match>(match);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(() => isMatchSubscribed(match.id));
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [selectedQuality, setSelectedQuality] = useState("Auto HD");
 
@@ -154,19 +153,10 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
 
   useEffect(() => {
     setCurrentMatch(match);
-    setNotificationsEnabled(isMatchSubscribed(match.id));
     if (!currentStreamUrl && match.streams && match.streams.length > 0) {
       setCurrentStreamUrl(match.streams[0].url);
     }
   }, [match]);
-
-  useEffect(() => {
-    const handleSubChange = () => {
-      setNotificationsEnabled(isMatchSubscribed(currentMatch.id));
-    };
-    window.addEventListener("sports_subscriptions_changed", handleSubChange);
-    return () => window.removeEventListener("sports_subscriptions_changed", handleSubChange);
-  }, [currentMatch.id]);
 
   useEffect(() => {
     if (!match.id) return;
@@ -761,9 +751,8 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
 
                 <div 
                   onClick={() => {
-                    const isSubbedNow = toggleMatchSubscription(currentMatch.id);
-                    setNotificationsEnabled(isSubbedNow);
-                    showToast(isSubbedNow ? "Push notifications enabled!" : "Match alerts disabled", isSubbedNow ? "success" : "info");
+                    setNotificationsEnabled(!notificationsEnabled);
+                    showToast(notificationsEnabled ? "Match alerts disabled" : "Push notifications enabled!", notificationsEnabled ? "info" : "success");
                   }}
                   className={`border rounded-[24px] p-5 backdrop-blur-xl flex flex-col justify-center items-center text-center cursor-pointer transition-colors ${
                     notificationsEnabled ? "bg-[#FF3B30]/10 border-[#FF3B30]/30" : "bg-white/[0.04] border-white/[0.08] hover:bg-white/[0.08]"

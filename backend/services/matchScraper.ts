@@ -51,6 +51,7 @@ export class MatchScraper {
   private static isFetching: boolean = false;
   
   private static casperCooldownUntil: number = 0;
+  private static cinverseCooldownUntil: number = 0;
   private static nuxtCooldownUntil: number = 0;
 
   static async scrapeLiveMatches(baseDomain: string, sportType: string = "all"): Promise<Match[]> {
@@ -108,11 +109,15 @@ export class MatchScraper {
 
   private static async performScrape(baseDomain: string): Promise<Match[]> {
     let payloadUrl = "";
-    try {
-      const url = new URL(baseDomain || "https://moviebox.pk");
-      payloadUrl = url.origin + "/_payload.json?live";
-    } catch {
-      payloadUrl = "https://moviebox.pk/_payload.json?live";
+    if (baseDomain && baseDomain.includes("moviebox")) {
+      payloadUrl = "https://sportslivetoday.com/_payload.json?live";
+    } else {
+      try {
+        const url = new URL(baseDomain || "https://sportslivetoday.com");
+        payloadUrl = url.origin + "/_payload.json?live";
+      } catch {
+        payloadUrl = "https://sportslivetoday.com/_payload.json?live";
+      }
     }
 
     const now = Date.now();
@@ -141,6 +146,81 @@ export class MatchScraper {
     } catch (err: any) {
       this.nuxtCooldownUntil = now + 15000; // Cool down Nuxt calls for 15 seconds on failure
       logger.warn(`Failed to fetch official Nuxt payload: ${err.message}`);
+    }
+
+    // 2. Fetch from Cinverse API for comprehensive finished and upcoming matches
+    try {
+      if (now >= this.cinverseCooldownUntil) {
+        logger.info("Fetching matches from Cinverse API: https://live.cinverse.com.ng/api/matches");
+        const cinverseRes = await axios.get("https://live.cinverse.com.ng/api/matches", {
+          headers: config.BROWSER_HEADERS,
+          timeout: 10000,
+          responseType: "json"
+        });
+        let cinverseMatches = Array.isArray(cinverseRes.data) ? cinverseRes.data : (cinverseRes.data?.matches || []);
+        if (cinverseRes && cinverseRes.status === 200 && cinverseMatches.length > 0) {
+          let cinverseCount = 0;
+          cinverseMatches.forEach((item: any, index: number) => {
+            if (!item) return;
+            const parsedStatus = (item.status || "").toUpperCase();
+            let statusMapped = "UPCOMING";
+            if (parsedStatus === "LIVE") {
+              statusMapped = "LIVE";
+            } else if (parsedStatus === "FINISHED") {
+              statusMapped = "FINISHED";
+            }
+
+            const channels: Record<string, string> = {};
+            const streams: StreamItem[] = [];
+            
+            const primaryStream = item.freshPlaylistUrl || item.freshStreamUrl || item.streamUrl || item.proxyStreamUrl;
+            if (primaryStream) {
+              channels["Cinverse Stream"] = primaryStream;
+              streams.push({
+                name: "Cinverse Stream",
+                url: primaryStream,
+                type: "m3u8",
+                quality: "HD"
+              });
+            }
+
+            const matchSport = item.sport || "football";
+
+            const parsedMatch: Match = {
+              id: String(item.id || `cin-${index}`),
+              sport_type: this.translateToEnglish(matchSport).toLowerCase(),
+              league: this.translateToEnglish(item.league || ""),
+              round: this.translateToEnglish(item.matchRound || ""),
+              home_team: this.translateToEnglish(item.homeTeam || "Unknown"),
+              home_abbr: item.homeTeamAbbr || "",
+              home_logo: item.homeTeamLogo || "",
+              away_team: this.translateToEnglish(item.awayTeam || "Unknown"),
+              away_abbr: item.awayTeamAbbr || "",
+              away_logo: item.awayTeamLogo || "",
+              home_score: String(item.homeScore ?? "-"),
+              away_score: String(item.awayScore ?? "-"),
+              status: statusMapped,
+              raw_status: item.rawStatus || item.status || "",
+              status_live: item.minute || "",
+              start_time: item.startTime || undefined,
+              m3u8_url: primaryStream || null,
+              channels: channels,
+              streams: streams,
+              period_scores: [],
+              odds: [],
+              highlights: [],
+              scraped_at: new Date().toISOString()
+            };
+
+            mergedMatches.set(parsedMatch.id, parsedMatch);
+            cinverseCount++;
+          });
+          logger.info(`Fetched and merged ${cinverseCount} matches from Cinverse API`);
+        }
+      }
+    } catch (err: any) {
+      this.cinverseCooldownUntil = now + 15000;
+      logger.warn(`Failed to fetch from Cinverse API: ${err.message}`);
     }
 
     // 3. Fetch from MovieStreamAPI for additional live/upcoming matches
@@ -766,6 +846,77 @@ export class MatchScraper {
           period_scores: [],
           odds: [],
           highlights: matchData.highlights || [],
+          scraped_at: new Date().toISOString()
+        });
+      } catch (err) {
+        continue;
+      }
+    }
+    return matches;
+  }
+
+  private static mapCinverseToMatch(apiMatches: any[], requestedSport: string): Match[] {
+    const matches: Match[] = [];
+    for (const matchData of apiMatches) {
+      if (!matchData || typeof matchData !== "object") continue;
+      try {
+        const matchSport = matchData.sport || "football";
+        if (requestedSport !== "all" && matchSport !== requestedSport && requestedSport) continue;
+
+        const statusMap: Record<string, string> = {
+          "upcoming": "UPCOMING",
+          "live": "LIVE",
+          "finished": "FINISHED",
+        };
+
+        const streams: StreamItem[] = [];
+        const channels: Record<string, string> = {};
+        
+        let primaryM3u8 = null;
+        
+        if (matchData.freshPlaylistUrl) {
+          primaryM3u8 = matchData.freshPlaylistUrl;
+          streams.push({
+            name: "Main Broadcast (HD)",
+            url: matchData.freshPlaylistUrl,
+            type: "m3u8",
+            quality: "HD"
+          });
+          channels["Main Broadcast (HD)_direct"] = matchData.freshPlaylistUrl;
+        } else if (matchData.streamUrl) {
+          primaryM3u8 = matchData.streamUrl;
+          streams.push({
+            name: "Main Broadcast",
+            url: matchData.streamUrl,
+            type: "m3u8",
+            quality: "Auto"
+          });
+          channels["Main Broadcast_direct"] = matchData.streamUrl;
+        }
+
+        matches.push({
+          id: String(matchData.id || "UNKNOWN"),
+          sport_type: matchSport,
+          league: matchData.league || "",
+          round: matchData.matchRound || "",
+          home_team: matchData.homeTeam || "Unknown",
+          home_abbr: matchData.homeTeamAbbr || "",
+          home_logo: matchData.homeTeamLogo || "",
+          away_team: matchData.awayTeam || "Unknown",
+          away_abbr: matchData.awayTeamAbbr || "",
+          away_logo: matchData.awayTeamLogo || "",
+          home_score: matchData.homeScore !== null ? String(matchData.homeScore) : "-",
+          away_score: matchData.awayScore !== null ? String(matchData.awayScore) : "-",
+          status: statusMap[matchData.status] || matchData.status || "Unknown",
+          raw_status: matchData.rawStatus || "",
+          status_live: matchData.minute || "",
+          start_time: matchData.startTime || undefined,
+          m3u8_url: primaryM3u8,
+          channels: channels,
+          streams: streams,
+          period_scores: [],
+          odds: [],
+          highlights: [],
           scraped_at: new Date().toISOString()
         });
       } catch (err) {

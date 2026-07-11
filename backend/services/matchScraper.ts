@@ -144,8 +144,8 @@ export class MatchScraper {
         }
       }
     } catch (err: any) {
-      this.nuxtCooldownUntil = now + 300000; // Cool down Nuxt calls for 5 minutes on failure
-      logger.debug(`Failed to fetch official Nuxt payload: ${err.message}`);
+      this.nuxtCooldownUntil = now + 15000; // Cool down Nuxt calls for 15 seconds on failure
+      logger.warn(`Failed to fetch official Nuxt payload: ${err.message}`);
     }
 
     // 2. Fetch from Cinverse API for comprehensive finished and upcoming matches

@@ -13,8 +13,8 @@ import { NoticeMessage } from "../components/NoticeMessage";
 import { Skeleton } from "../components/Skeleton";
 import { useParams, useNavigate } from "react-router-dom";
 
-const getMatchSlug = (home: string, away: string) => {
-  return `${home.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')}-vs-${away.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')}`;
+const getMatchSlug = (match: Match) => {
+  return `${match.id}-${match.home_team.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')}-vs-${match.away_team.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')}`;
 };
 
 export const formatMatchDate = (dateInput: string | Date | undefined): string => {
@@ -265,8 +265,15 @@ export default function Sports() {
   useEffect(() => {
     if (matchSlug && allMatches.length > 0) {
       const matched = allMatches.find(m => {
-        const slug = getMatchSlug(m.home_team, m.away_team);
+        const slug = getMatchSlug(m);
         if (slug === matchSlug.toLowerCase()) return true;
+        
+        // Also check if the matchSlug starts with the match id (robust against translations)
+        if (matchSlug.toLowerCase().startsWith(`${m.id.toLowerCase()}-`)) return true;
+        
+        // Legacy fallback
+        const oldSlug = `${m.home_team.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')}-vs-${m.away_team.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')}`;
+        if (oldSlug === matchSlug.toLowerCase()) return true;
         
         // Loose check: see if home and away team names exist in the slug
         const cleanSlug = matchSlug.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -290,7 +297,7 @@ export default function Sports() {
   }, [matchSlug, allMatches]);
 
   const handleOpenMatchDetails = (match: Match) => {
-    navigate(`/sports/live/${getMatchSlug(match.home_team, match.away_team)}`);
+    navigate(`/sports/live/${getMatchSlug(match)}`);
   };
 
   const handleBack = () => {

@@ -232,7 +232,15 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
 
       if (HlsClass.isSupported()) {
         if (hlsRef.current) hlsRef.current.destroy();
-        const hls = new HlsClass({ enableWorker: true, lowLatencyMode: true });
+        const hls = new HlsClass({ 
+          enableWorker: true, 
+          lowLatencyMode: true,
+          backBufferLength: 90,
+          maxBufferLength: 30, // Reduce buffer to load faster and stay closer to live edge
+          maxMaxBufferLength: 60,
+          liveSyncDurationCount: 3,
+          liveMaxLatencyDurationCount: 10,
+        });
         hlsRef.current = hls;
         const proxyUrl = currentStreamUrl.includes('.m3u8') ? `/api/proxy/playlist.m3u8?url=${encodeURIComponent(currentStreamUrl)}` : currentStreamUrl;
         hls.loadSource(proxyUrl);
@@ -499,6 +507,7 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
               ref={videoRef} 
               className="w-full h-full object-contain animate-fade-in" 
               playsInline 
+              preload="auto"
               muted={isMuted}
               onWaiting={handleVideoWaiting}
               onPlaying={handleVideoPlaying}

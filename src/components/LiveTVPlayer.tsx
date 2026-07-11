@@ -361,6 +361,7 @@ export default function LiveTVPlayer({
         ref={videoRef}
         className="w-full h-full object-contain"
         playsInline
+        preload="auto"
         onClick={togglePlay}
         onWaiting={() => setIsLoading(true)}
         onPlaying={() => setIsLoading(false)}

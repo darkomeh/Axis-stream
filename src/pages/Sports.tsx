@@ -284,9 +284,17 @@ export default function Sports() {
       
       if (matched) {
         setSelectedMatch({ match: matched });
+        
         // Auto-switch active sport tab to matched match's sport if different
         if (matched.sport_type && matched.sport_type !== activeSport) {
           setActiveSport(matched.sport_type);
+        }
+        
+        // If language change caused a translation in home/away teams, 
+        // silently update the URL to match the new slug so it doesn't break later
+        const correctSlug = getMatchSlug(matched);
+        if (matchSlug && matchSlug.toLowerCase() !== correctSlug) {
+          navigate(`/sports/live/${correctSlug}`, { replace: true });
         }
       } else {
         navigate("/sports");

@@ -141,6 +141,17 @@ export default function LiveTVPlayer({
             maxBufferLength: 15,
             liveSyncDurationCount: 3,
             liveMaxLatencyDurationCount: 6,
+            capLevelToPlayerSize: true,
+            startLevel: -1,
+            fragLoadingTimeOut: 10000,
+            fragLoadingMaxRetry: 6,
+            fragLoadingRetryDelay: 500,
+            manifestLoadingMaxRetry: 6,
+            manifestLoadingRetryDelay: 500,
+            levelLoadingMaxRetry: 6,
+            levelLoadingRetryDelay: 500,
+            appendErrorMaxRetry: 6,
+            abrEwmaDefaultEstimate: 500000,
           });
 
           hlsRef.current = hls;

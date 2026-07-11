@@ -19,6 +19,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AnimatePresence, motion } from "motion/react";
 import { TasteProfiler } from "./components/TasteProfiler";
 import { OfflineBanner } from "./components/OfflineBanner";
+import { BackgroundPinger } from "./components/BackgroundPinger";
 
 // Helper to gracefully handle Vite dynamic import failures (stale chunks after rebuild)
 function lazyWithRetry(componentImport: () => Promise<any>) {
@@ -157,6 +158,7 @@ function AppContent() {
     <div className={`min-h-screen bg-transparent text-white selection:bg-brand/30 selection:text-white font-sans antialiased ${shouldShowNav ? "pb-20" : ""}`}>
       {/* <LoginPopup /> */}
       <OfflineBanner />
+      <BackgroundPinger />
       <Analytics />
       <NotificationListener />
       <SystemAlerts />

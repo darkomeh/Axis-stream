@@ -301,6 +301,167 @@ export class MatchScraper {
       logger.warn(`Failed to fetch from MovieStream API: ${err.message}`);
     }
 
+    // 4. Fetch from TrackerWanga Backup API
+    try {
+      logger.info("Fetching matches from TrackerWanga Backup API: https://sports-api.trackerwanga254.workers.dev");
+      const sportTypes = ["football", "basketball", "wwe", "cricket", "tennis", "rugby", "baseball"];
+      
+      const wangaResults = await Promise.all(
+        sportTypes.map(async (type) => {
+          try {
+            const res = await axios.get(`https://sports-api.trackerwanga254.workers.dev/api/live?type=${type}`, {
+              headers: config.BROWSER_HEADERS,
+              timeout: 6000,
+              responseType: "json"
+            });
+            if (res && res.status === 200 && res.data && Array.isArray(res.data.matches)) {
+              return { type, matches: res.data.matches };
+            }
+          } catch (e: any) {
+            logger.warn(`TrackerWanga Backup API failed for ${type}: ${e.message}`);
+          }
+          return { type, matches: [] };
+        })
+      );
+
+      let wangaCount = 0;
+      let dupMergeCount = 0;
+
+      for (const result of wangaResults) {
+        if (!result || !result.matches) continue;
+        result.matches.forEach((item: any, index: number) => {
+          if (!item) return;
+
+          const matchId = item.id ? `wanga-${item.id}` : `wanga-${result.type}-${index}`;
+          
+          if (mergedMatches.has(matchId)) return;
+
+          const parsedStatus = (item.status || "").toUpperCase();
+          let statusMapped = "UPCOMING";
+          if (parsedStatus === "LIVE") {
+            statusMapped = "LIVE";
+          } else if (parsedStatus === "FINISHED" || parsedStatus === "MATCHENDED") {
+            statusMapped = "FINISHED";
+          } else if (parsedStatus === "HALFTIME") {
+            statusMapped = "HALF_TIME";
+          }
+
+          const channels: Record<string, string> = {};
+          const streams: StreamItem[] = [];
+          
+          const primaryStream = item.streamUrl;
+          if (primaryStream) {
+            const proxiedUrl = `https://sports-api.trackerwanga254.workers.dev/api/proxy/playlist?url=${encodeURIComponent(primaryStream)}`;
+            
+            channels["TrackerWanga Proxy"] = proxiedUrl;
+            streams.push({
+              name: "TrackerWanga Proxy",
+              url: proxiedUrl,
+              type: "m3u8",
+              quality: "HD"
+            });
+
+            channels["Direct Stream"] = primaryStream;
+            streams.push({
+              name: "Direct Stream",
+              url: primaryStream,
+              type: "m3u8",
+              quality: "Auto"
+            });
+          }
+
+          const periodScores: any[] = [];
+          if (Array.isArray(item.scores)) {
+             item.scores.forEach((sc: any, sIdx: number) => {
+               periodScores.push({
+                 name: sc.period || `P${sIdx + 1}`,
+                 home: sc.home ?? 0,
+                 away: sc.away ?? 0
+               });
+             });
+          }
+
+          const homeTeamObj = item.homeTeam || {};
+          const awayTeamObj = item.awayTeam || {};
+
+          const parsedMatch: Match = {
+            id: matchId,
+            sport_type: result.type,
+            league: this.translateToEnglish(item.league || "Live Match"),
+            round: this.translateToEnglish(item.round || ""),
+            home_team: this.translateToEnglish(homeTeamObj.name || "Unknown"),
+            home_abbr: homeTeamObj.abbreviation || "",
+            home_logo: homeTeamObj.avatar || "",
+            away_team: this.translateToEnglish(awayTeamObj.name || "Unknown"),
+            away_abbr: awayTeamObj.abbreviation || "",
+            away_logo: awayTeamObj.avatar || "",
+            home_score: String(homeTeamObj.score ?? "-"),
+            away_score: String(awayTeamObj.score ?? "-"),
+            status: statusMapped,
+            raw_status: item.status || "",
+            status_live: item.timeDescription || "",
+            start_time: item.startTime || undefined,
+            m3u8_url: primaryStream ? `https://sports-api.trackerwanga254.workers.dev/api/proxy/playlist?url=${encodeURIComponent(primaryStream)}` : null,
+            channels: channels,
+            streams: streams,
+            period_scores: periodScores,
+            odds: [],
+            highlights: item.highlights || [],
+            scraped_at: new Date().toISOString()
+          };
+
+          // Find if duplicate match exists (match with same teams) and merge streams
+          let duplicateKey: string | null = null;
+          const cleanWangaHome = parsedMatch.home_team.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const cleanWangaAway = parsedMatch.away_team.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+          for (const [existingId, existingMatch] of mergedMatches.entries()) {
+            const cleanExistingHome = existingMatch.home_team.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const cleanExistingAway = existingMatch.away_team.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (cleanExistingHome === cleanWangaHome && cleanExistingAway === cleanWangaAway) {
+              duplicateKey = existingId;
+              break;
+            }
+          }
+
+          if (duplicateKey) {
+            const existingMatch = mergedMatches.get(duplicateKey)!;
+            if (primaryStream) {
+              const proxiedUrl = `https://sports-api.trackerwanga254.workers.dev/api/proxy/playlist?url=${encodeURIComponent(primaryStream)}`;
+              if (!existingMatch.channels["TrackerWanga Proxy"]) {
+                existingMatch.channels["TrackerWanga Proxy"] = proxiedUrl;
+                existingMatch.streams.push({
+                  name: "TrackerWanga Proxy",
+                  url: proxiedUrl,
+                  type: "m3u8",
+                  quality: "HD"
+                });
+              }
+              if (!existingMatch.channels["Direct Stream"]) {
+                existingMatch.channels["Direct Stream"] = primaryStream;
+                existingMatch.streams.push({
+                  name: "Direct Stream",
+                  url: primaryStream,
+                  type: "m3u8",
+                  quality: "Auto"
+                });
+              }
+              if (!existingMatch.m3u8_url) {
+                existingMatch.m3u8_url = proxiedUrl;
+              }
+            }
+            dupMergeCount++;
+          } else {
+            mergedMatches.set(parsedMatch.id, parsedMatch);
+            wangaCount++;
+          }
+        });
+      }
+      logger.info(`Fetched and merged ${wangaCount} new matches and augmented ${dupMergeCount} matches from TrackerWanga Backup API`);
+    } catch (err: any) {
+      logger.warn(`Failed to fetch from TrackerWanga Backup API: ${err.message}`);
+    }
+
     let finalMatches = Array.from(mergedMatches.values());
     if (finalMatches.length === 0) {
       logger.info("Official Nuxt payload returned 0 matches or failed. Using premium fallback matches.");

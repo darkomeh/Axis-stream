@@ -12,19 +12,14 @@ export const BackgroundPinger: React.FC = () => {
 
     const pingStreams = async () => {
       try {
-        // List of common CDNs or known stream endpoints to pre-warm
-        // In a real scenario, this might fetch the live sports/TV schedule 
-        // and ping the top 2-3 most active stream URLs.
-        
-        // For general warmup, we can ping our proxy endpoint lightly
-        // This ensures the serverless function is "warm"
+        // 1. Warm up the local backend and proxy functions
         fetch('/api/health', { method: 'GET', keepalive: true }).catch(() => {});
         
-        // We can also create preconnect links for common stream providers
+        // 2. Preconnect to critical stream providers and the backup API
         const commonDomains = [
+          'https://sports-api.trackerwanga254.workers.dev',
+          'https://live-pull.aisports.mobi',
           'https://daddylive.stream',
-          'https://1.1.1.1',
-          'https://stream.muzi.net',
           'https://cloudflare-dns.com'
         ];
 
@@ -41,13 +36,43 @@ export const BackgroundPinger: React.FC = () => {
           document.head.appendChild(dnsLink);
         });
 
+        // 3. Dynamically fetch currently live matches and pre-warm their playlists
+        // This warms up the proxies and fetches upstream manifests so players load instantly
+        const response = await fetch('/api/matches/live');
+        if (response.ok) {
+          const data = await response.json();
+          if (data && Array.isArray(data.matches)) {
+            data.matches.forEach((match: any) => {
+              const streamUrl = match.m3u8_url || match.streams?.[0]?.url;
+              if (streamUrl) {
+                // Determine proxy stream url
+                let proxyUrl = streamUrl;
+                if (streamUrl.includes('.m3u8')) {
+                  if (streamUrl.includes('trackerwanga254.workers.dev/api/proxy/playlist')) {
+                    proxyUrl = streamUrl;
+                  } else if (streamUrl.includes('moviebox') || streamUrl.includes('live-pull') || streamUrl.includes('aisports.mobi')) {
+                    proxyUrl = `https://sports-api.trackerwanga254.workers.dev/api/proxy/playlist?url=${encodeURIComponent(streamUrl)}`;
+                  } else {
+                    proxyUrl = `/api/proxy/playlist.m3u8?url=${encodeURIComponent(streamUrl)}`;
+                  }
+                }
+                
+                // Silently ping/fetch the stream manifest in background to warm it up
+                fetch(proxyUrl, { method: 'GET', cache: 'no-cache' })
+                  .then(() => console.log(`Successfully pre-warmed stream: ${match.home_team} vs ${match.away_team}`))
+                  .catch(() => {});
+              }
+            });
+          }
+        }
+
       } catch (err) {
         console.warn('Background pinging soft fail:', err);
       }
     };
 
     // Delay slightly to not block initial render
-    setTimeout(pingStreams, 2000);
+    setTimeout(pingStreams, 3000);
     
     // Set up a heartbeat to keep connection alive
     const interval = setInterval(() => {

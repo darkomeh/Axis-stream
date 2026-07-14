@@ -242,7 +242,16 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
           liveMaxLatencyDurationCount: 10,
         });
         hlsRef.current = hls;
-        const proxyUrl = currentStreamUrl.includes('.m3u8') ? `/api/proxy/playlist.m3u8?url=${encodeURIComponent(currentStreamUrl)}` : currentStreamUrl;
+        let proxyUrl = currentStreamUrl;
+        if (currentStreamUrl.includes('.m3u8')) {
+          if (currentStreamUrl.includes('trackerwanga254.workers.dev/api/proxy/playlist')) {
+            proxyUrl = currentStreamUrl;
+          } else if (currentStreamUrl.includes('moviebox') || currentStreamUrl.includes('live-pull') || currentStreamUrl.includes('aisports.mobi')) {
+            proxyUrl = `https://sports-api.trackerwanga254.workers.dev/api/proxy/playlist?url=${encodeURIComponent(currentStreamUrl)}`;
+          } else {
+            proxyUrl = `/api/proxy/playlist.m3u8?url=${encodeURIComponent(currentStreamUrl)}`;
+          }
+        }
         hls.loadSource(proxyUrl);
         hls.attachMedia(video);
         hls.on(HlsClass.Events.MANIFEST_PARSED, () => {
@@ -256,7 +265,17 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
           setIsPlaying(true);
         });
       } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        video.src = currentStreamUrl.includes('.m3u8') ? `/api/proxy/playlist.m3u8?url=${encodeURIComponent(currentStreamUrl)}` : currentStreamUrl;
+        let proxyUrl = currentStreamUrl;
+        if (currentStreamUrl.includes('.m3u8')) {
+          if (currentStreamUrl.includes('trackerwanga254.workers.dev/api/proxy/playlist')) {
+            proxyUrl = currentStreamUrl;
+          } else if (currentStreamUrl.includes('moviebox') || currentStreamUrl.includes('live-pull') || currentStreamUrl.includes('aisports.mobi')) {
+            proxyUrl = `https://sports-api.trackerwanga254.workers.dev/api/proxy/playlist?url=${encodeURIComponent(currentStreamUrl)}`;
+          } else {
+            proxyUrl = `/api/proxy/playlist.m3u8?url=${encodeURIComponent(currentStreamUrl)}`;
+          }
+        }
+        video.src = proxyUrl;
         video.addEventListener("loadedmetadata", () => {
           const playPromise = video.play();
           playPromiseRef.current = playPromise;

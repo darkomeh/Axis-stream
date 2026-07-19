@@ -721,13 +721,13 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] shrink-0 bg-[#080808] z-10 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
-        <div className="flex items-center gap-8">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/[0.08] shrink-0 bg-[#080808] z-10 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center gap-4 sm:gap-8">
           {["overview", "chat"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as any)}
-              className={`relative pb-1 text-sm font-bold uppercase tracking-wider transition-colors ${
+              className={`relative pb-1 text-xs sm:text-sm font-bold uppercase tracking-wider transition-colors ${
                 activeTab === tab ? "text-white" : "text-[#A1A1AA] hover:text-white/80"
               }`}
             >
@@ -738,10 +738,10 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button 
             onClick={toggleMatchAlert} 
-            className={`flex items-center gap-2 text-xs font-bold transition-all px-3 py-1.5 rounded-full border ${
+            className={`flex items-center gap-1.5 sm:gap-2 text-xs font-bold transition-all px-2.5 sm:px-3 py-1.5 rounded-full border ${
               notificationsEnabled 
                 ? "bg-[#FF3B30]/10 border-[#FF3B30]/30 text-[#FF3B30] hover:bg-[#FF3B30]/20" 
                 : "bg-white/5 hover:bg-white/10 text-[#A1A1AA] hover:text-white border-white/10"
@@ -749,11 +749,12 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
             title={notificationsEnabled ? "Match alerts enabled" : "Enable match alerts"}
           >
             <Bell className="w-3.5 h-3.5" fill={notificationsEnabled ? "currentColor" : "none"} />
-            <span>{notificationsEnabled ? "ALERTS ACTIVE" : "GET ALERTS"}</span>
+            <span className="hidden sm:inline">{notificationsEnabled ? "ALERTS ACTIVE" : "GET ALERTS"}</span>
+            <span className="sm:hidden inline">{notificationsEnabled ? "ACTIVE" : "ALERTS"}</span>
           </button>
-          <button onClick={shareMatch} className="flex items-center gap-2 text-xs font-bold text-[#A1A1AA] hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/10">
+          <button onClick={shareMatch} className="flex items-center gap-1.5 sm:gap-2 text-xs font-bold text-[#A1A1AA] hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-2.5 sm:px-3 py-1.5 rounded-full border border-white/10">
             <Share2 className="w-3.5 h-3.5" />
-            SHARE
+            <span className="hidden sm:inline">SHARE</span>
           </button>
         </div>
       </div>

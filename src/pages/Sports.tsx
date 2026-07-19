@@ -458,7 +458,7 @@ export default function Sports() {
       </div>
 
       {/* Horizontal Sport Selector */}
-      <div className="pt-28 px-6 overflow-x-auto scrollbar-hide">
+      <div className="pt-28 px-4 sm:px-6 overflow-x-auto scrollbar-hide">
         <div className="flex gap-3 min-w-max">
           {SPORTS.map((sport) => (
             <button
@@ -478,7 +478,7 @@ export default function Sports() {
       </div>
 
       {loading && matches.length === 0 ? (
-        <div className="px-6 mt-8 flex flex-col gap-8">
+        <div className="px-4 sm:px-6 mt-8 flex flex-col gap-8">
            <Skeleton className="w-full h-64 rounded-[28px] bg-white/5" />
            <div className="flex gap-4">
              <Skeleton className="flex-1 h-24 rounded-2xl bg-white/5" />
@@ -499,7 +499,7 @@ export default function Sports() {
           </button>
         </div>
       ) : (
-        <div className="px-6 mt-6 max-w-7xl mx-auto flex flex-col gap-8">
+        <div className="px-4 sm:px-6 mt-6 max-w-7xl mx-auto flex flex-col gap-8">
           
           {/* FEATURED LIVE MATCH CARD */}
           {featuredMatch && (
@@ -734,42 +734,49 @@ export default function Sports() {
                   <div 
                     key={match.id}
                     onClick={() => handleOpenMatchDetails(match)}
-                    className="flex items-center justify-between bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] rounded-[20px] p-4 cursor-pointer transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] rounded-[20px] p-4 cursor-pointer transition-colors gap-4"
                   >
-                    <div className="flex flex-col gap-2 flex-1">
+                    {/* Teams Information */}
+                    <div className="flex flex-col gap-2.5 sm:flex-1">
                       <div className="flex items-center gap-3">
                         <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center overflow-hidden shrink-0">
                           {match.home_logo && <img src={match.home_logo} className="w-full h-full object-contain" alt={match.home_team} />}
                         </div>
-                        <span className="font-bold text-sm text-white">{match.home_team}</span>
+                        <span className="font-bold text-sm text-white truncate max-w-[160px] sm:max-w-none">{match.home_team}</span>
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center overflow-hidden shrink-0">
                           {match.away_logo && <img src={match.away_logo} className="w-full h-full object-contain" alt={match.away_team} />}
                         </div>
-                        <span className="font-bold text-sm text-white">{match.away_team}</span>
+                        <span className="font-bold text-sm text-white truncate max-w-[160px] sm:max-w-none">{match.away_team}</span>
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-center justify-center px-4 flex-1">
-                      <span className="text-[10px] text-[#A1A1AA] uppercase tracking-wider text-center line-clamp-1 mb-1">{match.league}</span>
-                      <div className="flex flex-col items-center gap-1.5 text-xs font-semibold text-white">
+                    {/* Date / Time / Countdown */}
+                    <div className="flex sm:flex-col items-center justify-between sm:justify-center px-0 sm:px-4 sm:flex-1 py-2 sm:py-0 border-t border-b border-white/[0.05] sm:border-none">
+                      <span className="text-[10px] text-[#A1A1AA] uppercase tracking-wider text-left sm:text-center line-clamp-1 mb-1">{match.league}</span>
+                      <div className="flex flex-row sm:flex-col items-center gap-2 sm:gap-1.5 text-xs font-semibold text-white">
                         <div className="flex items-center gap-1 text-[#00C7BE] text-[11px] font-bold">
                           <CalendarDays className="w-3.5 h-3.5" />
                           <span>{match.start_time ? formatMatchDate(match.start_time) : 'TBD'}</span>
                         </div>
                         <span className="text-[#A1A1AA] text-[11px]">{match.start_time ? formatMatchTime(match.start_time) : 'TBD'}</span>
-                        {match.start_time && <MatchItemCountdown startTime={match.start_time} />}
                       </div>
+                      {match.start_time && (
+                        <div className="mt-1 sm:mt-1.5">
+                          <MatchItemCountdown startTime={match.start_time} />
+                        </div>
+                      )}
                     </div>
 
-                    <div className="flex items-center justify-end gap-3 flex-1">
-                      <button className="hidden sm:flex items-center gap-1.5 px-4 py-2 border border-white/10 rounded-full text-xs font-bold hover:bg-white/5 transition-colors text-white">
+                    {/* Actions */}
+                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:flex-1">
+                      <button className="flex items-center gap-1.5 px-4 py-2 border border-white/10 rounded-full text-xs font-bold hover:bg-white/5 transition-colors text-white flex-1 sm:flex-none justify-center">
                         <PlayCircle className="w-3.5 h-3.5 text-[#FF3B30]" /> View Match
                       </button>
                       <button 
                         onClick={(e) => handleToggleAlert(match, e)}
-                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors border ${
+                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors border shrink-0 ${
                           registeredAlerts.has(match.id) 
                             ? "bg-[#FF3B30]/10 text-[#FF3B30] border-[#FF3B30]/30 hover:bg-[#FF3B30]/20" 
                             : "bg-white/[0.06] text-[#A1A1AA] hover:text-white hover:bg-white/[0.1] border-white/[0.08]"
@@ -787,7 +794,7 @@ export default function Sports() {
 
           {/* No matches fallback if filtered out */}
           {liveMatches.length === 0 && upcomingMatches.length === 0 && (
-             <div className="py-12 flex flex-col items-center justify-center bg-white/[0.02] border border-white/[0.06] rounded-[28px] text-center px-6">
+             <div className="py-12 flex flex-col items-center justify-center bg-white/[0.02] border border-white/[0.06] rounded-[28px] text-center px-4 sm:px-6">
                 <Trophy className="w-10 h-10 text-[#A1A1AA] mb-4 opacity-50" />
                 <h3 className="text-white font-bold text-lg mb-2">No Matches Found</h3>
                 <p className="text-[#A1A1AA] text-sm">There are no {activeFilter.toLowerCase()} matches at the moment.</p>

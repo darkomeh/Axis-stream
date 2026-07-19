@@ -207,6 +207,23 @@
         "joinedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["joinedAt"]
+    },
+    "MatchAlert": {
+      "title": "MatchAlert",
+      "description": "User match notification registration",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "matchId": { "type": "string" },
+        "homeTeam": { "type": "string" },
+        "awayTeam": { "type": "string" },
+        "sportType": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "kickoffNotified": { "type": "boolean" },
+        "finalNotified": { "type": "boolean" },
+        "pushSubscription": { "type": "object" }
+      },
+      "required": ["userId", "matchId", "createdAt"]
     }
   },
   "firestore": {
@@ -277,6 +294,10 @@
     "sports_viewers/{matchId}/active/{userId}": {
       "schema": "SportsViewerSession",
       "description": "Active viewer presence for a live sports match"
+    },
+    "match_alerts/{alertId}": {
+      "schema": "MatchAlert",
+      "description": "User match alert registrations"
     }
   }
 }

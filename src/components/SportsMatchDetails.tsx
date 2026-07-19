@@ -13,6 +13,7 @@ import { doc, updateDoc, increment, getDoc, setDoc, onSnapshot, collection, quer
 import { handleFirestoreError, OperationType } from "../services/firebaseService";
 import { MetaVerifiedBadge } from "./MetaVerifiedBadge";
 import { useToast } from "../contexts/ToastContext";
+import { MatchAlertService } from "../services/matchAlertService";
 
 interface Match {
   id: string;
@@ -112,6 +113,68 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
   const [messages, setMessages] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevMatchRef = useRef<Match | null>(null);
+
+  // Monitor match score & status changes cleanly outside of state updater functions
+  useEffect(() => {
+    if (prevMatchRef.current) {
+      const prev = prevMatchRef.current;
+      if (prev.id === currentMatch.id) {
+        if (prev.home_score !== currentMatch.home_score || prev.away_score !== currentMatch.away_score) {
+          showToast(`GOAL! ${currentMatch.home_team} ${currentMatch.home_score} - ${currentMatch.away_score} ${currentMatch.away_team}`, "success");
+        }
+        if (prev.status !== "LIVE" && currentMatch.status === "LIVE") {
+          showToast(`${currentMatch.home_team} vs ${currentMatch.away_team} is now LIVE!`, "info");
+        }
+      }
+    }
+    prevMatchRef.current = currentMatch;
+  }, [currentMatch, showToast]);
+
+  // Check match alert registration status on mount and when user/match changes
+  useEffect(() => {
+    if (!user?.id || !match.id) return;
+    const checkAlert = async () => {
+      const isRegistered = await MatchAlertService.checkIsAlertRegistered(user.id, match.id);
+      setNotificationsEnabled(isRegistered);
+    };
+    checkAlert();
+  }, [user?.id, match.id]);
+
+  const toggleMatchAlert = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user?.id) {
+      showToast("Please sign in to register for match alerts.", "info");
+      return;
+    }
+    const matchId = match.id;
+    const isRegistered = notificationsEnabled;
+
+    if (isRegistered) {
+      const success = await MatchAlertService.removeAlert(user.id, matchId);
+      if (success) {
+        setNotificationsEnabled(false);
+        showToast(`Alerts disabled for ${match.home_team} vs ${match.away_team}`, "info");
+      } else {
+        showToast("Failed to disable alerts.", "error");
+      }
+    } else {
+      showToast("Requesting notification permission...", "info");
+      const success = await MatchAlertService.registerAlert(
+        user.id,
+        matchId,
+        match.home_team,
+        match.away_team,
+        match.sport_type || "football"
+      );
+      if (success) {
+        setNotificationsEnabled(true);
+        showToast(`Alerts registered for ${match.home_team} vs ${match.away_team}!`, "success");
+      } else {
+        showToast("Could not enable alerts. Please allow notifications in your browser.", "info");
+      }
+    }
+  };
 
   const [pollData, setPollData] = useState({ home: 0, draw: 0, away: 0 });
   const [hasVoted, setHasVoted] = useState<string | null>(null);
@@ -174,12 +237,6 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
             });
           }
           setCurrentMatch(prev => {
-            if (prev.home_score !== updated.home_score || prev.away_score !== updated.away_score) {
-              showToast(`GOAL! ${updated.home_team} ${updated.home_score} - ${updated.away_score} ${updated.away_team}`, "success");
-            }
-            if (prev.status !== "LIVE" && updated.status === "LIVE") {
-              showToast(`${updated.home_team} vs ${updated.away_team} is now LIVE!`, "info");
-            }
             return {
               ...prev,
               home_score: updated.home_score,
@@ -294,6 +351,41 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
       if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
     };
   }, [currentStreamUrl, user]);
+
+  // Central Stream Session Sync & Drift Protection
+  useEffect(() => {
+    if (!match.id) return;
+    const fetchServerSync = async () => {
+      try {
+        const res = await axios.get(`/api/sports/stream-sync/${match.id}`);
+        console.log("Central Stream Session Sync initialized on server:", res.data);
+      } catch (err) {
+        console.warn("Failed to ping server stream sync:", err);
+      }
+    };
+    fetchServerSync();
+  }, [match.id, currentStreamUrl]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const interval = setInterval(() => {
+      if (video.paused || !video.seekable || video.seekable.length === 0) return;
+      
+      const liveEdge = video.seekable.end(video.seekable.length - 1);
+      const current = video.currentTime;
+      const lag = liveEdge - current;
+
+      // Force snap back to the exact live streaming edge if the user's connection lags or resumes
+      if (lag > 8 && lag < 1000) {
+        console.log(`Live stream drift detected (${lag.toFixed(1)}s behind). Re-aligning with current main stream timeline...`);
+        video.currentTime = liveEdge - 1.5;
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [currentStreamUrl]);
 
   useEffect(() => {
     if (!match.id) return;
@@ -646,10 +738,24 @@ export default function SportsMatchDetails({ match, initialStreamUrl, onBack }: 
             </button>
           ))}
         </div>
-        <button onClick={shareMatch} className="flex items-center gap-2 text-xs font-bold text-[#A1A1AA] hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/10">
-          <Share2 className="w-3.5 h-3.5" />
-          SHARE
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={toggleMatchAlert} 
+            className={`flex items-center gap-2 text-xs font-bold transition-all px-3 py-1.5 rounded-full border ${
+              notificationsEnabled 
+                ? "bg-[#FF3B30]/10 border-[#FF3B30]/30 text-[#FF3B30] hover:bg-[#FF3B30]/20" 
+                : "bg-white/5 hover:bg-white/10 text-[#A1A1AA] hover:text-white border-white/10"
+            }`}
+            title={notificationsEnabled ? "Match alerts enabled" : "Enable match alerts"}
+          >
+            <Bell className="w-3.5 h-3.5" fill={notificationsEnabled ? "currentColor" : "none"} />
+            <span>{notificationsEnabled ? "ALERTS ACTIVE" : "GET ALERTS"}</span>
+          </button>
+          <button onClick={shareMatch} className="flex items-center gap-2 text-xs font-bold text-[#A1A1AA] hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/10">
+            <Share2 className="w-3.5 h-3.5" />
+            SHARE
+          </button>
+        </div>
       </div>
 
       {/* Content */}

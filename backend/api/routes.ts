@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { DiscoveryService } from "../services/discoveryService.js";
 import { MatchScraper } from "../services/matchScraper.js";
 import { StreamValidator } from "../services/streamValidator.js";
+import { MatchMonitor } from "../services/matchMonitor.js";
 import { rewritePlaylistForProxy, fetchSegmentStreaming } from "../proxy/engine.js";
 import axios from "axios";
 import { config } from "../config/settings.js";
@@ -193,3 +194,21 @@ backendRouter.get("/proxy/segment", async (req, res) => {
   
   await fetchSegmentStreaming(url, res);
 });
+
+// GET /api/notifications/vapid-public-key
+backendRouter.get("/notifications/vapid-public-key", (req, res) => {
+  const publicKey = MatchMonitor.getPublicKey();
+  if (publicKey) {
+    res.json({ publicKey });
+  } else {
+    res.status(500).json({ error: "VAPID public key not generated yet" });
+  }
+});
+
+// GET /api/sports/stream-sync/:matchId
+backendRouter.get("/sports/stream-sync/:matchId", (req, res) => {
+  const { matchId } = req.params;
+  const syncData = MatchMonitor.getStreamSession(matchId);
+  res.json(syncData);
+});
+

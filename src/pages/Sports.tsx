@@ -12,6 +12,10 @@ import SportsMatchDetails from "../components/SportsMatchDetails";
 import { NoticeMessage } from "../components/NoticeMessage";
 import { Skeleton } from "../components/Skeleton";
 import { useParams, useNavigate } from "react-router-dom";
+import { useToast } from "../contexts/ToastContext";
+import { MatchAlertService } from "../services/matchAlertService";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "../lib/firebase";
 
 const getMatchSlug = (match: Match) => {
   return `${match.id}-${match.home_team.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')}-vs-${match.away_team.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')}`;
@@ -201,6 +205,7 @@ export default function Sports() {
   const { user, preferences } = useAuth();
   const { matchSlug } = useParams();
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const [activeSport, setActiveSport] = useState<string>("football");
   const [activeDateIndex, setActiveDateIndex] = useState(0);
@@ -211,6 +216,70 @@ export default function Sports() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<{ match: Match; initialStreamUrl?: string } | null>(null);
+  
+  const [registeredAlerts, setRegisteredAlerts] = useState<Set<string>>(new Set());
+
+  // Fetch active match alert registrations for the logged in user
+  useEffect(() => {
+    if (!user?.id) return;
+    const fetchAlerts = async () => {
+      try {
+        const q = query(collection(db, "match_alerts"), where("userId", "==", user.id));
+        const snap = await getDocs(q);
+        const ids = new Set<string>();
+        snap.forEach(docSnap => {
+          ids.add(docSnap.data().matchId);
+        });
+        setRegisteredAlerts(ids);
+      } catch (err) {
+        console.warn("Failed to load registered match alerts:", err);
+      }
+    };
+    fetchAlerts();
+  }, [user?.id]);
+
+  const handleToggleAlert = async (match: Match, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user?.id) {
+      showToast("Please sign in to register for match alerts.", "info");
+      return;
+    }
+    const matchId = match.id;
+    const isRegistered = registeredAlerts.has(matchId);
+
+    if (isRegistered) {
+      const success = await MatchAlertService.removeAlert(user.id, matchId);
+      if (success) {
+        setRegisteredAlerts(prev => {
+          const next = new Set(prev);
+          next.delete(matchId);
+          return next;
+        });
+        showToast(`Alerts disabled for ${match.home_team} vs ${match.away_team}`, "info");
+      } else {
+        showToast("Failed to disable alerts.", "error");
+      }
+    } else {
+      showToast("Requesting notification permission...", "info");
+      const success = await MatchAlertService.registerAlert(
+        user.id,
+        matchId,
+        match.home_team,
+        match.away_team,
+        match.sport_type || activeSport
+      );
+      if (success) {
+        setRegisteredAlerts(prev => {
+          const next = new Set(prev);
+          next.add(matchId);
+          return next;
+        });
+        showToast(`Alerts registered for ${match.home_team} vs ${match.away_team}!`, "success");
+      } else {
+        showToast("Could not enable alerts. Please allow notifications in your browser.", "info");
+      }
+    }
+  };
 
   const fetchMatches = async (isBackground = false) => {
     if (!isBackground) {
@@ -698,8 +767,16 @@ export default function Sports() {
                       <button className="hidden sm:flex items-center gap-1.5 px-4 py-2 border border-white/10 rounded-full text-xs font-bold hover:bg-white/5 transition-colors text-white">
                         <PlayCircle className="w-3.5 h-3.5 text-[#FF3B30]" /> View Match
                       </button>
-                      <button className="w-10 h-10 rounded-full bg-white/[0.06] flex items-center justify-center text-[#A1A1AA] hover:text-white hover:bg-white/[0.1] transition-colors border border-white/[0.08]">
-                        <Bell className="w-4 h-4" />
+                      <button 
+                        onClick={(e) => handleToggleAlert(match, e)}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors border ${
+                          registeredAlerts.has(match.id) 
+                            ? "bg-[#FF3B30]/10 text-[#FF3B30] border-[#FF3B30]/30 hover:bg-[#FF3B30]/20" 
+                            : "bg-white/[0.06] text-[#A1A1AA] hover:text-white hover:bg-white/[0.1] border-white/[0.08]"
+                        }`}
+                        title={registeredAlerts.has(match.id) ? "Alerts enabled (Click to disable)" : "Get kickoff and final score alerts"}
+                      >
+                        <Bell className="w-4 h-4" fill={registeredAlerts.has(match.id) ? "currentColor" : "none"} />
                       </button>
                     </div>
                   </div>

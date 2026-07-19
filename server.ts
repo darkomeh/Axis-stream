@@ -1,4 +1,5 @@
 import { backendRouter } from "./backend/api/routes.js";
+import { MatchMonitor } from "./backend/services/matchMonitor.js";
 import express from "express";
 import compression from "compression";
 import path from "path";
@@ -1191,6 +1192,11 @@ async function startServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    try {
+      MatchMonitor.init();
+    } catch (err) {
+      console.error("Failed to start MatchMonitor:", err);
+    }
   });
 }
 
